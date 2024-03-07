@@ -1,0 +1,28 @@
+{
+  "character": {
+    "name": "Barbarian",
+    "stats": {
+      "strength": 10,
+      "agility": 8,
+      "stamina": 12,
+      "intelligence": 5
+    },
+    "level": 1,
+    "experience": 0,
+    "inventory": [],
+    "equipment": {}
+  },
+  "enemies": [
+    {
+      "name": "Goblin",
+      "stats": {
+        "health": 5,
+        "attack": 2,
+        "defense": 1
+      },
+      "loot": [
+        { "name": "Rusty Dagger", "type": "weapon" }
+      ]
+    }
+  ]
+}
