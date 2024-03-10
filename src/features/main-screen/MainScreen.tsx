@@ -4,7 +4,9 @@ import { StyleSheet, Text, View, Button, ImageBackground } from 'react-native';
 // import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 import { Room } from '../room/Room'
-
+import { Player } from '../player/Player'
+import { Counter } from '../counter/Counter'
+ 
 export const MainScreen = () => {
     // const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
     // const count = useAppSelector(state => state.counter.value); // Select the current count
@@ -12,6 +14,7 @@ export const MainScreen = () => {
     return (
         <View style={styles.mainScreen}>
             <Room/>
+            <Player/>
         </View>
     );
 };
