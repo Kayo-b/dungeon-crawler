@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Button, ImageBackground, TouchableOpacity } fro
 import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
+import { changeEnemy } from '../../features/enemy/enemySlice';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 
 export const Room = () => {
@@ -16,6 +17,7 @@ export const Room = () => {
                 style={styles.backgroundImage}
                 >
                 <Enemy/>
+                <Button title="changeEnemy" onPress={() => dispatch(changeEnemy(1))}></Button>
             </ImageBackground>
         </View>
     );

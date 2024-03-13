@@ -6,7 +6,7 @@ import  { useAppDispatch, useAppSelector } from '../../app/hooks';
 
 export const Enemy = () => {
     const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
-    const count = useAppSelector(state => state.enemyhealth.value); // Select the current count
+    const count = useAppSelector(state => state.enemyhealth.health); // Select the current count
     const dmgTaken = useAppSelector(state => state.enemyhealth.dmgLog[state.enemyhealth.dmgLog.length - 1]); // Select the current count
     const [tempHealth, setTempHealt] = useState(count);
 

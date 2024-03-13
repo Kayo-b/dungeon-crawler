@@ -24,6 +24,17 @@
       "loot": [
         { "name": "Rusty Dagger", "type": "weapon" }
       ]
+    },
+    {
+      "name": "Ratazan",
+      "stats": {
+        "health": 8,
+        "attack": 3,
+        "defense": 2
+      },
+      "loot": [
+        { "name": "Gold Coin", "type": "currency" }
+      ]
     }
   ]
 }

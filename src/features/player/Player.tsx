@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { useCombat } from '../../events/combat' 
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 
-import { dmg, dmg2 } from '../../features/enemy/enemySlice'
+import { dmgTaken } from '../../features/enemy/enemySlice'
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 
@@ -21,7 +21,6 @@ export const Player = () => {
             useNativeDriver: true, // Use native driver for better performance
         }).start();
     },[count])
-
 
     const { attack } = useCombat();
     return (
