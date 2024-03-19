@@ -4,27 +4,27 @@ import data from '../../data/characters.json';
 const playerHealth = data.character.stats.health;
 
 interface CounterState {
-    value: number;
+    health: number;
     dmgLog: number[];
 }
 
 const initialState: CounterState = {
-    value: playerHealth,
+    health: playerHealth,
     dmgLog: [],
 }
 
 const playerSlice = createSlice({
-    name: 'playerhealth',
+    name: 'player',
     initialState,
     reducers: {
         // increment
         dmgPlayer(state) {
             // adding immutable code using immer so we can use mutable syntax and 
             // immer makes it immutable (aka copy add value to copy...) 
-            state.value--;
+            state.health--;
         },
         dmg2Player(state, action: PayloadAction<number>) {
-            state.value -= action.payload; 
+            state.health -= action.payload; 
             state.dmgLog.push(action.payload);
         }  
     },

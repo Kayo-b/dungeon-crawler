@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { ImageSourcePropType } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, ImageBackground, Animated } from 'react-native';
 import  { useAppDispatch, useAppSelector } from '../../app/hooks';
@@ -6,13 +7,20 @@ import  { useAppDispatch, useAppSelector } from '../../app/hooks';
 
 export const Enemy = () => {
     const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
-    const count = useAppSelector(state => state.enemyhealth.health); // Select the current count
-    const dmgTaken = useAppSelector(state => state.enemyhealth.dmgLog[state.enemyhealth.dmgLog.length - 1]); // Select the current count
-    const [tempHealth, setTempHealt] = useState(count);
+    const count = useAppSelector(state => state.enemy.health); // Select the current count
+    const dmgLog = useAppSelector(state => state.enemy.dmgLog); // Select the current count
+    const dmgTaken = useAppSelector(state => state.enemy.dmgLog[state.enemy.dmgLog.length - 1]); // Select the current count
+    const enemyIndex = useAppSelector(state => state.enemy.currentEnemyIndex); 
 
     const fadeAnim = useRef(new Animated.Value(1)).current; 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
     const moveAnimDmg = useRef(new Animated.Value(0)).current;
+
+    const resources = [
+        require('../../resources/skeleton_01.png'),
+        require('../../resources/demonrat_01.png'),
+    ]
+
     useEffect(() => {
 
         fadeAnimDmg.setValue(1);
@@ -45,7 +53,7 @@ export const Enemy = () => {
         <View > 
             <Animated.View style={{ opacity: fadeAnim }}>
                 <ImageBackground
-                        source={require('../../resources/skeleton_01.png')} 
+                        source={resources[enemyIndex] as ImageSourcePropType} 
                         style={[styles.enemy]}
                         resizeMode="contain"
                     >
@@ -57,7 +65,6 @@ export const Enemy = () => {
                     <Text style={styles.text}>Life: {count}</Text>
                 </ImageBackground>
             </Animated.View>
-           
             {/* <Button title="test" onPress={() => dispatch(dmg())}></Button> */}
         </View>
     );

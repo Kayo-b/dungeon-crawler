@@ -1,0 +1,21 @@
+{
+    "rooms": [
+        {
+            "id": 1,
+            "name": "Room 1",
+            "description": "This is the first room in the dungeon.",
+            "background": "dungeon-room_00.jpg"
+        },
+        {
+            "id": 2,
+            "name": "Room 2",
+            "description": "This is the second room in the dungeon.",
+            "background": "dungeon-room_01.jpg"
+        },
+        {
+            "id": 3,
+            "name": "Room 3",
+            "description": "This is the third room in the dungeon."
+        }
+    ]
+}

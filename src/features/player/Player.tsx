@@ -9,8 +9,8 @@ import { dmgTaken } from '../../features/enemy/enemySlice'
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 
-    const count = useAppSelector(state => state.playerhealth.value); 
-    const dmgtaken = useAppSelector(state => state.playerhealth.dmgLog[state.playerhealth.dmgLog.length - 1]); // Select the current count
+    const playerHealth = useAppSelector(state => state.player.health); 
+    const dmgtaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
     
     useEffect(() => {
@@ -20,9 +20,9 @@ export const Player = () => {
             duration: 700,
             useNativeDriver: true, // Use native driver for better performance
         }).start();
-    },[count])
-
-    const { attack } = useCombat();
+    },[playerHealth])
+    
+    const { attack, startCombat } = useCombat();
     return (
         <View > 
             <ImageBackground
@@ -33,8 +33,8 @@ export const Player = () => {
                         <Text>-{dmgtaken}</Text>
                     </Animated.Text>
             </ImageBackground>
-            <Text style={styles.text}>Player Life: {count}</Text>
-            <Button title="Atk" onPress={ attack }></Button>
+            <Text style={styles.text}>Player Life: {playerHealth}</Text>
+            <Button title="Atk" onPress={ startCombat }></Button>
         </View>
     );
 };

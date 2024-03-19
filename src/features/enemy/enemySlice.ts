@@ -8,6 +8,7 @@ interface EnemyState {
     health: number;
     dmgLog: number[];
     enemyDmg: number;
+
 }
 
 const enemyInitialState: EnemyState = {
@@ -18,7 +19,7 @@ const enemyInitialState: EnemyState = {
 }
 
 const enemySlice = createSlice({
-    name: 'enemyhealth',
+    name: 'enemy',
     initialState: enemyInitialState,
     reducers: {
         dmgTaken(state, action: PayloadAction<number>) {
