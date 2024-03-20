@@ -13,8 +13,51 @@ export const useCombat = () => {
     const [combat, setCombat] = useState(false);
     //  Simple turn based system
 
+    const timer = () => {
+        return setTimeout(() => console.log("2sec"), 2000)
+    }
     const startCombat = () => {
+        // setPlayerTurn(true);
         setCombat(true);
+        // cdCombat();
+    }
+    const playerLoop = () => {
+        const playerInt = setInterval(() => { 
+        if(playerHealth > 0 && enemyHealth > 0 && combat) {
+            dispatch(dmgTaken(1))
+            console.log("Player attack", enemyHealth)
+        } else {
+            // setCombat(false);
+            clearInterval(playerInt);
+        }
+      }, 2000)
+      setCombat(false);
+    }
+    const enemyLoop = () => {
+       const enemyInt = setInterval(() => {
+        if(enemyHealth > 0 && playerHealth > 0 && combat) {
+            dispatch(dmg2Player(1))
+            console.log("Enemy attack", playerHealth)
+        } else {
+            // setCombat(false);
+            clearInterval(enemyInt);
+        } 
+      }, 2000)
+      setCombat(false)
+    }
+    const cdCombat = () => {    
+        playerLoop();
+        // enemyLoop();
+
+        // enemyLoop();
+        // const playerDmg = 1 + Math.floor(Math.random() * 2);
+        // if(playerHealth > 0 || enemyHealth > 0) {
+        //     setTimeout(() => dispatch(dmgTaken(playerDmg)), 1500);
+        //     setTimeout(() => dispatch(dmg2Player(enemyDmg)), 1500);
+        // } else {
+        //     setCombat(false);
+        // }  
+           
     }
 
     const attack = () => {
@@ -31,10 +74,11 @@ export const useCombat = () => {
             console.log("Combat ended")
         }
     };
-    
+     
     useEffect(() => {
-        if(combat) attack();
-    },[enemyHealth, playerHealth, combat])
+        console.log(combat, "Combat")
+        if(combat) playerLoop();//attack();
+    },[combat, playerHealth, enemyHealth])
 
    
     
