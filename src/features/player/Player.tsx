@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { useCombat } from '../../events/combat' 
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 
-import { dmgTaken } from '../../features/enemy/enemySlice'
+import { dmg2Enemy } from '../../features/enemy/enemySlice'
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 

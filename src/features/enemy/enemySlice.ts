@@ -22,7 +22,7 @@ const enemySlice = createSlice({
     name: 'enemy',
     initialState: enemyInitialState,
     reducers: {
-        dmgTaken(state, action: PayloadAction<number>) {
+        dmg2Enemy(state, action: PayloadAction<number>) {
            state.health -= action.payload; 
            state.dmgLog.push(action.payload * -1);
         },
@@ -34,5 +34,5 @@ const enemySlice = createSlice({
     }
 })
 
-export const { dmgTaken, changeEnemy } = enemySlice.actions;
+export const { dmg2Enemy, changeEnemy } = enemySlice.actions;
 export default enemySlice.reducer;

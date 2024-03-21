@@ -6,7 +6,8 @@
       "strength": 10,
       "agility": 8,
       "stamina": 12,
-      "intelligence": 5
+      "intelligence": 5,
+      "baseDmg": 1
     },
     "level": 1,
     "experience": 0,

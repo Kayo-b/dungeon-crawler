@@ -2,14 +2,17 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import data from '../../data/characters.json';
 
 const playerHealth = data.character.stats.health;
+const playerDmg = data.character.stats.baseDmg;
 
 interface CounterState {
     health: number;
+    playerDmg: number;
     dmgLog: number[];
 }
 
 const initialState: CounterState = {
     health: playerHealth,
+    playerDmg: playerDmg,
     dmgLog: [],
 }
 

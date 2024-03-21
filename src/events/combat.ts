@@ -1,34 +1,39 @@
 import { useEffect, useState, useRef } from 'react';
 import data from '../data/characters.json';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
-import { dmgTaken } from './../features/enemy/enemySlice';
+import { dmg2Enemy } from './../features/enemy/enemySlice';
 import { dmgPlayer, dmg2Player } from './../features/player/playerSlice'
 
 export const useCombat = () => {
     const enemyHealth = useAppSelector(state => state.enemy.health);
     const playerHealth = useAppSelector(state => state.player.health);
     const enemyDmg = useAppSelector(state => state.enemy.enemyDmg);
+    const playerDmg = useAppSelector(state => state.player.playerDmg)
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
     const [combat, setCombat] = useState(false);
     const combatRef = useRef(false);
     const playerCombatIntRef: any = useRef<number | null>(null)
+    const enemyCombatIntRef: any = useRef<number | null>(null)
+    let tempEnemyHealth = enemyHealth;
+    let tempPlayerHealth = playerHealth;
     
     const startCombat = () => {
         combatRef.current = true;
+        // setCombat(true);
         playerLoop();
+        enemyLoop();
     }
 
     const playerLoop = () => {
         console.log("Player loop", playerCombatIntRef.current)
-        let tempEnemyHealth = enemyHealth;
-        let tempPlayerHealth = playerHealth;
         if(playerCombatIntRef.current === null) {
             console.log("Player loop started")
-            playerCombatIntRef.current = setInterval(() => { 
+            playerCombatIntRef.current = setInterval(() => {
+                console.log("Temp Player Health:", tempPlayerHealth) 
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
-                    dispatch(dmgTaken(1))
-                    tempEnemyHealth -= 1;
+                    dispatch(dmg2Enemy(playerDmg))
+                    tempEnemyHealth -= playerDmg;
                     console.log("Player attack", enemyHealth)
                 } else {
                     // setCombat(false);
@@ -37,21 +42,27 @@ export const useCombat = () => {
                     combatRef.current = false;
                     setCombat(false);
                 }
-            }, 2000)
+            }, 1000)
         }
-   }
-    // const enemyLoop = () => {
-    //    const enemyInt = setInterval(() => {
-    //     if(enemyHealth > 0 && playerHealth > 0 && combat) {
-    //         dispatch(dmg2Player(1))
-    //         console.log("Enemy attack", playerHealth)
-    //     } else {
-    //         // setCombat(false);
-    //         clearInterval(enemyInt);
-    //     } 
-    //   }, 2000)
-    //   setCombat(false)
-    // }
+    }
+
+    const enemyLoop = () => {
+        if(enemyCombatIntRef.current === null) {
+            enemyCombatIntRef.current = setInterval(() => {
+                if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
+                    dispatch(dmg2Player(enemyDmg))
+                    tempPlayerHealth -= enemyDmg;
+                    console.log("Enemy attack", playerHealth)
+                } else {
+                    // setCombat(false);
+                    clearInterval(enemyCombatIntRef.current);
+                    enemyCombatIntRef.current = null;
+                    combatRef.current = false;
+                    setCombat(false);
+                } 
+            }, 1000)
+        }
+    }
 
     // const attack = () => {
     //     if(playerTurn) {
@@ -72,10 +83,10 @@ export const useCombat = () => {
     useEffect(() => {
         return () => {
             if(playerCombatIntRef.current) clearInterval(playerCombatIntRef.current);
+            if(enemyCombatIntRef.current) clearInterval(enemyCombatIntRef.current);
         };
      },[combat]);
 
-   
     
     // const counterAttack = () => {
     //     console.log(enemyHealth,"Enemy health")
