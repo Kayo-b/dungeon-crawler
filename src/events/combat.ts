@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import data from '../data/characters.json';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { dmgTaken } from './../features/enemy/enemySlice';
@@ -11,74 +11,69 @@ export const useCombat = () => {
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
     const [combat, setCombat] = useState(false);
-    //  Simple turn based system
-
-    const timer = () => {
-        return setTimeout(() => console.log("2sec"), 2000)
-    }
+    const combatRef = useRef(false);
+    const playerCombatIntRef: any = useRef<number | null>(null)
+    
     const startCombat = () => {
-        // setPlayerTurn(true);
-        setCombat(true);
-        // cdCombat();
-    }
-    const playerLoop = () => {
-        const playerInt = setInterval(() => { 
-        if(playerHealth > 0 && enemyHealth > 0 && combat) {
-            dispatch(dmgTaken(1))
-            console.log("Player attack", enemyHealth)
-        } else {
-            // setCombat(false);
-            clearInterval(playerInt);
-        }
-      }, 2000)
-      setCombat(false);
-    }
-    const enemyLoop = () => {
-       const enemyInt = setInterval(() => {
-        if(enemyHealth > 0 && playerHealth > 0 && combat) {
-            dispatch(dmg2Player(1))
-            console.log("Enemy attack", playerHealth)
-        } else {
-            // setCombat(false);
-            clearInterval(enemyInt);
-        } 
-      }, 2000)
-      setCombat(false)
-    }
-    const cdCombat = () => {    
+        combatRef.current = true;
         playerLoop();
-        // enemyLoop();
-
-        // enemyLoop();
-        // const playerDmg = 1 + Math.floor(Math.random() * 2);
-        // if(playerHealth > 0 || enemyHealth > 0) {
-        //     setTimeout(() => dispatch(dmgTaken(playerDmg)), 1500);
-        //     setTimeout(() => dispatch(dmg2Player(enemyDmg)), 1500);
-        // } else {
-        //     setCombat(false);
-        // }  
-           
     }
 
-    const attack = () => {
-        if(playerTurn) {
-            const playerDmg = 1 + Math.floor(Math.random() * 2);
-            setTimeout(() => dispatch(dmgTaken(playerDmg)), 500)
-            setPlayerTurn(false);
-        } else if(enemyHealth > 0 && !playerTurn) {
-            setTimeout(() => dispatch(dmg2Player(enemyDmg)), 500);   
-            setPlayerTurn(true);
-            console.log("Enemy attack", playerHealth)
-        } else {
-            setCombat(false);
-            console.log("Combat ended")
+    const playerLoop = () => {
+        console.log("Player loop", playerCombatIntRef.current)
+        let tempEnemyHealth = enemyHealth;
+        let tempPlayerHealth = playerHealth;
+        if(playerCombatIntRef.current === null) {
+            console.log("Player loop started")
+            playerCombatIntRef.current = setInterval(() => { 
+                if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
+                    dispatch(dmgTaken(1))
+                    tempEnemyHealth -= 1;
+                    console.log("Player attack", enemyHealth)
+                } else {
+                    // setCombat(false);
+                    clearInterval(playerCombatIntRef.current);
+                    playerCombatIntRef.current = null;
+                    combatRef.current = false;
+                    setCombat(false);
+                }
+            }, 2000)
         }
-    };
+   }
+    // const enemyLoop = () => {
+    //    const enemyInt = setInterval(() => {
+    //     if(enemyHealth > 0 && playerHealth > 0 && combat) {
+    //         dispatch(dmg2Player(1))
+    //         console.log("Enemy attack", playerHealth)
+    //     } else {
+    //         // setCombat(false);
+    //         clearInterval(enemyInt);
+    //     } 
+    //   }, 2000)
+    //   setCombat(false)
+    // }
+
+    // const attack = () => {
+    //     if(playerTurn) {
+    //         const playerDmg = 1 + Math.floor(Math.random() * 2);
+    //         setTimeout(() => dispatch(dmgTaken(playerDmg)), 500)
+    //         setPlayerTurn(false);
+    //     } else if(enemyHealth > 0 && !playerTurn) {
+    //         setTimeout(() => dispatch(dmg2Player(enemyDmg)), 500);   
+    //         setPlayerTurn(true);
+    //         console.log("Enemy attack", playerHealth)
+    //     } else {
+    //         // setCombat(false);
+    //         combatRef.current = false;
+    //         console.log("Combat ended")
+    //     }
+    // };
      
     useEffect(() => {
-        console.log(combat, "Combat")
-        if(combat) playerLoop();//attack();
-    },[combat, playerHealth, enemyHealth])
+        return () => {
+            if(playerCombatIntRef.current) clearInterval(playerCombatIntRef.current);
+        };
+     },[combat]);
 
    
     
@@ -101,5 +96,5 @@ export const useCombat = () => {
     //     dispatch(castSpell(spellDamage));
     // };
 
-    return { attack, startCombat };
+    return { startCombat };
 };

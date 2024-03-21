@@ -22,7 +22,7 @@ export const Player = () => {
         }).start();
     },[playerHealth])
     
-    const { attack, startCombat } = useCombat();
+    const { startCombat } = useCombat();
     return (
         <View > 
             <ImageBackground
