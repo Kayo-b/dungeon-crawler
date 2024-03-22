@@ -1,8 +1,17 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import data from '../../data/characters.json';
 
-const playerHealth = data.character.stats.health;
-const playerDmg = data.character.stats.baseDmg;
+let health = data.character.stats.health;
+let vitality = data.character.stats.vitality;
+let strength = data.character.stats.strength;
+let damage = data.character.stats.baseDmg;
+
+const calculateStats = () => {
+    health = health + (vitality/10 * 4);
+    damage = damage + (strength/10 * 3) + Math.floor(Math.random() * 3);//Fix this
+}
+
+calculateStats();
 
 interface CounterState {
     health: number;
@@ -11,10 +20,12 @@ interface CounterState {
 }
 
 const initialState: CounterState = {
-    health: playerHealth,
-    playerDmg: playerDmg,
+    health: health,
+    playerDmg: damage,
     dmgLog: [],
 }
+
+
 
 const playerSlice = createSlice({
     name: 'player',

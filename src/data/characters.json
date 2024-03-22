@@ -2,10 +2,11 @@
   "character": {
     "name": "Demork",
     "stats": {
-      "health": 20,
+      "health": 40,
       "strength": 10,
-      "agility": 8,
+      "agility": 5,
       "stamina": 12,
+      "vitality": 25,
       "intelligence": 5,
       "baseDmg": 1
     },
@@ -18,8 +19,8 @@
     {
       "name": "Skelly",
       "stats": {
-        "health": 5,
-        "attack": 3,
+        "health": 14,
+        "attack": 2,
         "defense": 2,
         "atkSpeed": 0.80
       },
@@ -30,10 +31,10 @@
     {
       "name": "Ratazan",
       "stats": {
-        "health": 8,
-        "attack": 2,
+        "health": 10,
+        "attack": 1,
         "defense": 1,
-        "atkSpeed": 1.20
+        "atkSpeed": 1.1
       },
       "loot": [
         { "name": "Gold Coin", "type": "currency" }
