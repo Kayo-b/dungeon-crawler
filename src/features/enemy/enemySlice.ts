@@ -7,15 +7,17 @@ interface EnemyState {
     currentEnemyIndex: number;
     health: number;
     dmgLog: number[];
-    enemyDmg: number;
+    damage: number;
+    atkSpeed: number;
 
 }
 
 const enemyInitialState: EnemyState = {
-    currentEnemyIndex: 0,
-    health: data.enemies[0].stats.health,
+    currentEnemyIndex: 1,
+    health: data.enemies[1].stats.health,
     dmgLog: [],
-    enemyDmg: data.enemies[0].stats.attack
+    damage: data.enemies[1].stats.attack,
+    atkSpeed: data.enemies[1].stats.atkSpeed,
 }
 
 const enemySlice = createSlice({
@@ -29,7 +31,7 @@ const enemySlice = createSlice({
         changeEnemy(state, action: PayloadAction<number>) {
             state.currentEnemyIndex = action.payload;
             state.health = data.enemies[action.payload].stats.health;   
-            state.enemyDmg = data.enemies[action.payload].stats.attack;
+            state.damage = data.enemies[action.payload].stats.attack;
         }
     }
 })

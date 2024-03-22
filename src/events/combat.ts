@@ -7,7 +7,8 @@ import { dmgPlayer, dmg2Player } from './../features/player/playerSlice'
 export const useCombat = () => {
     const enemyHealth = useAppSelector(state => state.enemy.health);
     const playerHealth = useAppSelector(state => state.player.health);
-    const enemyDmg = useAppSelector(state => state.enemy.enemyDmg);
+    const enemyDmg = useAppSelector(state => state.enemy.damage);
+    const enemyAtkSpeed = useAppSelector(state => state.enemy.atkSpeed);
     const playerDmg = useAppSelector(state => state.player.playerDmg)
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
@@ -22,7 +23,7 @@ export const useCombat = () => {
         combatRef.current = true;
         // setCombat(true);
         playerLoop();
-        enemyLoop();
+        enemyLoop();// Default player initiaitve, make change so it becomes random or depends on stats.
     }
 
     const playerLoop = () => {
@@ -36,7 +37,6 @@ export const useCombat = () => {
                     tempEnemyHealth -= playerDmg;
                     console.log("Player attack", enemyHealth)
                 } else {
-                    // setCombat(false);
                     clearInterval(playerCombatIntRef.current);
                     playerCombatIntRef.current = null;
                     combatRef.current = false;
@@ -47,6 +47,7 @@ export const useCombat = () => {
     }
 
     const enemyLoop = () => {
+        console.log(enemyAtkSpeed, "Enemy attack speed")
         if(enemyCombatIntRef.current === null) {
             enemyCombatIntRef.current = setInterval(() => {
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
@@ -54,13 +55,12 @@ export const useCombat = () => {
                     tempPlayerHealth -= enemyDmg;
                     console.log("Enemy attack", playerHealth)
                 } else {
-                    // setCombat(false);
                     clearInterval(enemyCombatIntRef.current);
                     enemyCombatIntRef.current = null;
                     combatRef.current = false;
                     setCombat(false);
                 } 
-            }, 1000)
+            }, 1000 / enemyAtkSpeed)
         }
     }
 
@@ -82,8 +82,8 @@ export const useCombat = () => {
      
     useEffect(() => {
         return () => {
-            if(playerCombatIntRef.current) clearInterval(playerCombatIntRef.current);
-            if(enemyCombatIntRef.current) clearInterval(enemyCombatIntRef.current);
+            // if(playerCombatIntRef.current) clearInterval(playerCombatIntRef.current);
+            // if(enemyCombatIntRef.current) clearInterval(enemyCombatIntRef.current);
         };
      },[combat]);
 

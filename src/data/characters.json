@@ -19,8 +19,9 @@
       "name": "Skelly",
       "stats": {
         "health": 5,
-        "attack": 2,
-        "defense": 1
+        "attack": 3,
+        "defense": 2,
+        "atkSpeed": 0.80
       },
       "loot": [
         { "name": "Rusty Dagger", "type": "weapon" }
@@ -30,8 +31,9 @@
       "name": "Ratazan",
       "stats": {
         "health": 8,
-        "attack": 3,
-        "defense": 2
+        "attack": 2,
+        "defense": 1,
+        "atkSpeed": 1.20
       },
       "loot": [
         { "name": "Gold Coin", "type": "currency" }
