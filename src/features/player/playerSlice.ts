@@ -7,8 +7,8 @@ let strength = data.character.stats.strength;
 let damage = data.character.stats.baseDmg;
 
 const calculateStats = () => {
-    health = health + (vitality/10 * 4);
-    damage = damage + (strength/10 * 3) + Math.floor(Math.random() * 3);//Fix this
+    health = health + (Math.floor(vitality/10 * 4));
+    damage = damage + (Math.floor(strength/10 * 3)); 
 }
 
 calculateStats();

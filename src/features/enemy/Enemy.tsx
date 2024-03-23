@@ -22,7 +22,7 @@ export const Enemy = () => {
     ]
 
     useEffect(() => {
-
+        console.log(count,"health Enemy")
         fadeAnimDmg.setValue(1);
         moveAnimDmg.setValue(0);
         
