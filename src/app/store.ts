@@ -11,7 +11,6 @@ export const store = configureStore({
           player: playerReducer,
           enemy: enemyReducer,
           room: roomReducer,
-
      },
 })
 

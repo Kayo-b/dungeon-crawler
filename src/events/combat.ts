@@ -9,6 +9,7 @@ export const useCombat = () => {
     const playerHealth = useAppSelector(state => state.player.health);
     const enemyDmg = useAppSelector(state => state.enemy.damage);
     const enemyAtkSpeed = useAppSelector(state => state.enemy.atkSpeed);
+    const playerAtkSpeed = useAppSelector(state => state.player.atkSpeed);
     let playerDmg = useAppSelector(state => state.player.playerDmg)
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
@@ -27,9 +28,10 @@ export const useCombat = () => {
     }
 
     const playerLoop = () => {
+        console.log(playerAtkSpeed, "Player atk speed")
         if(playerCombatIntRef.current === null) {
             playerCombatIntRef.current = setInterval(() => {
-                const randomVal = Math.floor(Math.random() * 2 - 1);
+                const randomVal = Math.floor(Math.random() * 2);
                 console.log(tempEnemyHealth, tempPlayerHealth, combatRef.current, "!!!!!!!!!!!!!!!")
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
                     dispatch(dmg2Enemy(playerDmg + randomVal)); 
@@ -40,14 +42,14 @@ export const useCombat = () => {
                     combatRef.current = false;
                     setCombat(false);
                 }
-            }, 1000)
+            }, 1000 / playerAtkSpeed)
         }
     }
 
     const enemyLoop = () => {
         if(enemyCombatIntRef.current === null) {
             enemyCombatIntRef.current = setInterval(() => {
-                const randomVal = Math.floor(Math.random() * 2 - 1);
+                const randomVal = Math.floor(Math.random() * 2);
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
                     dispatch(dmg2Player(enemyDmg + randomVal))
                     tempPlayerHealth -= enemyDmg + randomVal;

@@ -3,12 +3,13 @@
     "name": "Demork",
     "stats": {
       "health": 40,
-      "strength": 5,
-      "agility": 5,
+      "strength": 8,
+      "agility": 4,
       "stamina": 12,
       "vitality": 10,
-      "intelligence": 5,
-      "baseDmg": 1
+      "intelligence": 3,
+      "baseDmg": 1,
+      "atkSpeed": 1.0
     },
     "level": 1,
     "experience": 0,

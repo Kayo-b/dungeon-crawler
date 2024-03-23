@@ -17,7 +17,7 @@ const enemyInitialState: EnemyState = {
     health: data.enemies[1].stats.health,
     dmgLog: [],
     damage: data.enemies[1].stats.attack,
-    atkSpeed: data.enemies[1].stats.atkSpeed,
+    atkSpeed: data.enemies[1].stats.atkSpeed
 }
 
 const enemySlice = createSlice({
