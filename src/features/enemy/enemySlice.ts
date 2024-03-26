@@ -9,6 +9,7 @@ interface EnemyState {
     dmgLog: number[];
     damage: number;
     atkSpeed: number;
+    xp: number;
 
 }
 
@@ -17,7 +18,8 @@ const enemyInitialState: EnemyState = {
     health: data.enemies[1].stats.health,
     dmgLog: [],
     damage: data.enemies[1].stats.attack,
-    atkSpeed: data.enemies[1].stats.atkSpeed
+    atkSpeed: data.enemies[1].stats.atkSpeed,
+    xp: data.enemies[1].info.xp
 }
 
 const enemySlice = createSlice({

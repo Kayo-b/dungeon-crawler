@@ -3,14 +3,17 @@ import data from '../data/characters.json';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { dmg2Enemy } from './../features/enemy/enemySlice';
 import { dmgPlayer, dmg2Player } from './../features/player/playerSlice'
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 export const useCombat = () => {
-    const enemyHealth = useAppSelector(state => state.enemy.health);
     const playerHealth = useAppSelector(state => state.player.health);
-    const enemyDmg = useAppSelector(state => state.enemy.damage);
-    const enemyAtkSpeed = useAppSelector(state => state.enemy.atkSpeed);
     const playerAtkSpeed = useAppSelector(state => state.player.atkSpeed);
     let playerDmg = useAppSelector(state => state.player.playerDmg)
+    const enemyHealth = useAppSelector(state => state.enemy.health);
+    const enemyDmg = useAppSelector(state => state.enemy.damage);
+    const enemyAtkSpeed = useAppSelector(state => state.enemy.atkSpeed);
+    const enemyXP = useAppSelector(state => state.enemy.xp);
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
     const [combat, setCombat] = useState(false);
@@ -27,6 +30,12 @@ export const useCombat = () => {
         enemyLoop();// Default player initiaitve, make change so it becomes random or depends on stats.
     }
 
+
+    const endCombat = () => {
+        
+    }
+
+
     const playerLoop = () => {
         console.log(playerAtkSpeed, "Player atk speed")
         if(playerCombatIntRef.current === null) {
@@ -37,6 +46,8 @@ export const useCombat = () => {
                     dispatch(dmg2Enemy(playerDmg + randomVal)); 
                     tempEnemyHealth -= playerDmg + randomVal; 
                 } else {
+                    if(tempEnemyHealth <= 0) {
+                    }
                     clearInterval(playerCombatIntRef.current);
                     playerCombatIntRef.current = null;
                     combatRef.current = false;
@@ -54,10 +65,13 @@ export const useCombat = () => {
                     dispatch(dmg2Player(enemyDmg + randomVal))
                     tempPlayerHealth -= enemyDmg + randomVal;
                 } else {
+                     if(tempEnemyHealth <= 0) {
+                    }                  
                     clearInterval(enemyCombatIntRef.current);
                     enemyCombatIntRef.current = null;
                     combatRef.current = false;
                     setCombat(false);
+                    
                 } 
             }, 1000 / enemyAtkSpeed)
         }
@@ -79,12 +93,12 @@ export const useCombat = () => {
     //     }
     // };
      
-    useEffect(() => {
-        return () => {
-            if(playerCombatIntRef.current) clearInterval(playerCombatIntRef.current);
-            if(enemyCombatIntRef.current) clearInterval(enemyCombatIntRef.current);
-        };
-     },[combat]);
+    // useEffect(() => {
+    //     return () => {
+    //         if(playerCombatIntRef.current) clearInterval(playerCombatIntRef.current);
+    //         if(enemyCombatIntRef.current) clearInterval(enemyCombatIntRef.current);
+    //     };
+    //  },[combat]);
 
     
     // const counterAttack = () => {

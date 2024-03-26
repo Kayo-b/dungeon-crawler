@@ -27,7 +27,12 @@
       },
       "loot": [
         { "name": "Rusty Dagger", "type": "weapon" }
-      ]
+      ],
+      "info" : {
+        "description": "A skeleton warrior, armed with a rusty sword.",
+        "level": 1,
+        "xp": 10
+      }
     },
     {
       "name": "Ratazan",
@@ -39,7 +44,12 @@
       },
       "loot": [
         { "name": "Gold Coin", "type": "currency" }
-      ]
+      ],
+      "info" : {
+        "description": "A giant rat, with sharp teeth and a bad attitude.",
+        "level": 1,
+        "xp": 6
+      }
     }
   ]
 }
