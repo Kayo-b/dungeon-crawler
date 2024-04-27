@@ -12,15 +12,14 @@ let agility = data.character.stats.agility;
 let damage = data.character.stats.baseDmg;
 let atkSpeed = data.character.stats.atkSpeed;
 
-
 async function saveData( health: number) {
     const data = await AsyncStorage.getItem('characters');
     const obj = data ? JSON.parse(data) : {};
     
     obj.character.stats.health = health;
-    obj.character.experience += experience;
-    console.log(obj.character.stats.health, "<< health");
-    console.log(obj.character.experience, "<< EXP");
+    // obj.character.experience += experience;
+    // console.log(obj.character.stats.health, "<< health");
+    // console.log(obj.character.experience, "<< EXP");
     await AsyncStorage.setItem('characters',JSON.stringify(obj));
 }
 
@@ -67,36 +66,25 @@ const playerSlice = createSlice({
         dmg2Player(state, action: PayloadAction<number>) {
             state.health -= action.payload; 
             state.dmgLog.push(action.payload);
+            saveData(state.health);
+            console.log(state.health, "Player health after dmg in state")
         },
         XP(state, action: PayloadAction<number>) {
+            console.log(action.payload,"action")
             state.experience += action.payload;
+
         },
         setHealth(state, action: PayloadAction<number>) {
             state.health = action.payload;
+        },
+        setXP(state, action: PayloadAction<number>) {
+            state.experience = action.payload;
         }
+
     },
 })
 
-export const { dmgPlayer, dmg2Player, XP, setHealth} = playerSlice.actions
+export const { dmgPlayer, dmg2Player, XP, setHealth, setXP} = playerSlice.actions
 export default playerSlice.reducer;
 
 
-async function initializeData() {
-    const dispatch = useAppDispatch()
-    const storedData = await AsyncStorage.getItem('characters');
-    let obj = storedData ? JSON.parse(storedData) : {};
-    if(!storedData) {
-        await AsyncStorage.setItem('characters', JSON.stringify(data));
-        const storedData = await AsyncStorage.getItem('characters');
-        obj = storedData ? JSON.parse(storedData) : {};
-    }
-    health = obj.character.stats.health;
-    experience = obj.character.stats.experience; 
-    console.log(health, "<!<!<!")
-    useEffect(() => {
-        dispatch(setHealth(health))
-    },[health])
-   
-}
-
-initializeData()

@@ -34,6 +34,8 @@ const enemySlice = createSlice({
             state.currentEnemyIndex = action.payload;
             state.health = data.enemies[action.payload].stats.health;   
             state.damage = data.enemies[action.payload].stats.attack;
+            state.atkSpeed = data.enemies[action.payload].stats.atkSpeed;
+            state.xp = data.enemies[action.payload].info.xp;
         }
     }
 })

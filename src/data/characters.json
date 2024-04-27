@@ -1,6 +1,6 @@
 {
   "character": {
-    "name": "Demork",
+    "name": "Test Demork",
     "stats": {
       "health": 40,
       "strength": 8,
@@ -11,7 +11,7 @@
       "baseDmg": 1,
       "atkSpeed": 1.0
     },
-    "level": 1,
+    "level": 0,
     "experience": 0,
     "inventory": [],
     "equipment": {}
@@ -23,7 +23,7 @@
         "health": 14,
         "attack": 2,
         "defense": 2,
-        "atkSpeed": 0.80
+        "atkSpeed": 0.8
       },
       "loot": [
         { "name": "Rusty Dagger", "type": "weapon" }
