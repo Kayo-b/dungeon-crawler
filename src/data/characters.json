@@ -11,8 +11,9 @@
       "baseDmg": 1,
       "atkSpeed": 1.0
     },
-    "level": 0,
+    "level": 1,
     "experience": 0,
+    "xptolvlup": 16,
     "inventory": [],
     "equipment": {}
   },
@@ -46,7 +47,7 @@
         { "name": "Gold Coin", "type": "currency" }
       ],
       "info" : {
-        "description": "A giant rat, with sharp teeth and a bad attitude.",
+        "description": "A giant rat, spawn from the depts.",
         "level": 1,
         "xp": 6
       }

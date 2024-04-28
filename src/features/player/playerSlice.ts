@@ -11,6 +11,7 @@ let strength = data.character.stats.strength;
 let agility = data.character.stats.agility; 
 let damage = data.character.stats.baseDmg;
 let atkSpeed = data.character.stats.atkSpeed;
+let level = data.character.level;
 
 async function saveData( health: number) {
     const data = await AsyncStorage.getItem('characters');
@@ -41,6 +42,7 @@ interface CounterState {
     dmgLog: number[];
     atkSpeed: number;
     experience: number;
+    level: number;
 }
 
 const initialState: CounterState = {
@@ -48,7 +50,8 @@ const initialState: CounterState = {
     playerDmg: damage,
     dmgLog: [],
     atkSpeed: atkSpeed,
-    experience: experience
+    experience: experience,
+    level: level,
 }
 
 
@@ -72,19 +75,24 @@ const playerSlice = createSlice({
         XP(state, action: PayloadAction<number>) {
             console.log(action.payload,"action")
             state.experience += action.payload;
-
         },
         setHealth(state, action: PayloadAction<number>) {
             state.health = action.payload;
         },
         setXP(state, action: PayloadAction<number>) {
             state.experience = action.payload;
+        },
+        levelUp(state) {
+            state.level++;
+        },
+        setLevel(state, action: PayloadAction<number>) {
+            state.level = action.payload;
         }
 
     },
 })
 
-export const { dmgPlayer, dmg2Player, XP, setHealth, setXP} = playerSlice.actions
+export const { dmgPlayer, dmg2Player, XP, setHealth, setXP, setLevel, levelUp} = playerSlice.actions
 export default playerSlice.reducer;
 
 

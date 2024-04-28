@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import data from '../data/characters.json';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { dmg2Enemy } from './../features/enemy/enemySlice';
-import { dmgPlayer, dmg2Player, XP } from './../features/player/playerSlice'
+import { dmgPlayer, dmg2Player, XP, levelUp } from './../features/player/playerSlice'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
@@ -33,15 +33,21 @@ export const useCombat = () => {
         enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
     }
 
-
     async function saveData() {
         const data = await AsyncStorage.getItem('characters');
         const obj = data ? JSON.parse(data) : {};
         
         obj.character.stats.health = tempPlayerHealth;
         obj.character.experience += enemyXP;
+        
         console.log(obj.character.stats.health, "<< health");
         console.log(obj.character.experience, "<< EXP");
+        if(obj.character.experience >= obj.character.xptolvlup) {
+            obj.character.level =+ 1;
+            dispatch(levelUp())
+
+            console.log(obj.character.level, "OI")
+        }
         await AsyncStorage.setItem('characters',JSON.stringify(obj));
     }
 

@@ -7,12 +7,13 @@ import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 
-import { setHealth, setXP } from '../../features/player/playerSlice'
+import { setHealth, setXP, setLevel } from '../../features/player/playerSlice'
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 
     const playerHealth = useAppSelector(state => state.player.health); 
     const playerXP = useAppSelector(state => state.player.experience);
+    const playerLevel = useAppSelector(state => state.player.level);
     const dmgtaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
     async function initializeData() {
@@ -25,16 +26,19 @@ export const Player = () => {
             const storedData = await AsyncStorage.getItem('characters');
             obj = storedData ? JSON.parse(storedData) : {};
         }
-        let health = obj.character.stats.health;
-        let experience = obj.character.experience; 
-        console.log(obj.character.experience,"EXPERIENCE")
+        const health = obj.character.stats.health;
+        const experience = obj.character.experience;
+        const level = obj.character.level; 
+        console.log(level,"LEVEL");
         dispatch(setHealth(health));
         dispatch(setXP(experience));
+        dispatch(setLevel(level));
     }
+    
     useEffect(() => {
         initializeData()
     },[])
-    
+
     useEffect(() => {
         fadeAnimDmg.setValue(1);
         Animated.timing(fadeAnimDmg, {
@@ -57,6 +61,7 @@ export const Player = () => {
             </ImageBackground>
             <Text style={styles.text}>Player Life: {playerHealth}</Text>
             <Text style={styles.text}>XP: {playerXP}</Text>
+            <Text style={styles.text}>Level: {playerLevel}</Text>
             <Button title="Atk" onPress={ startCombat }></Button>
         </View>
     );
