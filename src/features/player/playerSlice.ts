@@ -12,29 +12,48 @@ let agility = data.character.stats.agility;
 let damage = data.character.stats.baseDmg;
 let atkSpeed = data.character.stats.atkSpeed;
 let level = data.character.level;
+let stats = data.character.stats;
 
+//Save in storage
 async function saveData( health: number) {
     const data = await AsyncStorage.getItem('characters');
     const obj = data ? JSON.parse(data) : {};
-    
+    // stats = obj.character.stats; 
     obj.character.stats.health = health;
     // obj.character.experience += experience;
     // console.log(obj.character.stats.health, "<< health");
     // console.log(obj.character.experience, "<< EXP");
     await AsyncStorage.setItem('characters',JSON.stringify(obj));
 }
-
+// Get data from storage and set it to state
+async function setData() {
+    console.log("SETDATA")
+    const data = await AsyncStorage.getItem('characters');
+    const obj = data ? JSON.parse(data) : {};
+    stats = obj.character.stats; 
+    //await AsyncStorage.setItem('characters',JSON.stringify(obj));
+}
+// async function getData() {
+//     const data = await AsyncStorage.getItem('characters');
+//     const obj = data ? JSON.parse(data) : {};
+//     stats = obj.character.stats; 
+//     await AsyncStorage.setItem('characters',JSON.stringify(obj));
+// }
 // All the stats calculations and how each primary stats affect the secondary stats 
 // has to be reworked at some point, agility for example doesn't give atk speed in most
 // rpgs, maybe its not a good idea. But at the same time some kind of atk speed afix 
 // has to be implemented because the cooldown based combat, who attacks first is important. 
-const calculateStats = () => {
-    health = health + (Math.floor(vitality/10 * 4));
-    damage = damage + (Math.floor(strength/10 * 3)); // improve 
-    atkSpeed = atkSpeed + (agility/200); //1 agility = +0.5% atkSpeed
-}
-
-calculateStats();
+// const calculateStats = () => {
+//     console.log(stats.strength, "STR in calculateStats")
+//     health = health + (Math.floor(vitality/10 * 4));
+//     damage = damage + (Math.floor(stats.strength/10 * 3)); // improve 
+//     // console.log(strength, "STR")
+//     console.log(damage, "DMG")
+//     atkSpeed = atkSpeed + (agility/200); //1 agility = +0.5% atkSpeed
+//     console.log(stats, "< Stats")
+// }
+setData();
+// calculateStats();
 
 interface CounterState {
     health: number;
@@ -43,6 +62,7 @@ interface CounterState {
     atkSpeed: number;
     experience: number;
     level: number;
+    stats: Object
 }
 
 const initialState: CounterState = {
@@ -52,6 +72,7 @@ const initialState: CounterState = {
     atkSpeed: atkSpeed,
     experience: experience,
     level: level,
+    stats: stats,
 }
 
 
@@ -72,6 +93,9 @@ const playerSlice = createSlice({
             saveData(state.health);
             console.log(state.health, "Player health after dmg in state")
         },
+        setPlayerDmg(state, action: PayloadAction<number>) {
+            state.playerDmg = action.payload;
+        },
         XP(state, action: PayloadAction<number>) {
             console.log(action.payload,"action")
             state.experience += action.payload;
@@ -87,12 +111,18 @@ const playerSlice = createSlice({
         },
         setLevel(state, action: PayloadAction<number>) {
             state.level = action.payload;
-        }
+        },
+        setStats(state, action: PayloadAction<Object>) {
+            state.stats = action.payload;
+            // state.stats.vitality = action.payload;
+            // state.stats.agility = action.payload;
+        } 
+        
 
     },
 })
 
-export const { dmgPlayer, dmg2Player, XP, setHealth, setXP, setLevel, levelUp} = playerSlice.actions
+export const { dmgPlayer, dmg2Player, XP, setHealth, setXP, setLevel, levelUp, setStats, setPlayerDmg} = playerSlice.actions
 export default playerSlice.reducer;
 
 

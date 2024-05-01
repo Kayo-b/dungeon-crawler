@@ -28,6 +28,7 @@ export const useCombat = () => {
     
     const startCombat = () => {
         combatRef.current = true;
+        console.log(playerDmg, "Player dmg Combat component")
         // setCombat(true);
         playerLoop();
         enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
@@ -43,11 +44,17 @@ export const useCombat = () => {
         console.log(obj.character.stats.health, "<< health");
         console.log(obj.character.experience, "<< EXP");
         if(obj.character.experience >= obj.character.xptolvlup) {
-            obj.character.level =+ 1;
+            obj.character.level = obj.character.level + 1; 
+            obj.character.xptolvlup = obj.character.xptolvlup * 2;
+            obj.character.stats.health = obj.character.stats.health + 5;
+            obj.character.stats.strength = obj.character.stats.strength + 2.5;
+            obj.character.stats.vitality = obj.character.stats.vitality + 1;
+            obj.character.stats.agility = obj.character.stats.agility + 1;
+
             dispatch(levelUp())
 
-            console.log(obj.character.level, "OI")
         }
+        console.log(obj.character.stats.strength, "OI")
         await AsyncStorage.setItem('characters',JSON.stringify(obj));
     }
 

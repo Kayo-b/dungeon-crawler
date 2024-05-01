@@ -7,7 +7,7 @@ import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 
-import { setHealth, setXP, setLevel } from '../../features/player/playerSlice'
+import { setHealth, setXP, setLevel, setStats, setPlayerDmg } from '../../features/player/playerSlice'
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 
@@ -15,7 +15,8 @@ export const Player = () => {
     const playerXP = useAppSelector(state => state.player.experience);
     const playerLevel = useAppSelector(state => state.player.level);
     const dmgtaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
-    const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
+    const fadeAnimDmg = useRef(new Animated.Value(1)).current;
+
     async function initializeData() {
         // const dispatch = useAppDispatch()
         const storedData = await AsyncStorage.getItem('characters');
@@ -29,15 +30,18 @@ export const Player = () => {
         const health = obj.character.stats.health;
         const experience = obj.character.experience;
         const level = obj.character.level; 
-        console.log(level,"LEVEL");
+        const stats = obj.character.stats;
+        dispatch(setStats(stats));
+        console.log(stats,"STATS");
         dispatch(setHealth(health));
         dispatch(setXP(experience));
         dispatch(setLevel(level));
+        dispatch(setPlayerDmg(Math.floor(stats.baseDmg + stats.strength / 10 * 3)));
     }
     
     useEffect(() => {
         initializeData()
-    },[])
+    },[playerLevel])
 
     useEffect(() => {
         fadeAnimDmg.setValue(1);
