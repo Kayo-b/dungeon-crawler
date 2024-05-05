@@ -4,18 +4,31 @@
     "stats": {
       "health": 40,
       "strength": 8,
-      "agility": 4,
+      "dexterity": 40,
       "stamina": 12,
       "vitality": 10,
       "intelligence": 3,
-      "baseDmg": 1,
-      "atkSpeed": 1.0
+      "defense": 2
     },
     "level": 1,
     "experience": 0,
     "xptolvlup": 16,
     "inventory": [],
-    "equipment": {}
+    "equipment": {
+      "weapon": {
+        "name": "Rusty Sword",
+        "stats": {
+          "damage": 1,
+          "atkSpeed": 1.0
+        }
+      },
+      "armor": {
+        "name": "Leather Armor",
+        "stats": {
+          "defence": 2
+        }
+      }
+    }
   },
   "enemies": [
     {

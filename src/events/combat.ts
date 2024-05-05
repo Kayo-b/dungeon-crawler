@@ -25,6 +25,17 @@ export const useCombat = () => {
     let tempPlayerHealth = playerHealth;
     // let experience = data.character.experience;
 
+    const hitChance = (AR: number, DR: number, ALevel: number, DLevel: number) => {
+        return 2 * (AR / (AR + DR)) * (ALevel / (ALevel + DLevel));
+    }
+
+    const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
+        return (baseAR + dex * ARperDex) * (attackBonus + 1)
+    }
+
+    const defenceRating = (baseDef: number, bonusDef: number, str: number) => {   
+        return baseDef * (bonusDef + str * 0.1);
+    }
     
     const startCombat = () => {
         combatRef.current = true;
@@ -60,6 +71,7 @@ export const useCombat = () => {
 
 
     const playerLoop = () => {
+        console.log(playerDmg, "Player dmg")
         console.log(playerAtkSpeed, "Player atk speed")
         if(playerCombatIntRef.current === null) {
             playerCombatIntRef.current = setInterval(() => {

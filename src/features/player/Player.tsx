@@ -31,20 +31,57 @@ export const Player = () => {
         const experience = obj.character.experience;
         const level = obj.character.level; 
         const stats = obj.character.stats;
+        const baseDmg = obj.character.equipment.weapon.stats.damage;
+        const baseAR = obj.character.equipment.weapon.stats.atkSpeed;
         dispatch(setStats(stats));
-        console.log(stats,"STATS");
+        const baseDef = obj.character.equipment.armor.stats.defence;
+        // !!!! Make the defence in hitChance be the enemy defence(not the players)
+        // Will need to be implemented somwhere else.
+        let playerDmg = physicalDmg(baseDmg, stats.strength, 3);
+        let playerAR = attackRating(baseAR, stats.dexterity, 1, 1);
+        let playerDef = defenceRating(baseDef, 1, stats.dexterity);
+        let hitChan = hitChance(playerAR, playerDef, 1, 1);
+        console.log(hitChan,"HIT")
         dispatch(setHealth(health));
         dispatch(setXP(experience));
         dispatch(setLevel(level));
-        dispatch(setPlayerDmg(Math.floor(stats.baseDmg + stats.strength / 10 * 3)));
+        dispatch(setPlayerDmg(playerDmg));
+        attackRating(baseAR, stats.dexterity, 1, 1)
     }
-    
+
+    // these values might be wrong, need to check the formula
+    const physicalDmg = (baseDmg: number, str: number, strMod: number) => {
+        return Math.floor(baseDmg + str / 10 * strMod)
+    }
+
+    const hitChance = (AR: number, DR: number, ALevel: number, DLevel: number) => {
+        return 2 * (AR / (AR + DR)) * (ALevel / (ALevel + DLevel));
+    }
+
+    const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
+        const value = (baseAR + dex * ARperDex) * (attackBonus + 1);
+        //console.log for all values
+        console.log(baseAR, "baseAR")
+        console.log(dex, "dex2")
+        console.log(ARperDex, "ARperDex")
+        console.log(attackBonus, "attackBonus")
+        console.log(value, "value")
+        return value; 
+    }
+
+    const defenceRating = (baseDef: number, bonusDef: number, dex: number) => { 
+        console.log(baseDef, "baseDef3")
+        console.log(bonusDef, "bonusDef3")
+        console.log(dex, "dex3")  
+        return baseDef * (bonusDef + dex * 0.1);
+    }
+
     useEffect(() => {
         initializeData()
     },[playerLevel])
 
     useEffect(() => {
-        fadeAnimDmg.setValue(1);
+        fadeAnimDmg.setValue(1); 
         Animated.timing(fadeAnimDmg, {
             toValue: 0,
             duration: 700,

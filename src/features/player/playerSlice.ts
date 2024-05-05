@@ -8,12 +8,12 @@ let health = data.character.stats.health;
 let experience = data.character.experience;
 let vitality = data.character.stats.vitality;
 let strength = data.character.stats.strength;
-let agility = data.character.stats.agility; 
-let damage = data.character.stats.baseDmg;
-let atkSpeed = data.character.stats.atkSpeed;
+let agility = data.character.stats.dexterity; 
+let damage = data.character.equipment.weapon.stats.damage;
+let atkSpeed = data.character.equipment.weapon.stats.atkSpeed;
 let level = data.character.level;
 let stats = data.character.stats;
-
+console.log(damage,"DMG in playerSlice")
 //Save in storage
 async function saveData( health: number) {
     const data = await AsyncStorage.getItem('characters');
