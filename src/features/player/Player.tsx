@@ -7,7 +7,7 @@ import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 
-import { setHealth, setXP, setLevel, setStats, setPlayerDmg } from '../../features/player/playerSlice'
+import { setHealth, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating } from '../../features/player/playerSlice'
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 
@@ -39,14 +39,15 @@ export const Player = () => {
         // Will need to be implemented somwhere else.
         let playerDmg = physicalDmg(baseDmg, stats.strength, 3);
         let playerAR = attackRating(baseAR, stats.dexterity, 1, 1);
-        let playerDef = defenceRating(baseDef, 1, stats.dexterity);
-        let hitChan = hitChance(playerAR, playerDef, 1, 1);
-        console.log(hitChan,"HIT")
+        let playerDR = defenceRating(baseDef, 1, stats.dexterity);
+        // let hitChan = hitChance(playerAR, playerDef, 1, 1);
+        // console.log(hitChan,"HIT")
         dispatch(setHealth(health));
         dispatch(setXP(experience));
         dispatch(setLevel(level));
         dispatch(setPlayerDmg(playerDmg));
-        attackRating(baseAR, stats.dexterity, 1, 1)
+        dispatch(setAttackRating(playerAR));
+        dispatch(setDefenceRating(playerDR));
     }
 
     // these values might be wrong, need to check the formula
@@ -54,25 +55,16 @@ export const Player = () => {
         return Math.floor(baseDmg + str / 10 * strMod)
     }
 
-    const hitChance = (AR: number, DR: number, ALevel: number, DLevel: number) => {
-        return 2 * (AR / (AR + DR)) * (ALevel / (ALevel + DLevel));
-    }
+    // const hitChance = (AR: number, DR: number, ALevel: number, DLevel: number) => {
+    //     return 2 * (AR / (AR + DR)) * (ALevel / (ALevel + DLevel));
+    // }
 
     const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
         const value = (baseAR + dex * ARperDex) * (attackBonus + 1);
-        //console.log for all values
-        console.log(baseAR, "baseAR")
-        console.log(dex, "dex2")
-        console.log(ARperDex, "ARperDex")
-        console.log(attackBonus, "attackBonus")
-        console.log(value, "value")
         return value; 
     }
 
     const defenceRating = (baseDef: number, bonusDef: number, dex: number) => { 
-        console.log(baseDef, "baseDef3")
-        console.log(bonusDef, "bonusDef3")
-        console.log(dex, "dex3")  
         return baseDef * (bonusDef + dex * 0.1);
     }
 

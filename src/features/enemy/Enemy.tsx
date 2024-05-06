@@ -11,7 +11,6 @@ export const Enemy = () => {
     const dmgLog = useAppSelector(state => state.enemy.dmgLog); // Select the current count
     const dmgTaken = useAppSelector(state => state.enemy.dmgLog[state.enemy.dmgLog.length - 1]); // Select the current count
     const enemyIndex = useAppSelector(state => state.enemy.currentEnemyIndex); 
-
     const fadeAnim = useRef(new Animated.Value(1)).current; 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
     const moveAnimDmg = useRef(new Animated.Value(0)).current;
@@ -20,11 +19,14 @@ export const Enemy = () => {
         require('../../resources/skeleton_01.png'),
         require('../../resources/demonrat_01.png'),
     ]
-
+    const initializeData = () => {
+        
+    }
     useEffect(() => {
         console.log(count,"health Enemy")
         fadeAnimDmg.setValue(1);
         moveAnimDmg.setValue(0);
+        console.log(dmgTaken, "DMG TAKEN")
         
         Animated.sequence([
             Animated.timing(moveAnimDmg, {

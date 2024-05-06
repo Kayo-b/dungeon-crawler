@@ -13,16 +13,12 @@ let damage = data.character.equipment.weapon.stats.damage;
 let atkSpeed = data.character.equipment.weapon.stats.atkSpeed;
 let level = data.character.level;
 let stats = data.character.stats;
-console.log(damage,"DMG in playerSlice")
+
 //Save in storage
 async function saveData( health: number) {
     const data = await AsyncStorage.getItem('characters');
     const obj = data ? JSON.parse(data) : {};
-    // stats = obj.character.stats; 
     obj.character.stats.health = health;
-    // obj.character.experience += experience;
-    // console.log(obj.character.stats.health, "<< health");
-    // console.log(obj.character.experience, "<< EXP");
     await AsyncStorage.setItem('characters',JSON.stringify(obj));
 }
 // Get data from storage and set it to state
@@ -58,11 +54,13 @@ setData();
 interface CounterState {
     health: number;
     playerDmg: number;
-    dmgLog: number[];
+    dmgLog: any[];
     atkSpeed: number;
     experience: number;
     level: number;
-    stats: Object
+    stats: Object;
+    attackRating: number;
+    defenceRating: number;
 }
 
 const initialState: CounterState = {
@@ -73,6 +71,9 @@ const initialState: CounterState = {
     experience: experience,
     level: level,
     stats: stats,
+    attackRating: 0,
+    defenceRating: 0,
+
 }
 
 
@@ -87,11 +88,10 @@ const playerSlice = createSlice({
             // immer makes it immutable (aka copy add value to copy...) 
             state.health--;
         },
-        dmg2Player(state, action: PayloadAction<number>) {
-            state.health -= action.payload; 
+        dmg2Player(state, action: PayloadAction<number | string>) {
+            state.health -= typeof action.payload === "number" ?  action.payload : 0; 
             state.dmgLog.push(action.payload);
             saveData(state.health);
-            console.log(state.health, "Player health after dmg in state")
         },
         setPlayerDmg(state, action: PayloadAction<number>) {
             state.playerDmg = action.payload;
@@ -116,13 +116,19 @@ const playerSlice = createSlice({
             state.stats = action.payload;
             // state.stats.vitality = action.payload;
             // state.stats.agility = action.payload;
+        },
+        setAttackRating(state, action: PayloadAction<number>) {
+            state.attackRating = action.payload;
+        },
+        setDefenceRating(state, action: PayloadAction<number>) {
+            state.defenceRating = action.payload;
         } 
         
 
     },
 })
 
-export const { dmgPlayer, dmg2Player, XP, setHealth, setXP, setLevel, levelUp, setStats, setPlayerDmg} = playerSlice.actions
+export const { dmgPlayer, dmg2Player, XP, setHealth, setXP, setLevel, levelUp, setStats, setPlayerDmg, setAttackRating, setDefenceRating} = playerSlice.actions
 export default playerSlice.reducer;
 
 

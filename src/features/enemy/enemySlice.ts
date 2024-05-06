@@ -6,9 +6,11 @@ const enemyDmg = data.enemies[0].stats.attack;
 interface EnemyState {
     currentEnemyIndex: number;
     health: number;
-    dmgLog: number[];
+    dmgLog: any;
     damage: number;
     atkSpeed: number;
+    defence: number;
+    level: number;
     xp: number;
 
 }
@@ -19,6 +21,8 @@ const enemyInitialState: EnemyState = {
     dmgLog: [],
     damage: data.enemies[1].stats.attack,
     atkSpeed: data.enemies[1].stats.atkSpeed,
+    defence: data.enemies[1].stats.defence,
+    level: data.enemies[1].info.level,
     xp: data.enemies[1].info.xp
 }
 
@@ -28,7 +32,8 @@ const enemySlice = createSlice({
     reducers: {
         dmg2Enemy(state, action: PayloadAction<number>) {
            state.health -= action.payload; 
-           state.dmgLog.push(action.payload * -1);
+           state.dmgLog.push(action.payload > 0 ? action.payload * -1 : "MISS");
+           console.log(action.payload,"DMG LOG")
         },
         changeEnemy(state, action: PayloadAction<number>) {
             state.currentEnemyIndex = action.payload;
@@ -36,6 +41,8 @@ const enemySlice = createSlice({
             state.damage = data.enemies[action.payload].stats.attack;
             state.atkSpeed = data.enemies[action.payload].stats.atkSpeed;
             state.xp = data.enemies[action.payload].info.xp;
+            state.defence = data.enemies[action.payload].stats.defence;
+            state.level = data.enemies[action.payload].info.level;
         }
     }
 })

@@ -36,7 +36,7 @@
       "stats": {
         "health": 14,
         "attack": 2,
-        "defense": 2,
+        "defence": 5,
         "atkSpeed": 0.8
       },
       "loot": [
@@ -44,7 +44,7 @@
       ],
       "info" : {
         "description": "A skeleton warrior, armed with a rusty sword.",
-        "level": 1,
+        "level": 2,
         "xp": 10
       }
     },
@@ -53,7 +53,7 @@
       "stats": {
         "health": 10,
         "attack": 1,
-        "defense": 1,
+        "defence": 2,
         "atkSpeed": 1.1
       },
       "loot": [

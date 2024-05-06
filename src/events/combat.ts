@@ -10,10 +10,15 @@ export const useCombat = () => {
     const playerHealth = useAppSelector(state => state.player.health);
     const playerAtkSpeed = useAppSelector(state => state.player.atkSpeed);
     const playerXP = useAppSelector(state => state.player.experience);
+    const playerLVL = useAppSelector(state => state.player.level);
+    const playerAR = useAppSelector(state => state.player.attackRating);
+    const playerDR = useAppSelector(state => state.player.defenceRating);
     const enemyHealth = useAppSelector(state => state.enemy.health);
     const enemyDmg = useAppSelector(state => state.enemy.damage);
     const enemyAtkSpeed = useAppSelector(state => state.enemy.atkSpeed);
+    const enemyDR = useAppSelector(state => state.enemy.defence);
     const enemyXP = useAppSelector(state => state.enemy.xp);
+    const enemyLVL = useAppSelector(state => state.enemy.level);
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
     const [combat, setCombat] = useState(false);
@@ -23,26 +28,27 @@ export const useCombat = () => {
     let playerDmg = useAppSelector(state => state.player.playerDmg)
     let tempEnemyHealth = enemyHealth;
     let tempPlayerHealth = playerHealth;
+    let playerHR: number;
     // let experience = data.character.experience;
 
-    const hitChance = (AR: number, DR: number, ALevel: number, DLevel: number) => {
-        return 2 * (AR / (AR + DR)) * (ALevel / (ALevel + DLevel));
-    }
 
-    const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
-        return (baseAR + dex * ARperDex) * (attackBonus + 1)
-    }
-
-    const defenceRating = (baseDef: number, bonusDef: number, str: number) => {   
-        return baseDef * (bonusDef + str * 0.1);
-    }
     
     const startCombat = () => {
         combatRef.current = true;
         console.log(playerDmg, "Player dmg Combat component")
+        playerHR = hitRating(playerAR, enemyDR, playerLVL, enemyLVL)
+        // enemyHR = hitRating(enemyAR, )
+        console.log(playerLVL, "player level")
+        console.log(enemyLVL, "enemy level")
+        console.log(enemyDR,"Enemy DR")
         // setCombat(true);
         playerLoop();
         enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
+    }
+
+    // Attacker Defence Rating, Defender Defence Rating, Attacker Level, Defender Level
+    const hitRating = (AAR: number, DDR: number, ALVL: number, DLVL: number) => {
+        return 2 * (AAR / (AAR + DDR)) * (ALVL / (ALVL + DLVL));
     }
 
     async function saveData() {
@@ -61,7 +67,7 @@ export const useCombat = () => {
             obj.character.stats.strength = obj.character.stats.strength + 2.5;
             obj.character.stats.vitality = obj.character.stats.vitality + 1;
             obj.character.stats.agility = obj.character.stats.agility + 1;
-
+ 
             dispatch(levelUp())
 
         }
@@ -73,13 +79,19 @@ export const useCombat = () => {
     const playerLoop = () => {
         console.log(playerDmg, "Player dmg")
         console.log(playerAtkSpeed, "Player atk speed")
+        console.log(playerHR,"Hit rate")
         if(playerCombatIntRef.current === null) {
             playerCombatIntRef.current = setInterval(() => {
-                const randomVal = Math.floor(Math.random() * 2);
-                console.log(tempEnemyHealth, tempPlayerHealth, combatRef.current, "!!!!!!!!!!!!!!!")
+                const randomVal = Math.random();
+                const randomAddDmg = Math.floor(randomVal * 2)
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
-                    dispatch(dmg2Enemy(playerDmg + randomVal)); 
-                    tempEnemyHealth -= playerDmg + randomVal; 
+                    console.log(randomVal, playerHR, "will it hit?", randomVal <= playerHR)
+                    if(randomVal <= playerHR) {
+                        dispatch(dmg2Enemy(playerDmg + randomAddDmg)); 
+                        tempEnemyHealth -= playerDmg + randomAddDmg;
+                    } else {
+                        dispatch(dmg2Enemy(0));
+                    }
                 } else {
                     if(tempEnemyHealth <= 0) {
                         dispatch(XP(enemyXP));
@@ -98,10 +110,15 @@ export const useCombat = () => {
     const enemyLoop = () => {
         if(enemyCombatIntRef.current === null) {
             enemyCombatIntRef.current = setInterval(() => {
-                const randomVal = Math.floor(Math.random() * 2);
+                const randomVal = Math.random();
+                const randomAddDmg = Math.floor(randomVal * 2)
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
-                    dispatch(dmg2Player(enemyDmg + randomVal))
-                    tempPlayerHealth -= enemyDmg + randomVal;
+                    if(randomVal <= playerHR) {
+                        dispatch(dmg2Player(enemyDmg + randomAddDmg))
+                        tempPlayerHealth -= enemyDmg + randomAddDmg;    
+                    } else {
+                        dispatch(dmg2Player("Miss"))
+                    }
                 } else {
                      if(tempEnemyHealth <= 0) {
                     }                  
