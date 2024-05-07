@@ -32,7 +32,7 @@ const enemySlice = createSlice({
     reducers: {
         dmg2Enemy(state, action: PayloadAction<number>) {
            state.health -= action.payload; 
-           state.dmgLog.push(action.payload > 0 ? action.payload * -1 : "MISS");
+           state.dmgLog.push(action.payload > 0 ? action.payload * -1 : "Miss");
            console.log(action.payload,"DMG LOG")
         },
         changeEnemy(state, action: PayloadAction<number>) {

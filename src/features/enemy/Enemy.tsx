@@ -10,6 +10,7 @@ export const Enemy = () => {
     const count = useAppSelector(state => state.enemy.health); // Select the current count
     const dmgLog = useAppSelector(state => state.enemy.dmgLog); // Select the current count
     const dmgTaken = useAppSelector(state => state.enemy.dmgLog[state.enemy.dmgLog.length - 1]); // Select the current count
+    const dmgTakenArr = useAppSelector(state => state.enemy.dmgLog); // Select the current count
     const enemyIndex = useAppSelector(state => state.enemy.currentEnemyIndex); 
     const fadeAnim = useRef(new Animated.Value(1)).current; 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
@@ -26,17 +27,17 @@ export const Enemy = () => {
         console.log(count,"health Enemy")
         fadeAnimDmg.setValue(1);
         moveAnimDmg.setValue(0);
-        console.log(dmgTaken, "DMG TAKEN")
+        console.log(dmgTakenArr, "DMG TAKEN ARR")
         
         Animated.sequence([
             Animated.timing(moveAnimDmg, {
                 toValue: -10,
-                duration: 700,
+                duration: 1000,
                 useNativeDriver: true, 
             }),
             Animated.timing(fadeAnimDmg, {
                 toValue: 0,
-                duration: 700,
+                duration: 1000,
                 useNativeDriver: true, 
             }),
         ]).start();
@@ -49,7 +50,7 @@ export const Enemy = () => {
         } else {
             fadeAnim.setValue(1);
         }
-    }, [count]);
+    }, [dmgTakenArr.length, count]);
 
     return (
         <View > 
