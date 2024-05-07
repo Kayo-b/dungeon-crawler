@@ -19,6 +19,7 @@ export const useCombat = () => {
     const enemyDR = useAppSelector(state => state.enemy.defence);
     const enemyXP = useAppSelector(state => state.enemy.xp);
     const enemyLVL = useAppSelector(state => state.enemy.level);
+    const enemyAR = useAppSelector(state => state.enemy.atkRating);
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
     const [combat, setCombat] = useState(false);
@@ -29,6 +30,7 @@ export const useCombat = () => {
     let tempEnemyHealth = enemyHealth;
     let tempPlayerHealth = playerHealth;
     let playerHR: number;
+    let enemyHR: number;
     // let experience = data.character.experience;
 
 
@@ -37,6 +39,7 @@ export const useCombat = () => {
         combatRef.current = true;
         console.log(playerDmg, "Player dmg Combat component")
         playerHR = hitRating(playerAR, enemyDR, playerLVL, enemyLVL)
+        enemyHR = hitRating(enemyAR, playerDR, playerLVL, enemyLVL)
         // enemyHR = hitRating(enemyAR, )
         console.log(playerLVL, "player level")
         console.log(enemyLVL, "enemy level")
@@ -113,11 +116,11 @@ export const useCombat = () => {
                 const randomVal = Math.random();
                 const randomAddDmg = Math.floor(randomVal * 2)
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
-                    if(randomVal <= playerHR) {
+                    if(randomVal <= enemyHR) {
                         dispatch(dmg2Player(enemyDmg + randomAddDmg))
                         tempPlayerHealth -= enemyDmg + randomAddDmg;    
                     } else {
-                        dispatch(dmg2Player("Miss"))
+                        dispatch(dmg2Player(0))
                     }
                 } else {
                      if(tempEnemyHealth <= 0) {

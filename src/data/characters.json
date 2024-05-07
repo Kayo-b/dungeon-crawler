@@ -32,10 +32,15 @@
   },
   "enemies": [
     {
-      "name": "Skelly",
+      "name": "Skell",
       "stats": {
         "health": 14,
         "attack": 2,
+        "strength": 8,
+        "dexterity": 10,
+        "stamina": 12,
+        "vitality": 10,
+        "intelligence": 3,
         "defence": 5,
         "atkSpeed": 0.8
       },
@@ -49,10 +54,15 @@
       }
     },
     {
-      "name": "Ratazan",
+      "name": "Ratazana",
       "stats": {
         "health": 10,
         "attack": 1,
+        "strength": 3,      
+        "dexterity": 6,      
+        "stamina": 5,      
+        "vitality": 5,     
+        "intelligence": 1,              
         "defence": 2,
         "atkSpeed": 1.1
       },

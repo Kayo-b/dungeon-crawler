@@ -3,6 +3,8 @@ import { ImageSourcePropType } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, ImageBackground, Animated } from 'react-native';
 import  { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { setAttackRating, setStats } from '../../features/enemy/enemySlice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { dmg, dmg2 } from '../../features/player/playerSlice'
 
 export const Enemy = () => {
@@ -12,17 +14,37 @@ export const Enemy = () => {
     const dmgTaken = useAppSelector(state => state.enemy.dmgLog[state.enemy.dmgLog.length - 1]); // Select the current count
     const dmgTakenArr = useAppSelector(state => state.enemy.dmgLog); // Select the current count
     const enemyIndex = useAppSelector(state => state.enemy.currentEnemyIndex); 
+    const enemyAR = useAppSelector(state => state.enemy.atkSpeed);
+    const enemyStats = useAppSelector(state => state.enemy.stats);
+    // const dex = stats.dexterity;
     const fadeAnim = useRef(new Animated.Value(1)).current; 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
     const moveAnimDmg = useRef(new Animated.Value(0)).current;
-
+    let stats;
+    
     const resources = [
         require('../../resources/skeleton_01.png'),
         require('../../resources/demonrat_01.png'),
     ]
+    async function setData() {
+        console.log("SETDATA")
+        const data = await AsyncStorage.getItem('characters');
+        const obj = data ? JSON.parse(data) : {};
+        stats = obj.enemies[enemyIndex].stats; 
+        //await AsyncStorage.setItem('characters',JSON.stringify(obj));
+        // dispatch(setStats(stats))
+        dispatch(setAttackRating(attackRating(enemyAR, stats.dexterity, 1, 1)))
+    }
+    setData();
     const initializeData = () => {
         
     }
+    const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
+        const value = (baseAR + dex * ARperDex) * (attackBonus + 1);
+        return value; 
+    }
+
+
     useEffect(() => {
         console.log(count,"health Enemy")
         fadeAnimDmg.setValue(1);
