@@ -11,10 +11,12 @@ import { setHealth, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, se
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 
+    const count = useAppSelector(state => state.player.health); // Select the current count
     const playerHealth = useAppSelector(state => state.player.health); 
     const playerXP = useAppSelector(state => state.player.experience);
     const playerLevel = useAppSelector(state => state.player.level);
     const dmgtaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
+    const dmgTakenArr = useAppSelector(state => state.player.dmgLog); // Select the current count
     const fadeAnimDmg = useRef(new Animated.Value(1)).current;
 
     async function initializeData() {
@@ -79,7 +81,7 @@ export const Player = () => {
             duration: 700,
             useNativeDriver: true, 
         }).start();
-    },[playerHealth])
+    },[dmgTakenArr.length, count])
     
     const { startCombat } = useCombat();
     return (
