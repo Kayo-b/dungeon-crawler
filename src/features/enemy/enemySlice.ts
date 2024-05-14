@@ -41,7 +41,6 @@ const enemySlice = createSlice({
         dmg2Enemy(state, action: PayloadAction<number | string>) {
            state.health -= action.payload as number; 
            state.dmgLog.push(action.payload as number > 0 ? action.payload as number * -1 : "Miss");
-           console.log(action.payload,"DMG LOG")
         },
         changeEnemy(state, action: PayloadAction<number>) {
             state.currentEnemyIndex = action.payload;

@@ -31,11 +31,12 @@ export const Enemy = () => {
         const data = await AsyncStorage.getItem('characters');
         const obj = data ? JSON.parse(data) : {};
         stats = obj.enemies[enemyIndex].stats; 
+        let baseAR = obj.enemies[enemyIndex].stats.atkSpeed;
         //await AsyncStorage.setItem('characters',JSON.stringify(obj));
         // dispatch(setStats(stats))
-        dispatch(setAttackRating(attackRating(enemyAR, stats.dexterity, 1, 1)))
+        let atkRating = attackRating(baseAR, stats.dexterity, 2, 1);
+        dispatch(setAttackRating(atkRating));
     }
-    setData();
     const initializeData = () => {
         
     }
@@ -43,7 +44,9 @@ export const Enemy = () => {
         const value = (baseAR + dex * ARperDex) * (attackBonus + 1);
         return value; 
     }
-
+    useEffect(() => {
+        setData();
+    }, []);
 
     useEffect(() => {
         console.log(count,"health Enemy")

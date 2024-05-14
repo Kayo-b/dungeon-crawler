@@ -89,9 +89,9 @@ const playerSlice = createSlice({
             state.health--;
         },
         dmg2Player(state, action: PayloadAction<number | string>) {
-            state.health -= action.payload as number; 
-            state.dmgLog.push(action.payload as number > 0 ? action.payload as number : "Miss");
-            console.log(action.payload,"DMG LOG Player")
+            state.health -= action.payload as number;
+            console.log(action.payload, "action.payload player") 
+            state.dmgLog.push(action.payload as number > 0 ? action.payload as number * - 1 : "Miss");
             saveData(state.health);
         },
         setPlayerDmg(state, action: PayloadAction<number>) {

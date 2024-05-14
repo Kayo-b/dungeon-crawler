@@ -50,6 +50,7 @@ export const Player = () => {
         dispatch(setPlayerDmg(playerDmg));
         dispatch(setAttackRating(playerAR));
         dispatch(setDefenceRating(playerDR));
+        console.log(playerAR, playerDR, "AR DR STATS")
     }
 
     // these values might be wrong, need to check the formula
@@ -75,6 +76,7 @@ export const Player = () => {
     },[playerLevel])
 
     useEffect(() => {
+        console.log(dmgTakenArr, "DMG LOG PLAYER")
         fadeAnimDmg.setValue(1); 
         Animated.timing(fadeAnimDmg, {
             toValue: 0,
@@ -91,7 +93,7 @@ export const Player = () => {
                     style={styles.enemy}
                 >
                     <Animated.Text style={[styles.dmgTxt, { opacity: fadeAnimDmg }]}>
-                        <Text>-{dmgtaken}</Text>
+                        <Text>{dmgtaken}</Text>
                     </Animated.Text>
             </ImageBackground>
             <Text style={styles.text}>Player Life: {playerHealth}</Text>
