@@ -1,35 +1,55 @@
 {
-  "character": {
-    "name": "Test Demork",
-    "stats": {
-      "health": 40,
-      "strength": 8,
-      "dexterity": 40,
-      "stamina": 12,
-      "vitality": 10,
-      "intelligence": 3,
-      "defense": 2
-    },
-    "level": 1,
-    "experience": 0,
-    "xptolvlup": 16,
-    "inventory": [],
-    "equipment": {
-      "weapon": {
-        "name": "Rusty Sword",
-        "stats": {
-          "damage": 1,
-          "atkSpeed": 1.0
-        }
-      },
-      "armor": {
-        "name": "Leather Armor",
-        "stats": {
-          "defence": 2
-        }
-      }
-    }
+"character": {
+  "name": "Test Demork",
+  "stats": {
+    "health": 40,
+    "strength": 8,
+    "dexterity": 40,
+    "stamina": 12,
+    "vitality": 10,
+    "intelligence": 3,
+    "defense": 2
   },
+  "level": 1,
+  "experience": 0,
+  "xptolvlup": 16,
+  "inventory": [],
+  "equipment": {
+    "weapon": {
+      "name": "Rusty Sword",
+      "stats": {
+        "damage": 1,
+        "atkSpeed": 1.0
+      }
+    },
+    "armor": {
+      "name": "Leather Armor",
+      "stats": {
+        "defence": 2
+      }
+    },
+    "helmet": {
+      "name": "",
+      "stats": {}
+    },
+    "belt": {
+      "name": "",
+      "stats": {}
+    },
+    "ring": {
+      "name": "",
+      "stats": {}
+    },
+    "amulet": {
+      "name": "",
+      "stats": {}
+    },
+    "boots": {
+      "name": "",
+      "stats": {}
+    }
+  }
+},
   "enemies": [
     {
       "name": "Skell",
@@ -76,4 +96,4 @@
       }
     }
   ]
-}
+} 
