@@ -111,7 +111,7 @@
         "Level Requirement": 61
       }
     ],
-    "amulets": [
+    "amulet": [
       {
         "ID": 1,
         "name": "Amulet of the Viper",
@@ -123,7 +123,7 @@
         "mods": ["All Resistances +15-25", "10% Chance to cast level 2 Iron Maiden when struck"]
       }
     ],
-    "rings": [
+    "ring": [
       {
         "ID": 1,
         "name": "Nagelring",
@@ -133,6 +133,11 @@
         "ID": 2,
         "name": "Stone of Jordan",
         "mods": ["+1 to All Skills", "+25% Mana", "Adds 1-12 Lightning Damage"]
+      },
+      { 
+        "ID": 3,
+        "name": "Wooden Ring",
+        "mods": {"defence": 1} 
       }
     ],
     "daggers": [

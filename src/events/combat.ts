@@ -4,7 +4,10 @@ import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { dmg2Enemy } from './../features/enemy/enemySlice';
 import { dmgPlayer, dmg2Player, XP, levelUp } from './../features/player/playerSlice'
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+interface LootObject {
+    dropChance: number;
+    // include other properties of the object here
+  }
 
 export const useCombat = () => {
     const playerHealth = useAppSelector(state => state.player.health);
@@ -20,6 +23,7 @@ export const useCombat = () => {
     const enemyXP = useAppSelector(state => state.enemy.xp);
     const enemyLVL = useAppSelector(state => state.enemy.level);
     const enemyAR = useAppSelector(state => state.enemy.atkRating);
+    const loot = useAppSelector(state => state.enemy.loot);
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
     const [combat, setCombat] = useState(false);
@@ -81,7 +85,6 @@ export const useCombat = () => {
         await AsyncStorage.setItem('characters',JSON.stringify(obj));
     }
 
-
     const playerLoop = () => {
         console.log(playerDmg, "Player dmg")
         console.log(playerAtkSpeed, "Player atk speed")
@@ -108,6 +111,19 @@ export const useCombat = () => {
                     combatRef.current = false;
                     saveData();
                     setCombat(false);
+                    console.log(loot, "LOOT")
+                    //dropcalc sketch
+                    const dropCalc = () => {
+                        const random = (Math.random());
+                        (loot as LootObject[]).forEach((val: LootObject) => {
+                            console.log(val, "LOOT 2")
+                            console.log(random,"LOOT3")
+                            if(random >= val.dropChance) {
+                                console.log(val, "LOOT3")
+                            }
+                        })
+                    }
+                    dropCalc();
                 }
             }, 1000 / playerAtkSpeed)
         }

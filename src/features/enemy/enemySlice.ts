@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const enemyHealth = data.enemies[0].stats.health;
 const enemyDmg = data.enemies[0].stats.attack;
 let stats = data.enemies[1].stats;
+let loot = data.enemies[1].loot;
 // Get data from storage and set it to state
 
 interface EnemyState {
@@ -18,6 +19,7 @@ interface EnemyState {
     level: number;
     xp: number;
     stats: Object;
+    loot: Object[];
 
 }
 
@@ -31,7 +33,8 @@ const enemyInitialState: EnemyState = {
     defence: data.enemies[1].stats.defence,
     level: data.enemies[1].info.level,
     xp: data.enemies[1].info.xp,
-    stats: stats
+    stats: stats,
+    loot: loot
 }
 
 const enemySlice = createSlice({
