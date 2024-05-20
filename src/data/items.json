@@ -1,7 +1,14 @@
 {
   "items": {
-    "swords": [
-      {
+    "currency": {
+      "1": {
+        "ID": 1,
+        "name": "Brass Coin",
+        "value": 0.1
+      }
+    },
+    "swords": {
+      "1": {
         "ID": 1,
         "type": "Short Sword",
         "unique": "Rixot's Keen",
@@ -14,7 +21,7 @@
         "Max Sockets": 2,
         "Quality Level": 1
       },
-      {
+      "2": {
         "ID": 2,
         "type": "Sabre",
         "unique": "Skewer of Krintiz",
@@ -27,7 +34,7 @@
         "Max Sockets": 2,
         "Quality Level": 8
       },
-      {
+      "3": {
         "ID": 3,
         "type": "Broad Sword",
         "unique": "Griswold's Edge",
@@ -40,7 +47,7 @@
         "Max Sockets": 4,
         "Quality Level": 15
       },
-      {
+      "4": {
         "ID": 4,
         "type": "Long Sword",
         "unique": "Hellplague",
@@ -53,7 +60,7 @@
         "Max Sockets": 4,
         "Quality Level": 20
       },
-      {
+      "5": {
         "ID": 5,
         "type": "Claymore",
         "unique": "Soulflay",
@@ -67,7 +74,7 @@
         "Max Sockets": 4,
         "Quality Level": 17
       },
-      {
+      "6": {
         "ID": 6,
         "type": "Rune Sword",
         "unique": "Plague Bearer",
@@ -81,7 +88,7 @@
         "Quality Level": 44,
         "Level Requirement": 25
       },
-      {
+      "7": {
         "ID": 7,
         "type": "Champion Sword",
         "unique": "Doombringer",
@@ -96,7 +103,7 @@
         "Quality Level": 77,
         "Level Requirement": 57
       },
-      {
+      "8": {
         "ID": 8,
         "type": "Cryptic Sword",
         "unique": "Frostwind",
@@ -110,38 +117,38 @@
         "Quality Level": 82,
         "Level Requirement": 61
       }
-    ],
-    "amulet": [
-      {
+    },
+    "amulet": {
+      "1": {
         "ID": 1,
         "name": "Amulet of the Viper",
         "mods": ["+10% Faster Cast Rate", "+10-20 to Life", "+20-30 to Mana"]
       },
-      {
+      "2": {
         "ID": 2,
         "name": "Saracen's Chance",
         "mods": ["All Resistances +15-25", "10% Chance to cast level 2 Iron Maiden when struck"]
       }
-    ],
-    "ring": [
-      {
+    },
+    "ring": {
+      "1": {
         "ID": 1,
         "name": "Nagelring",
         "mods": ["+50-75 to Attack Rating", "Magic Damage Reduced by 3", "Attacker Takes Damage of 3"]
       },
-      {
+      "2": {
         "ID": 2,
         "name": "Stone of Jordan",
         "mods": ["+1 to All Skills", "+25% Mana", "Adds 1-12 Lightning Damage"]
       },
-      { 
+      "3": {
         "ID": 3,
         "name": "Wooden Ring",
-        "mods": {"defence": 1} 
+        "mods": {"defence": 1}
       }
-    ],
-    "daggers": [
-      {
+    },
+    "daggers": {
+      "1": {
         "ID": 1,
         "type": "Dagger",
         "unique": "Gull",
@@ -154,7 +161,7 @@
         "Max Sockets": 1,
         "Quality Level": 3
       },
-      {
+      "2": {
         "ID": 2,
         "type": "Dirk",
         "unique": "The Diggler",
@@ -167,7 +174,7 @@
         "Max Sockets": 1,
         "Quality Level": 9
       },
-      {
+      "3": {
         "ID": 3,
         "type": "Kris",
         "unique": "The Jade Tan Do",
@@ -180,7 +187,7 @@
         "Max Sockets": 3,
         "Quality Level": 17
       },
-      {
+      "4": {
         "ID": 4,
         "type": "Blade",
         "unique": "Spectral Shard",
@@ -193,7 +200,7 @@
         "Max Sockets": 2,
         "Quality Level": 23
       },
-      {
+      "5": {
         "ID": 5,
         "type": "Poignard",
         "unique": "Spineripper",
@@ -207,9 +214,9 @@
         "Quality Level": 31,
         "Level Requirement": 19
       }
-    ],
-    "bows": [
-      {
+    },
+    "bows": {
+      "1": {
         "ID": 1,
         "type": "Short Bow",
         "unique": "Pluckeye",
@@ -220,7 +227,7 @@
         "Max Sockets": 3,
         "Quality Level": 1
       },
-      {
+      "2": {
         "ID": 2,
         "type": "Hunter's Bow",
         "unique": "Witherstring",
@@ -231,7 +238,7 @@
         "Max Sockets": 4,
         "Quality Level": 5
       },
-      {
+      "3": {
         "ID": 3,
         "type": "Long Bow",
         "unique": "Raven Claw",
@@ -242,7 +249,7 @@
         "Max Sockets": 5,
         "Quality Level": 8
       },
-      {
+      "4": {
         "ID": 4,
         "type": "Composite Bow",
         "unique": "Rogue's Bow",
@@ -253,7 +260,7 @@
         "Max Sockets": 4,
         "Quality Level": 12
       },
-      {
+      "5": {
         "ID": 5,
         "type": "Short Battle Bow",
         "unique": "Stormstrike",
@@ -264,7 +271,7 @@
         "Max Sockets": 5,
         "Quality Level": 18
       },
-      {
+      "6": {
         "ID": 6,
         "type": "Long Battle Bow",
         "unique": "Wizendraw",
@@ -275,7 +282,7 @@
         "Max Sockets": 6,
         "Quality Level": 23
       },
-      {
+      "7": {
         "ID": 7,
         "type": "Short War Bow",
         "unique": "Hellclap",
@@ -286,7 +293,7 @@
         "Max Sockets": 5,
         "Quality Level": 27
       },
-      {
+      "8": {
         "ID": 8,
         "type": "Long War Bow",
         "unique": "Blastbark",
@@ -297,560 +304,560 @@
         "Max Sockets": 6,
         "Quality Level": 31
       }
-    ],
-    "armors": [
-      {
-      "ID": 1,
-      "type": "Quilted Armor",
-      "unique": "Greyform",
-      "Defense": "8 - 11",
-      "Armor Type": "Light",
-      "Minimum Strength": 12,
-      "Durability": 20,
-      "Max Sockets": 2,
-      "Quality Level": 1
+    },
+    "armors": {
+      "1": {
+        "ID": 1,
+        "type": "Quilted Armor",
+        "unique": "Greyform",
+        "Defense": "8 - 11",
+        "Armor Type": "Light",
+        "Minimum Strength": 12,
+        "Durability": 20,
+        "Max Sockets": 2,
+        "Quality Level": 1
       },
-      {
-      "ID": 2,
-      "type": "Leather Armor",
-      "unique": "Blinkbat's Form",
-      "Defense": "14 - 17",
-      "Armor Type": "Light",
-      "Minimum Strength": 15,
-      "Durability": 24,
-      "Max Sockets": 2,
-      "Quality Level": 3
+      "2": {
+        "ID": 2,
+        "type": "Leather Armor",
+        "unique": "Blinkbat's Form",
+        "Defense": "14 - 17",
+        "Armor Type": "Light",
+        "Minimum Strength": 15,
+        "Durability": 24,
+        "Max Sockets": 2,
+        "Quality Level": 3
       },
-      {
-      "ID": 3,
-      "type": "Hard Leather Armor",
-      "unique": "The Centurion",
-      "Defense": "21 - 24",
-      "Armor Type": "Light",
-      "Minimum Strength": 20,
-      "Durability": 28,
-      "Max Sockets": 2,
-      "Quality Level": 5
-      },
-      {
-      "ID": 4,
-      "type": "Studded Leather",
-      "unique": "Twitchthroe",
-      "Defense": "32 - 35",
-      "Armor Type": "Light",
-      "Minimum Strength": 27,
-      "Durability": 32,
-      "Max Sockets": 2,
-      "Quality Level": 8
-      },
-      {
-      "ID": 5,
-      "type": "Ring Mail",
-      "unique": "Darkglow",
-      "Defense": "45 - 48",
-      "Armor Type": "Medium",
-      "Minimum Strength": 36,
-      "Durability": 26,
-      "Max Sockets": 3,
-      "Quality Level": 11
-      },
-      {
-      "ID": 6,
-      "type": "Scale Mail",
-      "unique": "Hawkmail",
-      "Defense": "57 - 60",
-      "Armor Type": "Heavy",
-      "Minimum Strength": 44,
-      "Durability": 36,
-      "Max Sockets": 2,
-      "Quality Level": 13
-      },
-      {
-      "ID": 7,
-      "type": "Chain Mail",
-      "unique": "Sparking Mail",
-      "Defense": "72 - 75",
-      "Armor Type": "Medium",
-      "Minimum Strength": 48,
-      "Durability": 45,
-      "Max Sockets": 2,
-      "Quality Level": 15
-      },
-      {
-      "ID": 8,
-      "type": "Breast Plate",
-      "unique": "Venom Ward",
-      "Defense": "65 - 68",
-      "Armor Type": "Light",
-      "Minimum Strength": 30,
-      "Durability": 50
-      }
-    ],
-    "helms": [
-      {
-      "ID": 1,
-      "type": "Gothic Plate",
-      "unique": "Rattlecage",
-      "Defense": "128 - 135",
-      "Armor Type": "Medium",
-      "Minimum Strength": 70,
-      "Durability": 55,
-      "Max Sockets": 4,
-      "Quality Level": 32
-      },
-      {
-      "ID": 2,
-      "type": "Light Plate",
-      "unique": "Heavenly Garb",
-      "Defense": "90 - 107",
-      "Armor Type": "Light",
-      "Minimum Strength": 41,
-      "Durability": 60,
-      "Max Sockets": 3,
-      "Quality Level": 35
-      },
-      {
-      "ID": 3,
-      "type": "Full Plate Mail",
-      "unique": "Goldskin",
-      "Defense": "150 - 161",
-      "Armor Type": "Heavy",
-      "Minimum Strength": 80,
-      "Durability": 70,
-      "Max Sockets": 4,
-      "Quality Level": 3
-      }
-    ],
-    "belts": [
-      {
-      "ID": 4,
-      "type": "Sash",
-      "unique": "Lenymo",
-      "Defense": 2,
-      "Potion Slots": 8,
-      "Minimum Strength": "-",
-      "Durability": 12,
-      "Quality Level": 3
-      },
-      {
-      "ID": 5,
-      "type": "Light Belt",
-      "unique": "Snakecord",
-      "Defense": 3,
-      "Potion Slots": 8,
-      "Minimum Strength": "-",
-      "Durability": 14,
-      "Quality Level": 7
-      },
-      {
-      "ID": 6,
-      "type": "Belt",
-      "unique": "Nightsmoke",
-      "Defense": 5,
-      "Potion Slots": 12,
-      "Minimum Strength": 25,
-      "Durability": 16,
-      "Quality Level": 12
-      },
-      {
-      "ID": 7,
-      "type": "Heavy Belt",
-      "unique": "Goldwrap",
-      "Defense": 6,
-      "Potion Slots": 12,
-      "Minimum Strength": 45,
-      "Durability": 18,
-      "Quality Level": 20
-      },
-      {
-      "ID": 8,
-      "type": "Plated Belt",
-      "unique": "Bladebuckle",
-      "Defense": "8 - 11",
-      "Potion Slots": 16,
-      "Minimum Strength": 60,
-      "Durability": 24,
-      "Quality Level": 27
-      },
-      {
-      "ID": 9,
-      "type": "Demonhide Sash",
-      "unique": "String of Ears",
-      "Defense": "29 - 34",
-      "Potion Slots": 16,
-      "Minimum Strength": 20,
-      "Durability": 12,
-      "Quality Level": 36,
-      "Level Requirement": 24
-      },
-      {
-      "ID": 10,
-      "type": "Sharkskin Belt",
-      "unique": "Razortail",
-      "Defense": "31 - 36",
-      "Potion Slots": 16,
-      "Minimum Strength": 20,
-      "Durability": 14,
-      "Quality Level": 39,
-      "Level Requirement": 25
-      },
-      {
-      "ID": 11,
-      "type": "Mesh Belt",
-      "unique": "Gloom's Trap",
-      "Defense": "35 - 40",
-      "Potion Slots": 16,
-      "Minimum Strength": 58,
-      "Durability": 16,
-      "Quality Level": 43,
-      "Level Requirement": 25
-      },
-      {
-      "ID": 12,
-      "type": "Battle Belt",
-      "unique": "Snowclash",
-      "Defense": "37 - 42",
-      "Potion Slots": 16,
-      "Minimum Strength": 88,
-      "Durability": 18,
-      "Quality Level": 49,
-      "Level Requirement": 25
-      },
-      {
-      "ID": 13,
-      "type": "War Belt",
-      "unique": "Thundergod's Vigor",
-      "Defense": "41 - 52",
-      "Potion Slots": 16,
-      "Minimum Strength": 110,
-      "Durability": 24,
-      "Quality Level": 54,
-      "Level Requirement": 25
-      },
-      {
-      "ID": 14,
-      "type": "Spiderweb Sash",
-      "unique": "Arachnid Mesh",
-      "Defense": "55 - 62",
-      "Potion Slots": 16,
-      "Minimum Strength": 50,
-      "Durability": 12,
-      "Quality Level": 61,
-      "Level Requirement": 46
-      },
-      {
-      "ID": 15,
-      "type": "Vampirefang Belt",
-      "unique": "Nosferatu's Coil",
-      "Defense": "56 - 63",
-      "Potion Slots": 16,
-      "Minimum Strength": 50,
-      "Durability": 14,
-      "Quality Level": 68,
-      "Level Requirement": 51
-      }
-    ],
-    "boots": [
-      {
-      "ID": 16,
-      "type": "Boots",
-      "unique": "Hotspur",
-      "Defense": "2 - 3",
-      "Kick Damage": "3 - 8",
-      "Minimum Strength": "-",
-      "Durability": 12,
-      "Quality Level": 3
-      },
-      {
-      "ID": 17,
-      "type": "Heavy Boots",
-      "unique": "Gorefoot",
-      "Defense": "5 - 6",
-      "Kick Damage": "4 - 10",
-      "Minimum Strength": 18,
-      "Durability": 14,
-      "Quality Level": 7
-      },
-      {
-      "ID": 18,
-      "type": "Chain Boots",
-      "unique": "Treads of Cthon",
-      "Defense": "8 - 9",
-      "Kick Damage": "6 - 12",
-      "Minimum Strength": 30,
-      "Durability": 16,
-      "Quality Level": 12
-      },
-      {
-      "ID": 19,
-      "type": "Light Plated Boots",
-      "unique": "Goblin Toe",
-      "Defense": "9 - 11",
-      "Kick Damage": "8 - 16",
-      "Minimum Strength": 50,
-      "Durability": 18,
-      "Quality Level": 20
-      },
-      {
-      "ID": 20,
-      "type": "Greaves",
-      "unique": "Tearhaunch",
-      "Defense": "12 - 15",
-      "Kick Damage": "10 - 20",
-      "Minimum Strength": 70,
-      "Durability": 24,
-      "Quality Level": 27
-      },
-      {
-      "ID": 21,
-      "type": "Demonhide Boots",
-      "unique": "Infernostride",
-      "Defense": "28 - 35",
-      "Kick Damage": "26 - 46",
-      "Minimum Strength": 20,
-      "Durability": 12,
-      "Quality Level": 36,
-      "Level Requirement": 24
-      },
-      {
-      "ID": 22,
-      "type": "Sharkskin Boots",
-      "unique": "Waterwalk",
-      "Defense": "33 - 39",
-      "Kick Damage": "28 - 50",
-      "Minimum Strength": 47,
-      "Durability": 14,
-      "Quality Level": 39,
-      "Level Requirement": 25
-      },
-      {
-      "ID": 23,
-      "type": "Mesh Boots",
-      "unique": "Silkweave",
-      "Defense": "37 - 44",
-      "Kick Damage": "23 - 52",
-      "Minimum Strength": 65,
-      "Durability": 16,
-      "Quality Level": 43,
-      "Level Requirement": 25
-      }
-    ],
-    "gloves": [
-      {
-      "ID": 24,
-      "type": "Cap",
-      "unique": "Biggin's Bonnet",
-      "Defense": "3 - 5",
-      "Minimum Strength": "-",
-      "Durability": 12,
-      "Max Sockets": 2,
-      "Quality Level": 1
-      },
-      {
-      "ID": 25,
-      "type": "Skull Cap",
-      "unique": "Tarnhelm",
-      "Defense": "8 - 11",
-      "Minimum Strength": 15,
-      "Durability": 18,
-      "Max Sockets": 2,
-      "Quality Level": 5
-      },
-      {
-      "ID": 26,
-      "type": "Helm",
-      "unique": "Coif of Glory",
-      "Defense": "15 - 18",
-      "Minimum Strength": 26,
-      "Durability": 24,
-      "Max Sockets": 2,
-      "Quality Level": 11
-      },
-      {
-      "ID": 27,
-      "type": "Full Helm",
-      "unique": "Duskdeep",
-      "Defense": "23 - 26",
-      "Minimum Strength": 41,
-      "Durability": 30,
-      "Max Sockets": 2,
-      "Quality Level": 15
-      },
-      {
-      "ID": 28,
-      "type": "Mask",
-      "unique": "The Face of Horror",
-      "Defense": "9 - 27",
-      "Minimum Strength": 23,
-      "Durability": 20,
-      "Max Sockets": 3,
-      "Quality Level": 19
-      },
-      {
-      "ID": 29,
-      "type": "Bone Helm",
-      "unique": "Wormskull",
-      "Defense": "33 - 36",
-      "Minimum Strength": 25,
-      "Durability": 40,
-      "Max Sockets": 2,
-      "Quality Level": 22
-      },
-      {
-      "ID": 30,
-      "type": "Great Helm",
-      "unique": "Howltusk",
-      "Defense": "30 - 35",
-      "Minimum Strength": 63,
-      "Durability": 40,
-      "Max Sockets": 3,
-      "Quality Level": 23
-      },
-      {
-      "ID": 31,
-      "type": "Crown",
-      "unique": "Undead Crown",
-      "Defense": "25 - 45",
-      "Minimum Strength": 55,
-      "Durability": 50,
-      "Max Sockets": 3,
-      "Quality Level": 29
-      }
-    ],
-    "shields": [
-      {
-      "ID": 32,
-      "type": "Buckler",
-      "unique": "Pelta Lunata",
-      "Defense": "4 - 6",
-      "Armor Type": "Light",
-      "Block": {
-        "Paladin": "30%",
-        "Amazon/Assassin/Barbarian": "25%",
-        "Druid/Necromancer/Sorceress": "20%"
-      },
-      "Smite Damage": "1 - 3",
-      "Minimum Strength": 12,
-      "Durability": 12,
-      "Max Sockets": 1,
-      "Quality Level": 1
-      },
-      {
-      "ID": 33,
-      "type": "Small Shield",
-      "unique": "Umbral Disk",
-      "Defense": "8 - 10",
-      "Armor Type": "Light",
-      "Block": {
-        "Paladin": "35%",
-        "Amazon/Assassin/Barbarian": "30%",
-        "Druid/Necromancer/Sorceress": "25%"
-      },
-      "Smite Damage": "2 - 3",
-      "Minimum Strength": 22,
-      "Durability": 16,
-      "Max Sockets": 2,
-      "Quality Level": 5
-      },
-      {
-      "ID": 34,
-      "type": "Large Shield",
-      "unique": "Stormguild",
-      "Defense": "12 - 14",
-      "Armor Type": "Medium",
-      "Block": {
-        "Paladin": "35%",
-        "Amazon/Assassin/Barbarian": "30%",
-        "Druid/Necromancer/Sorceress": "25%"
-      },
-      "Smite Damage": "2 - 4",
-      "Minimum Strength": 34,
-      "Durability": 24,
-      "Max Sockets": 3,
-      "Quality Level": 11
-      },
-      {
-      "ID": 35,
-      "type": "Kite Shield",
-      "unique": "Steelclash",
-      "Defense": "16 - 18",
-      "Armor Type": "Light",
-      "Block": {
-        "Paladin": "38%",
-        "Amazon/Assassin/Barbarian": "33%",
-        "Druid/Necromancer/Sorceress": "28%"
-      },
-      "Smite Damage": "2 - 5",
-      "Minimum Strength": 47,
-      "Durability": 30,
-      "Max Sockets": 3,
-      "Quality Level": 15
-      },
-      {
-      "ID": 36,
-      "type": "Spiked Shield",
-      "unique": "Swordback Hold",
-      "Defense": "15 - 25",
-      "Armor Type": "Light",
-      "Block": {
-        "Paladin": "40%",
-        "Amazon/Assassin/Barbarian": "35%",
-        "Druid/Necromancer/Sorceress": "30%"
-      },
-      "Smite Damage": "5 - 9",
-      "Minimum Strength": 30,
-      "Durability": 40,
-      "Max Sockets": 2,
-      "Quality Level": 11
-      },
-      {
-      "ID": 37,
-      "type": "Bone Shield",
-      "unique": "Wall of the Eyeless",
-      "Defense": "10 - 30",
-      "Armor Type": "Light",
-      "Block": {
-        "Paladin": "50%",
-        "Amazon/Assassin/Barbarian": "45%",
-        "Druid/Necromancer/Sorceress": "40%"
-      },
-      "Smite Damage": "3 - 6",
-      "Minimum Strength": 25,
-      "Durability": 40,
-      "Max Sockets": 2,
-      "Quality Level": 19
-      },
-      {
-      "ID": 38,
-      "type": "Tower Shield",
-      "unique": "Bverrit Keep",
-      "Defense": "22 - 25",
-      "Armor Type": "Heavy",
-      "Block": {
-        "Paladin": "54%",
-        "Amazon/Assassin/Barbarian": "49%",
-        "Druid/Necromancer/Sorceress": "44%"
-      },
-      "Smite Damage": "1 - 5",
-      "Minimum Strength": 75,
-      "Durability": 60,
-      "Max Sockets": 3,
-      "Quality Level": 22
-      },
-      {
-      "ID": 39,
-      "type": "Gothic Shield",
-      "unique": "The Ward",
-      "Defense": "30 - 35",
-      "Armor Type": "Medium",
-      "Block": {
-        "Paladin": "46%",
-        "Amazon/Assassin/Barbarian": "41%",
-        "Druid/Necromancer/Sorceress": "36%"
-      },
-      "Smite Damage": "2 - 6",
-      "Minimum Strength": 60,
-      "Durability": 40
-    }]
-}
-}
+        "3": {
+          "ID": 3,
+          "type": "Hard Leather Armor",
+          "unique": "The Centurion",
+          "Defense": "21 - 24",
+          "Armor Type": "Light",
+          "Minimum Strength": 20,
+          "Durability": 28,
+          "Max Sockets": 2,
+          "Quality Level": 5
+        },
+        "4": {
+          "ID": 4,
+          "type": "Studded Leather",
+          "unique": "Twitchthroe",
+          "Defense": "32 - 35",
+          "Armor Type": "Light",
+          "Minimum Strength": 27,
+          "Durability": 32,
+          "Max Sockets": 2,
+          "Quality Level": 8
+        },
+        "5": {
+          "ID": 5,
+          "type": "Ring Mail",
+          "unique": "Darkglow",
+          "Defense": "45 - 48",
+          "Armor Type": "Medium",
+          "Minimum Strength": 36,
+          "Durability": 26,
+          "Max Sockets": 3,
+          "Quality Level": 11
+        },
+        "6": {
+          "ID": 6,
+          "type": "Scale Mail",
+          "unique": "Hawkmail",
+          "Defense": "57 - 60",
+          "Armor Type": "Heavy",
+          "Minimum Strength": 44,
+          "Durability": 36,
+          "Max Sockets": 2,
+          "Quality Level": 13
+        },
+        "7": {
+          "ID": 7,
+          "type": "Chain Mail",
+          "unique": "Sparking Mail",
+          "Defense": "72 - 75",
+          "Armor Type": "Medium",
+          "Minimum Strength": 48,
+          "Durability": 45,
+          "Max Sockets": 2,
+          "Quality Level": 15
+        },
+        "8": {
+          "ID": 8,
+          "type": "Breast Plate",
+          "unique": "Venom Ward",
+          "Defense": "65 - 68",
+          "Armor Type": "Light",
+          "Minimum Strength": 30,
+          "Durability": 50
+        }
+          },
+          "helms": {
+        "1": {
+          "ID": 1,
+          "type": "Gothic Plate",
+          "unique": "Rattlecage",
+          "Defense": "128 - 135",
+          "Armor Type": "Medium",
+          "Minimum Strength": 70,
+          "Durability": 55,
+          "Max Sockets": 4,
+          "Quality Level": 32
+        },
+        "2": {
+          "ID": 2,
+          "type": "Light Plate",
+          "unique": "Heavenly Garb",
+          "Defense": "90 - 107",
+          "Armor Type": "Light",
+          "Minimum Strength": 41,
+          "Durability": 60,
+          "Max Sockets": 3,
+          "Quality Level": 35
+        },
+        "3": {
+          "ID": 3,
+          "type": "Full Plate Mail",
+          "unique": "Goldskin",
+          "Defense": "150 - 161",
+          "Armor Type": "Heavy",
+          "Minimum Strength": 80,
+          "Durability": 70,
+          "Max Sockets": 4,
+          "Quality Level": 3
+        }
+            },
+            "belts": {
+          "1": {
+            "ID": 1,
+            "type": "Sash",
+            "unique": "Lenymo",
+            "Defense": 2,
+            "Potion Slots": 8,
+            "Minimum Strength": "-",
+            "Durability": 12,
+            "Quality Level": 3
+          },
+          "2": {
+            "ID": 2,
+            "type": "Light Belt",
+            "unique": "Snakecord",
+            "Defense": 3,
+            "Potion Slots": 8,
+            "Minimum Strength": "-",
+            "Durability": 14,
+            "Quality Level": 7
+          },
+          "3": {
+            "ID": 3,
+            "type": "Belt",
+            "unique": "Nightsmoke",
+            "Defense": 5,
+            "Potion Slots": 12,
+            "Minimum Strength": 25,
+            "Durability": 16,
+            "Quality Level": 12
+          },
+          "4": {
+            "ID": 4,
+            "type": "Heavy Belt",
+            "unique": "Goldwrap",
+            "Defense": 6,
+            "Potion Slots": 12,
+            "Minimum Strength": 45,
+            "Durability": 18,
+            "Quality Level": 20
+          },
+          "5": {
+            "ID": 5,
+            "type": "Plated Belt",
+            "unique": "Bladebuckle",
+            "Defense": "8 - 11",
+            "Potion Slots": 16,
+            "Minimum Strength": 60,
+            "Durability": 24,
+            "Quality Level": 27
+          },
+          "6": {
+            "ID": 6,
+            "type": "Demonhide Sash",
+            "unique": "String of Ears",
+            "Defense": "29 - 34",
+            "Potion Slots": 16,
+            "Minimum Strength": 20,
+            "Durability": 12,
+            "Quality Level": 36,
+            "Level Requirement": 24
+          },
+          "7": {
+            "ID": 7,
+            "type": "Sharkskin Belt",
+            "unique": "Razortail",
+            "Defense": "31 - 36",
+            "Potion Slots": 16,
+            "Minimum Strength": 20,
+            "Durability": 14,
+            "Quality Level": 39,
+            "Level Requirement": 25
+          },
+          "8": {
+            "ID": 8,
+            "type": "Mesh Belt",
+            "unique": "Gloom's Trap",
+            "Defense": "35 - 40",
+            "Potion Slots": 16,
+            "Minimum Strength": 58,
+            "Durability": 16,
+            "Quality Level": 43,
+            "Level Requirement": 25
+          },
+          "9": {
+            "ID": 9,
+            "type": "Battle Belt",
+            "unique": "Snowclash",
+            "Defense": "37 - 42",
+            "Potion Slots": 16,
+            "Minimum Strength": 88,
+            "Durability": 18,
+            "Quality Level": 49,
+            "Level Requirement": 25
+          },
+          "10": {
+            "ID": 10,
+            "type": "War Belt",
+            "unique": "Thundergod's Vigor",
+            "Defense": "41 - 52",
+            "Potion Slots": 16,
+            "Minimum Strength": 110,
+            "Durability": 24,
+            "Quality Level": 54,
+            "Level Requirement": 25
+          },
+          "11": {
+            "ID": 11,
+            "type": "Spiderweb Sash",
+            "unique": "Arachnid Mesh",
+            "Defense": "55 - 62",
+            "Potion Slots": 16,
+            "Minimum Strength": 50,
+            "Durability": 12,
+            "Quality Level": 61,
+            "Level Requirement": 46
+          },
+          "12": {
+            "ID": 12,
+            "type": "Vampirefang Belt",
+            "unique": "Nosferatu's Coil",
+            "Defense": "56 - 63",
+            "Potion Slots": 16,
+            "Minimum Strength": 50,
+            "Durability": 14,
+            "Quality Level": 68,
+            "Level Requirement": 51
+          }
+            },
+            "boots": {
+          "13": {
+            "ID": 13,
+            "type": "Boots",
+            "unique": "Hotspur",
+            "Defense": "2 - 3",
+            "Kick Damage": "3 - 8",
+            "Minimum Strength": "-",
+            "Durability": 12,
+            "Quality Level": 3
+          },
+          "14": {
+            "ID": 14,
+            "type": "Heavy Boots",
+            "unique": "Gorefoot",
+            "Defense": "5 - 6",
+            "Kick Damage": "4 - 10",
+            "Minimum Strength": 18,
+            "Durability": 14,
+            "Quality Level": 7
+          },
+          "15": {
+            "ID": 15,
+            "type": "Chain Boots",
+            "unique": "Treads of Cthon",
+            "Defense": "8 - 9",
+            "Kick Damage": "6 - 12",
+            "Minimum Strength": 30,
+            "Durability": 16,
+            "Quality Level": 12
+          },
+          "16": {
+            "ID": 16,
+            "type": "Light Plated Boots",
+            "unique": "Goblin Toe",
+            "Defense": "9 - 11",
+            "Kick Damage": "8 - 16",
+            "Minimum Strength": 50,
+            "Durability": 18,
+            "Quality Level": 20
+          },
+          "17": {
+            "ID": 17,
+            "type": "Greaves",
+            "unique": "Tearhaunch",
+            "Defense": "12 - 15",
+            "Kick Damage": "10 - 20",
+            "Minimum Strength": 70,
+            "Durability": 24,
+            "Quality Level": 27
+          },
+          "18": {
+            "ID": 18,
+            "type": "Demonhide Boots",
+            "unique": "Infernostride",
+            "Defense": "28 - 35",
+            "Kick Damage": "26 - 46",
+            "Minimum Strength": 20,
+            "Durability": 12,
+            "Quality Level": 36,
+            "Level Requirement": 24
+          },
+          "19": {
+            "ID": 19,
+            "type": "Sharkskin Boots",
+            "unique": "Waterwalk",
+            "Defense": "33 - 39",
+            "Kick Damage": "28 - 50",
+            "Minimum Strength": 47,
+            "Durability": 14,
+            "Quality Level": 39,
+            "Level Requirement": 25
+          },
+          "20": {
+            "ID": 20,
+            "type": "Mesh Boots",
+            "unique": "Silkweave",
+            "Defense": "37 - 44",
+            "Kick Damage": "23 - 52",
+            "Minimum Strength": 65,
+            "Durability": 16,
+            "Quality Level": 43,
+            "Level Requirement": 25
+          }
+            },
+            "gloves": {
+          "21": {
+            "ID": 21,
+            "type": "Cap",
+            "unique": "Biggin's Bonnet",
+            "Defense": "3 - 5",
+            "Minimum Strength": "-",
+            "Durability": 12,
+            "Max Sockets": 2,
+            "Quality Level": 1
+          },
+          "22": {
+            "ID": 22,
+            "type": "Skull Cap",
+            "unique": "Tarnhelm",
+            "Defense": "8 - 11",
+            "Minimum Strength": 15,
+            "Durability": 18,
+            "Max Sockets": 2,
+            "Quality Level": 5
+          },
+          "23": {
+            "ID": 23,
+            "type": "Helm",
+            "unique": "Coif of Glory",
+            "Defense": "15 - 18",
+            "Minimum Strength": 26,
+            "Durability": 24,
+            "Max Sockets": 2,
+            "Quality Level": 11
+          },
+          "24": {
+            "ID": 24,
+            "type": "Full Helm",
+            "unique": "Duskdeep",
+            "Defense": "23 - 26",
+            "Minimum Strength": 41,
+            "Durability": 30,
+            "Max Sockets": 2,
+            "Quality Level": 15
+          },
+          "25": {
+            "ID": 25,
+            "type": "Mask",
+            "unique": "The Face of Horror",
+            "Defense": "9 - 27",
+            "Minimum Strength": 23,
+            "Durability": 20,
+            "Max Sockets": 3,
+            "Quality Level": 19
+          },
+          "26": {
+            "ID": 26,
+            "type": "Bone Helm",
+            "unique": "Wormskull",
+            "Defense": "33 - 36",
+            "Minimum Strength": 25,
+            "Durability": 40,
+            "Max Sockets": 2,
+            "Quality Level": 22
+          },
+          "27": {
+            "ID": 27,
+            "type": "Great Helm",
+            "unique": "Howltusk",
+            "Defense": "30 - 35",
+            "Minimum Strength": 63,
+            "Durability": 40,
+            "Max Sockets": 3,
+            "Quality Level": 23
+          },
+          "28": {
+            "ID": 28,
+            "type": "Crown",
+            "unique": "Undead Crown",
+            "Defense": "25 - 45",
+            "Minimum Strength": 55,
+            "Durability": 50,
+            "Max Sockets": 3,
+            "Quality Level": 29
+          }
+            },
+            "shields": {
+          "29": {
+            "ID": 29,
+            "type": "Buckler",
+            "unique": "Pelta Lunata",
+            "Defense": "4 - 6",
+            "Armor Type": "Light",
+            "Block": {
+            "Paladin": "30%",
+            "Amazon/Assassin/Barbarian": "25%",
+            "Druid/Necromancer/Sorceress": "20%"
+            },
+            "Smite Damage": "1 - 3",
+            "Minimum Strength": 12,
+            "Durability": 12,
+            "Max Sockets": 1,
+            "Quality Level": 1
+          },
+          "30": {
+            "ID": 30,
+            "type": "Small Shield",
+            "unique": "Umbral Disk",
+            "Defense": "8 - 10",
+            "Armor Type": "Light",
+            "Block": {
+            "Paladin": "35%",
+            "Amazon/Assassin/Barbarian": "30%",
+            "Druid/Necromancer/Sorceress": "25%"
+            },
+            "Smite Damage": "2 - 3",
+            "Minimum Strength": 22,
+            "Durability": 16,
+            "Max Sockets": 2,
+            "Quality Level": 5
+          },
+          "31": {
+            "ID": 31,
+            "type": "Large Shield",
+            "unique": "Stormguild",
+            "Defense": "12 - 14",
+            "Armor Type": "Medium",
+            "Block": {
+            "Paladin": "35%",
+            "Amazon/Assassin/Barbarian": "30%",
+            "Druid/Necromancer/Sorceress": "25%"
+            },
+            "Smite Damage": "2 - 4",
+            "Minimum Strength": 34,
+            "Durability": 24,
+            "Max Sockets": 3,
+            "Quality Level": 11
+          },
+          "32": {
+            "ID": 32,
+            "type": "Kite Shield",
+            "unique": "Steelclash",
+            "Defense": "16 - 18",
+            "Armor Type": "Light",
+            "Block": {
+            "Paladin": "38%",
+            "Amazon/Assassin/Barbarian": "33%",
+            "Druid/Necromancer/Sorceress": "28%"
+            },
+            "Smite Damage": "2 - 5",
+            "Minimum Strength": 47,
+            "Durability": 30,
+            "Max Sockets": 3,
+            "Quality Level": 15
+          },
+          "33": {
+            "ID": 33,
+            "type": "Spiked Shield",
+            "unique": "Swordback Hold",
+            "Defense": "15 - 25",
+            "Armor Type": "Light",
+            "Block": {
+            "Paladin": "40%",
+            "Amazon/Assassin/Barbarian": "35%",
+            "Druid/Necromancer/Sorceress": "30%"
+            },
+            "Smite Damage": "5 - 9",
+            "Minimum Strength": 30,
+            "Durability": 40,
+            "Max Sockets": 2,
+            "Quality Level": 11
+          },
+          "34": {
+            "ID": 34,
+            "type": "Bone Shield",
+            "unique": "Wall of the Eyeless",
+            "Defense": "10 - 30",
+            "Armor Type": "Light",
+            "Block": {
+            "Paladin": "50%",
+            "Amazon/Assassin/Barbarian": "45%",
+            "Druid/Necromancer/Sorceress": "40%"
+            },
+            "Smite Damage": "3 - 6",
+            "Minimum Strength": 25,
+            "Durability": 40,
+            "Max Sockets": 2,
+            "Quality Level": 19
+          },
+          "35": {
+            "ID": 35,
+            "type": "Tower Shield",
+            "unique": "Bverrit Keep",
+            "Defense": "22 - 25",
+            "Armor Type": "Heavy",
+            "Block": {
+            "Paladin": "54%",
+            "Amazon/Assassin/Barbarian": "49%",
+            "Druid/Necromancer/Sorceress": "44%"
+            },
+            "Smite Damage": "1 - 5",
+            "Minimum Strength": 75,
+            "Durability": 60,
+            "Max Sockets": 3,
+            "Quality Level": 22
+          },
+          "36": {
+            "ID": 36,
+            "type": "Gothic Shield",
+            "unique": "The Ward",
+            "Defense": "30 - 35",
+            "Armor Type": "Medium",
+            "Block": {
+            "Paladin": "46%",
+            "Amazon/Assassin/Barbarian": "41%",
+            "Druid/Necromancer/Sorceress": "36%"
+            },
+            "Smite Damage": "2 - 6",
+            "Minimum Strength": 60,
+            "Durability": 40
+          }
+        }
+      }}

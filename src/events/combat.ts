@@ -1,13 +1,24 @@
 import { useEffect, useState, useRef } from 'react';
 import data from '../data/characters.json';
+import itemsData from '../data/items.json';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { dmg2Enemy } from './../features/enemy/enemySlice';
 import { dmgPlayer, dmg2Player, XP, levelUp } from './../features/player/playerSlice'
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface Item {
+    ID: number;
+    type: string;
+    unique: string;
+    Durability: number;
+    dropChance: number;
+}
+      
 interface LootObject {
     dropChance: number;
-    // include other properties of the object here
-  }
+
+}
+
 
 export const useCombat = () => {
     const playerHealth = useAppSelector(state => state.player.health);
@@ -23,6 +34,7 @@ export const useCombat = () => {
     const enemyXP = useAppSelector(state => state.enemy.xp);
     const enemyLVL = useAppSelector(state => state.enemy.level);
     const enemyAR = useAppSelector(state => state.enemy.atkRating);
+    const enemyStats = useAppSelector(state => state.enemy.stats);
     const loot = useAppSelector(state => state.enemy.loot);
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
@@ -30,6 +42,14 @@ export const useCombat = () => {
     const combatRef = useRef(false);
     const playerCombatIntRef: any = useRef<number | null>(null)
     const enemyCombatIntRef: any = useRef<number | null>(null)
+    let itemsListObj;
+    // let lootItem: Item = {
+    //         ID: 0,
+    //         type: '',
+    //         unique: '',
+    //         Durability: 0,
+    // };
+    let lootItem: Item;
     let playerDmg = useAppSelector(state => state.player.playerDmg)
     let tempEnemyHealth = enemyHealth;
     let tempPlayerHealth = playerHealth;
@@ -49,6 +69,7 @@ export const useCombat = () => {
         // enemyHR = hitRating(enemyAR, )
         console.log(playerLVL, "player level");
         console.log(enemyLVL, "enemy level");
+        console.log(enemyStats, loot, "STATS ENEMY")
         console.log(enemyDR,"Enemy DR");
         // setCombat(true);
         playerLoop();
@@ -63,7 +84,18 @@ export const useCombat = () => {
     async function saveData() {
         const data = await AsyncStorage.getItem('characters');
         const obj = data ? JSON.parse(data) : {};
-        
+        const itemsData = await AsyncStorage.getItem('items');
+        const itemsObj = itemsData ? JSON.parse(itemsData) : {};
+        if(lootItem !== undefined && lootItem !== null) {
+            const itemType = lootItem.type;
+            const itemID = lootItem.ID;
+            console.log(lootItem, "LOOT ITEM");
+            console.log(itemType,"ITEM TYPE")
+            console.log(itemID,"ITEM DROP ID");
+            console.log(itemsObj.items[itemType][`${itemID}`], "ITEMS FROM THE DROPPP !!!") 
+            console.log(itemsObj.items["daggers"][2], "DAGGER ID TEST");
+            obj.character.inventory.push(itemsObj.items[itemType][`${itemID}`])
+        }
         obj.character.stats.health = tempPlayerHealth;
         obj.character.experience += enemyXP;
         
@@ -83,6 +115,7 @@ export const useCombat = () => {
         }
         console.log(obj.character.stats.strength, "OI")
         await AsyncStorage.setItem('characters',JSON.stringify(obj));
+
     }
 
     const playerLoop = () => {
@@ -109,21 +142,21 @@ export const useCombat = () => {
                     clearInterval(playerCombatIntRef.current);
                     playerCombatIntRef.current = null;
                     combatRef.current = false;
-                    saveData();
-                    setCombat(false);
-                    console.log(loot, "LOOT")
-                    //dropcalc sketch
                     const dropCalc = () => {
-                        const random = (Math.random());
-                        (loot as LootObject[]).forEach((val: LootObject) => {
+                        const random = Math.random();
+                        (loot as LootObject[]).forEach((val: any) => {
                             console.log(val, "LOOT 2")
                             console.log(random,"LOOT3")
-                            if(random >= val.dropChance) {
-                                console.log(val, "LOOT3")
+                            if(random <= val.dropChance) {
+                                console.log(val, "LOOT DROPPED !!!!!!!!")
+                                lootItem = val
                             }
                         })
                     }
                     dropCalc();
+                    saveData();
+                    setCombat(false);
+                    console.log(loot, "LOOT")
                 }
             }, 1000 / playerAtkSpeed)
         }

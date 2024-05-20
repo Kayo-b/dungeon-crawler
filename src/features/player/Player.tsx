@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, Button, ImageBackground, Animated } from 'react
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { useCombat } from '../../events/combat'
 import data from '../../data/characters.json';
+import itemData from '../../data/items.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 
@@ -26,6 +27,7 @@ export const Player = () => {
         let obj = storedData ? JSON.parse(storedData) : {};
         if(!storedData) {
             await AsyncStorage.setItem('characters', JSON.stringify(data));
+            await AsyncStorage.setItem('items', JSON.stringify(itemData));
             const storedData = await AsyncStorage.getItem('characters');
             obj = storedData ? JSON.parse(storedData) : {};
         }

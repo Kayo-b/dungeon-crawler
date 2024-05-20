@@ -54,6 +54,8 @@ const enemySlice = createSlice({
             state.defence = data.enemies[action.payload].stats.defence;
             state.level = data.enemies[action.payload].info.level;
             state.stats = data.enemies[action.payload].stats;
+            console.log(data.enemies[action.payload].loot, "ACTION!")
+            state.loot = data.enemies[action.payload].loot;
         },
         setAttackRating(state, action: PayloadAction<number>) {
             state.atkRating = action.payload;

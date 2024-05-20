@@ -65,7 +65,7 @@
         "atkSpeed": 0.8
       },
       "loot": [
-        { "name": "Rusty Dagger", "type": "weapon" }
+        { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 0.5 }
       ],
       "info" : {
         "description": "A skeleton warrior, armed with a rusty sword.",
