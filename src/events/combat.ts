@@ -43,12 +43,6 @@ export const useCombat = () => {
     const playerCombatIntRef: any = useRef<number | null>(null)
     const enemyCombatIntRef: any = useRef<number | null>(null)
     let itemsListObj;
-    // let lootItem: Item = {
-    //         ID: 0,
-    //         type: '',
-    //         unique: '',
-    //         Durability: 0,
-    // };
     let lootItem: Item;
     let playerDmg = useAppSelector(state => state.player.playerDmg)
     let tempEnemyHealth = enemyHealth;
@@ -93,7 +87,6 @@ export const useCombat = () => {
             console.log(itemType,"ITEM TYPE")
             console.log(itemID,"ITEM DROP ID");
             console.log(itemsObj.items[itemType][`${itemID}`], "ITEMS FROM THE DROPPP !!!") 
-            console.log(itemsObj.items["daggers"][2], "DAGGER ID TEST");
             obj.character.inventory.push(itemsObj.items[itemType][`${itemID}`])
         }
         obj.character.stats.health = tempPlayerHealth;

@@ -88,7 +88,8 @@
       },
       "loot": [
         { "name": "Brass Coin", "type": "currency", "amout": 1, "ID": 1, "dropChance": 0.5},
-        { "name": "Wooden Ring", "type": "ring", "ID": 3, "dropChance": 0.25 }
+        { "name": "Wooden Ring", "type": "ring", "ID": 3, "dropChance": 0.25 },
+        { "ID": 33, "type": "Spiked Shield" }
       ],
       "info" : {
         "description": "A giant rat, spawn from the depts.",

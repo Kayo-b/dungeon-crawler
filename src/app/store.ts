@@ -3,6 +3,7 @@ import counterReducer from '../features/counter/counterSlice';
 import playerReducer from '../features/player/playerSlice';
 import enemyReducer from '../features/enemy/enemySlice';
 import roomReducer from '../features/room/roomSlice';
+import inventoryReducer from '../features/inventory/inventorySlice';
 
 
 export const store = configureStore({
@@ -11,6 +12,7 @@ export const store = configureStore({
           player: playerReducer,
           enemy: enemyReducer,
           room: roomReducer,
+          inventory: inventoryReducer
      },
 })
 

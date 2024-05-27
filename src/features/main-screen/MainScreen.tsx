@@ -1,12 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, ImageBackground } from 'react-native';
+import { StyleSheet, Text, View, Button, ImageBackground, Dimensions } from 'react-native';
 // import { store } from u/app/store';
 // import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 import { Room } from '../room/Room'
 import { Player } from '../player/Player'
 import { Counter } from '../counter/Counter'
- 
+
 export const MainScreen = () => {
     // const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
     // const count = useAppSelector(state => state.counter.value); // Select the current count
@@ -21,11 +21,12 @@ export const MainScreen = () => {
 
 const styles = StyleSheet.create({
    mainScreen: {
-    // Adjust these percentages to maintain the 4:3 ratio and fit your design
-    width: '100%', // Example width percentage
-    aspectRatio: 4 / 3, // This maintains the 4:3 ratio
+    width: 800,
+    height: 600,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+    marginBottom: 150, 
   }, 
 });
 

@@ -22,7 +22,7 @@ async function saveData( health: number) {
     await AsyncStorage.setItem('characters',JSON.stringify(obj));
 }
 // Get data from storage and set it to state
-async function setData() {
+async function getData() {
     console.log("SETDATA")
     const data = await AsyncStorage.getItem('characters');
     const obj = data ? JSON.parse(data) : {};
@@ -48,7 +48,7 @@ async function setData() {
 //     atkSpeed = atkSpeed + (agility/200); //1 agility = +0.5% atkSpeed
 //     console.log(stats, "< Stats")
 // }
-setData();
+getData();
 // calculateStats();
 
 interface CounterState {

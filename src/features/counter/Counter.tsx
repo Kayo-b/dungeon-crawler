@@ -5,8 +5,8 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { incremented, amoutAdded } from './counterSlice';
 
 export const Counter = () => {
-  const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
-  const count = useAppSelector(state => state.counter.value); // Select the current count
+  const dispatch = useAppDispatch(); 
+  const count = useAppSelector(state => state.counter.value); 
 
   return (
     <View style={styles.container}>
