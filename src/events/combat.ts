@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { dmg2Enemy } from './../features/enemy/enemySlice';
 import { dmgPlayer, dmg2Player, XP, levelUp } from './../features/player/playerSlice'
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setInventory, setAddToInv } from '../features/inventory/inventorySlice';
 
 interface Item {
     ID: number;
@@ -16,7 +17,6 @@ interface Item {
       
 interface LootObject {
     dropChance: number;
-
 }
 
 
@@ -36,6 +36,7 @@ export const useCombat = () => {
     const enemyAR = useAppSelector(state => state.enemy.atkRating);
     const enemyStats = useAppSelector(state => state.enemy.stats);
     const loot = useAppSelector(state => state.enemy.loot);
+    let inventory = [];
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
     const [combat, setCombat] = useState(false);
@@ -50,8 +51,8 @@ export const useCombat = () => {
     let playerHR: number;
     let enemyHR: number;
     // let experience = data.character.experience;
-
-
+    
+    
     
     const startCombat = () => {
         combatRef.current = true;
@@ -69,12 +70,12 @@ export const useCombat = () => {
         playerLoop();
         enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
     }
-
+    
     // Attacker Defence Rating, Defender Defence Rating, Attacker Level, Defender Level
     const hitRate = (AAR: number, DDR: number, ALVL: number, DLVL: number) => {
         return 2 * (AAR / (AAR + DDR)) * (ALVL / (ALVL + DLVL) );
     }
-
+    
     async function saveData() {
         const data = await AsyncStorage.getItem('characters');
         const obj = data ? JSON.parse(data) : {};
@@ -88,6 +89,9 @@ export const useCombat = () => {
             console.log(itemID,"ITEM DROP ID");
             console.log(itemsObj.items[itemType][`${itemID}`], "ITEMS FROM THE DROPPP !!!") 
             obj.character.inventory.push(itemsObj.items[itemType][`${itemID}`])
+            // inventory.push(itemsObj.items[itemType][`${itemID}`])
+            dispatch(setAddToInv(itemsObj.items[itemType][`${itemID}`]));
+            
         }
         obj.character.stats.health = tempPlayerHealth;
         obj.character.experience += enemyXP;

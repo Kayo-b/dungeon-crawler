@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const Inventory = () => {
 
-    const inventory = useAppSelector(state => state.inventory.inventory);
+    const inventory = useAppSelector(state => state.inventory.inventory); 
     let itemArr: Array<Object> = [];
     console.log(inventory,"INV INV")
 
@@ -17,7 +17,9 @@ export const Inventory = () => {
         })
     }
     unpackInv();
-
+    // useEffect(() => {
+    //     console.log("Use effect!!")
+    // },[inventoryObj])
     return (
         <View>
             <Text style={styles.text}>Inventory</Text>

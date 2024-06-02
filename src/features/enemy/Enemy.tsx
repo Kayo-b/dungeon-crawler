@@ -21,6 +21,7 @@ export const Enemy = () => {
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
     const moveAnimDmg = useRef(new Animated.Value(0)).current;
     let stats;
+    let loot;
     
     const resources = [
         require('../../resources/skeleton_01.png'),
@@ -31,6 +32,7 @@ export const Enemy = () => {
         const data = await AsyncStorage.getItem('characters');
         const obj = data ? JSON.parse(data) : {};
         stats = obj.enemies[enemyIndex].stats; 
+        loot = obj.enemies[enemyIndex].loot;
         let baseAR = obj.enemies[enemyIndex].stats.atkSpeed;
         //await AsyncStorage.setItem('characters',JSON.stringify(obj));
         // dispatch(setStats(stats))

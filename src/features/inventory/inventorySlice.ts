@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { useEffect  } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
@@ -28,10 +29,13 @@ const inventorySlice = createSlice({
     reducers: {
         setInventory(state, action: PayloadAction<Array<Object>>) {
             state.inventory = action.payload as Array<Object>;
+        },
+        setAddToInv(state,  action: PayloadAction<Object> ) {
+            state.inventory.push(action.payload)
         }
 
     }
 }) 
 
-export const { setInventory } = inventorySlice.actions;
+export const { setInventory, setAddToInv } = inventorySlice.actions;
 export default inventorySlice.reducer;
