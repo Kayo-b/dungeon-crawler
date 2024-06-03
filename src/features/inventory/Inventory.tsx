@@ -19,15 +19,29 @@ export const Inventory = () => {
     unpackInv();
 
     const equipItem = async (val:any) => {
-        console.log("CLICK EQUIP ITEM", val)
-        const data = await AsyncStorage.getItem('characters');
-        const obj = data ? JSON.parse(data) : {};
-        obj.character.equipment.ring = val
-        await AsyncStorage.setItem('characters',JSON.stringify(obj));
+        try {
+            const data = await AsyncStorage.getItem('characters');
+            const obj = data ? JSON.parse(data) : {};
+    
+            // if (!obj.character) {
+            //     obj.character = {};
+            // }
+            // if (!obj.character.equipment) {
+            //     obj.character.equipment = {};
+            // }
+    
+            const itemType = val.type;
+    
+            obj.character.equipment[itemType] = val;
+    
+            await AsyncStorage.setItem('characters', JSON.stringify(obj));
+
+        } catch (error) {
+            console.error('Error equipping item:', error);
+        }
+        
     }
-    // useEffect(() => {
-    //     console.log("Use effect!!")
-    // },[inventoryObj])
+
     return (
         <View>
             <Text style={styles.text}>Inventory</Text>
@@ -47,5 +61,5 @@ const styles = StyleSheet.create({
         width: 150,
         height: 20,
     }
-
+    
 })

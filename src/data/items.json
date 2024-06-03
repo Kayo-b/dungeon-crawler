@@ -148,7 +148,7 @@
       "1": {
         "ID": 1,
         "name": "Dagger",
-        "type": "dagger",
+        "type": "weapon",
         "unique": "Gull",
         "stats":
           {"damage":1,
