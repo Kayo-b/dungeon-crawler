@@ -66,7 +66,7 @@
         "ID": 3,
         "name": "Wooden Ring",
         "type": "ring",
-        "mods": {
+        "stats": {
           "defence": 1
         }
       }
@@ -150,7 +150,10 @@
         "name": "Dagger",
         "type": "dagger",
         "unique": "Gull",
-        "1H Damage": "1 to 4",
+        "stats":
+          {"damage":1,
+            "atkSpeed":1
+          },
         "Melee Range": 1,
         "Attack Speed": "[-20]",
         "Minimum Strength": "-",

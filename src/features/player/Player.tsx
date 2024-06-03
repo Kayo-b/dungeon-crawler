@@ -44,7 +44,8 @@ export const Player = () => {
         const baseAR = obj.character.equipment.weapon.stats.atkSpeed;
         inventory = obj.character.inventory;
         dispatch(setStats(stats));
-        const baseDef = obj.character.equipment.armor.stats.defence;
+        const baseDef = obj.character.equipment.armor.stats.defence +
+         obj.character.equipment.ring.stats.defence;
         // !!!! Make the defence in hitChance be the enemy defence(not the players)
         // Will need to be implemented somwhere else.
         let playerDmg = physicalDmg(baseDmg, stats.strength, 3);

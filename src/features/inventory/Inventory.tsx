@@ -13,10 +13,18 @@ export const Inventory = () => {
 
     const unpackInv = () => {
         inventory.forEach(val => {
-            itemArr.push(val.name)
+            itemArr.push(val)
         })
     }
     unpackInv();
+
+    const equipItem = async (val:any) => {
+        console.log("CLICK EQUIP ITEM", val)
+        const data = await AsyncStorage.getItem('characters');
+        const obj = data ? JSON.parse(data) : {};
+        obj.character.equipment.ring = val
+        await AsyncStorage.setItem('characters',JSON.stringify(obj));
+    }
     // useEffect(() => {
     //     console.log("Use effect!!")
     // },[inventoryObj])
@@ -24,7 +32,7 @@ export const Inventory = () => {
         <View>
             <Text style={styles.text}>Inventory</Text>
             {itemArr.map((val, index) => (
-                <Text key={index} style={styles.text}>{val}</Text>
+                <Text key={index} style={styles.text} onClick={() => equipItem(val)}>{val.name}</Text>
             ))}
         </View>
     )
