@@ -5,7 +5,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 
+import { setEquipment } from '../../features/player/playerSlice'
 export const Inventory = () => {
+
+    const dispatch = useAppDispatch();
 
     const inventory = useAppSelector(state => state.inventory.inventory); 
     let itemArr: Array<Object> = [];
@@ -31,8 +34,12 @@ export const Inventory = () => {
             // }
     
             const itemType = val.type;
-    
-            obj.character.equipment[itemType] = val;
+            if(itemType !== 'currency') {
+                obj.character.equipment[itemType] = val;
+                dispatch(setEquipment(obj.character.equipment))
+            } else {
+                console.log("cant equip currency")
+            }
     
             await AsyncStorage.setItem('characters', JSON.stringify(obj));
 

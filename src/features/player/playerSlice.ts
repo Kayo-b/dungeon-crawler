@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import {useEffect} from 'react';
+import { useEffect } from 'react';
 import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch } from '../../app/hooks';
@@ -8,25 +8,27 @@ let health = data.character.stats.health;
 let experience = data.character.experience;
 let vitality = data.character.stats.vitality;
 let strength = data.character.stats.strength;
-let agility = data.character.stats.dexterity; 
+let agility = data.character.stats.dexterity;
 let damage = data.character.equipment.weapon.stats.damage;
 let atkSpeed = data.character.equipment.weapon.stats.atkSpeed;
 let level = data.character.level;
 let stats = data.character.stats;
+let equipment = data.character.equipment;
 
 //Save in storage
-async function saveData( health: number) {
+async function saveData(health: number) {
     const data = await AsyncStorage.getItem('characters');
     const obj = data ? JSON.parse(data) : {};
     obj.character.stats.health = health;
-    await AsyncStorage.setItem('characters',JSON.stringify(obj));
+    await AsyncStorage.setItem('characters', JSON.stringify(obj));
 }
 // Get data from storage and set it to state
 async function getData() {
     console.log("SETDATA")
     const data = await AsyncStorage.getItem('characters');
     const obj = data ? JSON.parse(data) : {};
-    stats = obj.character.stats; 
+    equipment = obj.character.equipment;
+    stats = obj.character.stats;
     //await AsyncStorage.setItem('characters',JSON.stringify(obj));
 }
 // async function getData() {
@@ -61,6 +63,7 @@ interface CounterState {
     stats: Object;
     attackRating: number;
     defenceRating: number;
+    equipment: Object;
 }
 
 const initialState: CounterState = {
@@ -73,6 +76,7 @@ const initialState: CounterState = {
     stats: stats,
     attackRating: 0,
     defenceRating: 0,
+    equipment: equipment,
 
 }
 
@@ -90,7 +94,7 @@ const playerSlice = createSlice({
         },
         dmg2Player(state, action: PayloadAction<number | string>) {
             state.health -= action.payload as number;
-            console.log(action.payload, "action.payload player") 
+            console.log(action.payload, "action.payload player")
             state.dmgLog.push(action.payload as number > 0 ? action.payload as number * - 1 : "Miss");
             saveData(state.health);
         },
@@ -98,7 +102,7 @@ const playerSlice = createSlice({
             state.playerDmg = action.payload;
         },
         XP(state, action: PayloadAction<number>) {
-            console.log(action.payload,"action")
+            console.log(action.payload, "action")
             state.experience += action.payload;
         },
         setHealth(state, action: PayloadAction<number>) {
@@ -123,13 +127,30 @@ const playerSlice = createSlice({
         },
         setDefenceRating(state, action: PayloadAction<number>) {
             state.defenceRating = action.payload;
-        } 
-        
+        },
+        setEquipment(state, action: PayloadAction<Object>) {
+            state.equipment = action.payload
+        }
+
 
     },
 })
 
-export const { dmgPlayer, dmg2Player, XP, setHealth, setXP, setLevel, levelUp, setStats, setPlayerDmg, setAttackRating, setDefenceRating} = playerSlice.actions
+export const {
+    dmgPlayer,
+    dmg2Player,
+    XP,
+    setHealth,
+    setXP,
+    setLevel,
+    levelUp,
+    setStats,
+    setPlayerDmg,
+    setAttackRating,
+    setDefenceRating,
+    setEquipment
+} = playerSlice.actions;
+
 export default playerSlice.reducer;
 
 

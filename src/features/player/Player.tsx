@@ -20,6 +20,10 @@ export const Player = () => {
     const playerLevel = useAppSelector(state => state.player.level);
     const dmgtaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
     const dmgTakenArr = useAppSelector(state => state.player.dmgLog); // Select the current count
+    const equipment = useAppSelector(state => state.player.equipment);
+    const stats = useAppSelector(state => state.player.stats)
+    const defence = useAppSelector(state => state.player.defenceRating)
+    const attack = useAppSelector(state => state.player.attackRating)
     const fadeAnimDmg = useRef(new Animated.Value(1)).current;
     const screenWidth = Dimensions.get('window').width;
     let inventory: Array<Object>;
@@ -84,7 +88,7 @@ export const Player = () => {
     useEffect(() => {
         initializeData()
         console.log(inventory, "inventory!!!!")
-    },[playerLevel])
+    },[playerLevel, equipment])
 
     useEffect(() => {
         console.log(dmgTakenArr, "DMG LOG PLAYER")
@@ -111,6 +115,8 @@ export const Player = () => {
             <Text style={styles.text}>Player Life: {playerHealth}</Text>
             <Text style={styles.text}>XP: {playerXP}</Text>
             <Text style={styles.text}>Level: {playerLevel}</Text>
+            <Text style={styles.text}>ATK: {JSON.stringify(attack)} | DEF: {JSON.stringify(defence)}</Text>
+            <Text style={styles.text}>STATS: {JSON.stringify(stats)}</Text>
             <Button title="Atk" onPress={ startCombat }></Button>
             </View>
             <Inventory></Inventory>
