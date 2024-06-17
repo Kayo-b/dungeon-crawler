@@ -1,4 +1,4 @@
-{
+  {
 "character": {
   "name": "Test Demork",
   "stats": {
@@ -8,7 +8,9 @@
     "stamina": 12,
     "vitality": 10,
     "intelligence": 3,
-    "defense": 2
+    "defense": 2,
+    "crit": 0.05,
+    "dodge": 0.05
   },
   "level": 1,
   "experience": 0,
@@ -17,9 +19,11 @@
   "equipment": {
     "weapon": {
       "name": "Rusty Sword",
+      "type": "weapon",
       "stats": {
         "damage": 1,
-        "atkSpeed": 1.0
+        "atkSpeed": 1.0,
+        "critMod": 0.01
       }
     },
     "armor": {
@@ -29,23 +33,28 @@
       }
     },
     "helmet": {
+      "type": "helmet",
       "name": "",
       "stats": {}
     },
     "belt": {
       "name": "",
+      "type": "belt",
       "stats": {}
     },
     "ring": {
       "name": "",
+      "type": "ring",
       "stats": {}
     },
     "amulet": {
       "name": "",
+      "type": "amulet",
       "stats": {}
     },
     "boots": {
       "name": "",
+      "type": "boots",
       "stats": {}
     }
   }
@@ -62,7 +71,9 @@
         "vitality": 10,
         "intelligence": 3,
         "defence": 5,
-        "atkSpeed": 0.8
+        "atkSpeed": 0.8,
+        "crit": 0.05,
+        "dodge": 0.05
       },
       "loot": [
         { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 1.5 }
@@ -84,12 +95,14 @@
         "vitality": 5,     
         "intelligence": 1,              
         "defence": 6,
-        "atkSpeed": 1.1
+        "atkSpeed": 1.1,
+        "crit": 0.05,
+        "dodge": 0.05
       },
       "loot": [
-        { "name": "Brass Coin", "type": "currency", "amout": 1, "ID": 1, "dropChance": 0.5},
-        { "name": "Wooden Ring", "type": "ring", "ID": 3, "dropChance": 1.25 },
-        { "ID": 33, "type": "Spiked Shield" }
+        { "name": "Cooper coin", "type": "currency", "amout": 1, "ID": 1, "dropChance": 0.7},
+        { "name": "Wooden Ring", "type": "ring", "ID": 3, "dropChance": 1 },
+        { "ID": 33, "type":"shield", "name": "Spiked Shield", "dropChange": 0.3 }
       ],
       "info" : {
         "description": "A giant rat, spawn from the depts.",

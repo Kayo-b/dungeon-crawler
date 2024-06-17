@@ -50,6 +50,7 @@ export const useCombat = () => {
     let tempPlayerHealth = playerHealth;
     let playerHR: number;
     let enemyHR: number;
+    const baseCrit = useAppSelector(state => state.player.critChance)
     // let experience = data.character.experience;
     
     
@@ -123,12 +124,20 @@ export const useCombat = () => {
             playerCombatIntRef.current = setInterval(() => {
                 const randomVal = Math.random();
                 const randomAddDmg = Math.floor(randomVal * 2)
+                const randomCritVal = Math.random();
                 console.log(playerHR, "STATS Player hit rate")
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
                     // console.log(randomVal, playerHR, "will it hit?", randomVal <= playerHR)
+                    console.log("Crit Values Check", randomCritVal, baseCrit)
                     if(randomVal <= playerHR) {
-                        dispatch(dmg2Enemy(playerDmg + randomAddDmg)); 
-                        tempEnemyHealth -= playerDmg + randomAddDmg;
+                        let dmg = (playerDmg + randomAddDmg);
+                        if(randomCritVal <= baseCrit) {
+                            dmg *= 2;
+                            dispatch(dmg2Enemy(dmg)); 
+                            console.log("CRIT!", dmg);
+                        }
+                        dispatch(dmg2Enemy(dmg)); 
+                        tempEnemyHealth -= dmg;
                     } else {
                         dispatch(dmg2Enemy(0));
                     }
@@ -142,8 +151,6 @@ export const useCombat = () => {
                     const dropCalc = () => {
                         const random = Math.random();
                         (loot as LootObject[]).forEach((val: any) => {
-                            console.log(val, "LOOT 2")
-                            console.log(random,"LOOT3")
                             if(random <= val.dropChance) {
                                 console.log(val, "LOOT DROPPED !!!!!!!!")
                                 lootItem = val

@@ -9,7 +9,7 @@ import itemData from '../../data/items.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 
-import { setHealth, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating } from '../../features/player/playerSlice'
+import { setHealth, setCrit, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating, setEquipment } from '../../features/player/playerSlice'
 import { setInventory } from '../../features/inventory/inventorySlice';
 
 export const Player = () => {
@@ -20,15 +20,16 @@ export const Player = () => {
     const playerLevel = useAppSelector(state => state.player.level);
     const dmgtaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
     const dmgTakenArr = useAppSelector(state => state.player.dmgLog); // Select the current count
-    const equipment = useAppSelector(state => state.player.equipment);
     const stats = useAppSelector(state => state.player.stats)
     const defence = useAppSelector(state => state.player.defenceRating)
     const attack = useAppSelector(state => state.player.attackRating)
+    const playerDmg = useAppSelector(state => state.player.playerDmg); 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current;
+    let equipment = useAppSelector(state => state.player.equipment);
     const screenWidth = Dimensions.get('window').width;
     let inventory: Array<Object>;
-
-
+    
+    
     async function initializeData() {
         // const dispatch = useAppDispatch()
         const storedData = await AsyncStorage.getItem('characters');
@@ -46,13 +47,17 @@ export const Player = () => {
         const stats = obj.character.stats;
         const baseDmg = obj.character.equipment.weapon.stats.damage;
         const baseAR = obj.character.equipment.weapon.stats.atkSpeed;
+        const baseCrit = stats.crit;
+        const weaponCritMod = obj.character.equipment.weapon.stats.critMod;
+        console.log("CRIT WEAP AND BASE", baseCrit, weaponCritMod)
+        const crit =  baseCrit + weaponCritMod;
         inventory = obj.character.inventory;
         dispatch(setStats(stats));
         const baseDef = obj.character.equipment.armor.stats.defence +
          obj.character.equipment.ring.stats.defence;
         // !!!! Make the defence in hitChance be the enemy defence(not the players)
         // Will need to be implemented somwhere else.
-        let playerDmg = physicalDmg(baseDmg, stats.strength, 3);
+        const playerDmg = physicalDmg(baseDmg, stats.strength, 3);
         let playerAR = attackRating(baseAR, stats.dexterity, 1, 1);
         let playerDR = defenceRating(baseDef, 1, stats.dexterity);
         // let hitChan = hitChance(playerAR, playerDef, 1, 1);
@@ -64,7 +69,14 @@ export const Player = () => {
         dispatch(setAttackRating(playerAR));
         dispatch(setDefenceRating(playerDR));
         dispatch(setInventory(inventory));
+        dispatch(setPlayerDmg(playerDmg));
+        console.log("SET CRIT", crit)
+        dispatch(setCrit(crit));
+        // dispatch(setEquipment(obj.character.equipment))
+        // dispatch(setEquipment(obj.character.equipment));
         console.log(playerAR, playerDR, "AR DR STATS")
+        console.log("EQUIP PLAYER")
+        console.log("PLYER DMG", playerDmg)
     }
 
     // these values might be wrong, need to check the formula
@@ -115,7 +127,7 @@ export const Player = () => {
             <Text style={styles.text}>Player Life: {playerHealth}</Text>
             <Text style={styles.text}>XP: {playerXP}</Text>
             <Text style={styles.text}>Level: {playerLevel}</Text>
-            <Text style={styles.text}>ATK: {JSON.stringify(attack)} | DEF: {JSON.stringify(defence)}</Text>
+            <Text style={styles.text}>DMG: {playerDmg} | DEF: {JSON.stringify(defence)}</Text>
             <Text style={styles.text}>STATS: {JSON.stringify(stats)}</Text>
             <Button title="Atk" onPress={ startCombat }></Button>
             </View>

@@ -151,8 +151,10 @@
         "type": "weapon",
         "unique": "Gull",
         "stats":
-          {"damage":10,
-            "atkSpeed":1.5
+          {
+            "damage":5,
+            "atkSpeed":1.2,
+            "critMod": 0.1
           },
         "Melee Range": 1,
         "Attack Speed": "[-20]",

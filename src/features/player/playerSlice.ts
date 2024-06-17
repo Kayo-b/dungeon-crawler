@@ -14,6 +14,7 @@ let atkSpeed = data.character.equipment.weapon.stats.atkSpeed;
 let level = data.character.level;
 let stats = data.character.stats;
 let equipment = data.character.equipment;
+let critChance = data.character.stats.crit;
 
 //Save in storage
 async function saveData(health: number) {
@@ -24,12 +25,12 @@ async function saveData(health: number) {
 }
 // Get data from storage and set it to state
 async function getData() {
-    console.log("SETDATA")
     const data = await AsyncStorage.getItem('characters');
     const obj = data ? JSON.parse(data) : {};
     equipment = obj.character.equipment;
     stats = obj.character.stats;
-    //await AsyncStorage.setItem('characters',JSON.stringify(obj));
+    // await AsyncStorage.setItem('characters',JSON.stringify(obj));
+    console.log("SETDATA player slice", equipment)
 }
 // async function getData() {
 //     const data = await AsyncStorage.getItem('characters');
@@ -64,6 +65,7 @@ interface CounterState {
     attackRating: number;
     defenceRating: number;
     equipment: Object;
+    critChance: number;
 }
 
 const initialState: CounterState = {
@@ -77,10 +79,9 @@ const initialState: CounterState = {
     attackRating: 0,
     defenceRating: 0,
     equipment: equipment,
+    critChance: critChance,
 
 }
-
-
 
 const playerSlice = createSlice({
     name: 'player',
@@ -129,10 +130,11 @@ const playerSlice = createSlice({
             state.defenceRating = action.payload;
         },
         setEquipment(state, action: PayloadAction<Object>) {
-            state.equipment = action.payload
+            state.equipment = action.payload;
+        },
+        setCrit(state, action: PayloadAction<number>) {
+            state.critChance = action.payload;
         }
-
-
     },
 })
 
@@ -148,7 +150,8 @@ export const {
     setPlayerDmg,
     setAttackRating,
     setDefenceRating,
-    setEquipment
+    setEquipment,
+    setCrit
 } = playerSlice.actions;
 
 export default playerSlice.reducer;
