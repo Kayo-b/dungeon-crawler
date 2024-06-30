@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { StyleSheet, Text, View, Button, ImageBackground, Animated } from 'react-native';
+import { StyleSheet, Text, View, Button, ImageBackground, Animated, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { setEquipment } from '../../features/player/playerSlice'
@@ -31,20 +31,13 @@ export const Inventory = () => {
     useEffect(() => {
         console.log('Updated Equipment State:', equipment);
         console.log('Updated inventory State:', inventory);
+        equipItem(null, 0);
     }, [equipment, inventory]);
 
     const equipItem = async (val:any, index: number) => {
         try {
             const dataChar = await AsyncStorage.getItem('characters');
             const objChar = dataChar ? JSON.parse(dataChar) : {};
-            
-            // if (!obj.character) {
-            //     obj.character = {};
-            // }
-            // if (!obj.character.equipment) {
-            //     obj.character.equipment = {};
-            // }
-    
             const itemType = val.type;
             if(itemType !== 'currency') {
                 const currentEquipedItem =  objChar.character.equipment[itemType];
@@ -77,17 +70,21 @@ export const Inventory = () => {
     }
     return (
         <View style={styles.viewContainer}>
-            <View style={styles.rowContainer}>
-                <Text style={styles.text}>Inventory</Text>
-                {itemArr.map((val, index) => (
-                    <Text key={index} style={styles.text} onPress={() => equipItem(val, index)}>{val.name}</Text>
-                ))}
+            <View>
+                <Text style={[styles.text, {backgroundColor: "orange"}]}>Inventory</Text>
+                <ScrollView style={styles.rowContainer}>
+                    {itemArr.map((val, index) => (
+                        <Text key={index} style={styles.text} onPress={() => equipItem(val, index)}>{val.name}</Text>
+                    ))}
+                </ScrollView>
             </View>
-            <View style={styles.rowContainer}>
-                <Text style={styles.text}>Equipment</Text>
-                {equipmentArr.map((val, index) => (
-                    <Text key={index} style={styles.text}>{val.name}</Text>
-                ))}
+            <View>
+                <Text style={[styles.text, {backgroundColor: "blue"}]}>Equipment</Text>
+                <ScrollView style={styles.rowContainer}>
+                    {equipmentArr.map((val, index) => (
+                        <Text key={index} style={styles.text}>{val.name}</Text>
+                    ))}
+                </ScrollView>
             </View>
         </View>
     );
@@ -104,12 +101,13 @@ const styles = StyleSheet.create({
     viewContainer: {
         flex: 1,
         borderWidth: 1,
-        borderColor: 'red',
-        flexDirection: 'row'
+        flexDirection: 'row',
     },
     rowContainer: {
         flexDirection: 'column',
-        alignItems: 'center',
+        flex: 1,
+        maxHeight: 150,
+        maxWidth: 150
     },
     
 });

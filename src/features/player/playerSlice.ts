@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk} from '@reduxjs/toolkit';
 import { useEffect } from 'react';
 import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,7 +15,7 @@ let level = data.character.level;
 let stats = data.character.stats;
 let equipment = data.character.equipment;
 let critChance = data.character.stats.crit;
-
+let combatLog: any = [0]
 //Save in storage
 async function saveData(health: number) {
     const data = await AsyncStorage.getItem('characters');
@@ -31,6 +31,7 @@ async function getData() {
     stats = obj.character.stats;
     // await AsyncStorage.setItem('characters',JSON.stringify(obj));
     console.log("SETDATA player slice", equipment)
+    return equipment;
 }
 // async function getData() {
 //     const data = await AsyncStorage.getItem('characters');
@@ -51,8 +52,12 @@ async function getData() {
 //     atkSpeed = atkSpeed + (agility/200); //1 agility = +0.5% atkSpeed
 //     console.log(stats, "< Stats")
 // }
-getData();
+// getData();
 // calculateStats();
+interface Equipment {
+    name: string,
+    key: string,
+}
 
 interface CounterState {
     health: number;
@@ -66,6 +71,7 @@ interface CounterState {
     defenceRating: number;
     equipment: Object;
     critChance: number;
+    combatLog: any;
 }
 
 const initialState: CounterState = {
@@ -80,8 +86,14 @@ const initialState: CounterState = {
     defenceRating: 0,
     equipment: equipment,
     critChance: critChance,
-
+    combatLog: combatLog,
 }
+
+export const fetchEquipment = createAsyncThunk('counter/fetchEquipment', async () => {
+    const data = await AsyncStorage.getItem('characters');
+    const obj = data ? JSON.parse(data) : {};
+    return obj.character.equipment || [];
+});
 
 const playerSlice = createSlice({
     name: 'player',
@@ -134,7 +146,19 @@ const playerSlice = createSlice({
         },
         setCrit(state, action: PayloadAction<number>) {
             state.critChance = action.payload;
+        },
+        setCombatLog(state, action: PayloadAction<any>) {
+            state.combatLog.push(action.payload);
+        },
+        emptyCombatLog(state) {
+            state.combatLog = [];
         }
+        
+    },
+    extraReducers: (builder) => {
+        builder.addCase(fetchEquipment.fulfilled, (state, action) => {
+            state.equipment = action.payload;
+        });
     },
 })
 
@@ -151,7 +175,9 @@ export const {
     setAttackRating,
     setDefenceRating,
     setEquipment,
-    setCrit
+    setCrit,
+    setCombatLog,
+    emptyCombatLog
 } = playerSlice.actions;
 
 export default playerSlice.reducer;

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, ImageBackground, Animated, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Button, ImageBackground, Animated, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { useCombat } from '../../events/combat'
 import { Inventory } from '../inventory/Inventory'
@@ -9,7 +9,7 @@ import itemData from '../../data/items.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 
-import { setHealth, setCrit, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating, setEquipment } from '../../features/player/playerSlice'
+import { setHealth, setCrit, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating, setEquipment, setCombatLog, fetchEquipment } from '../../features/player/playerSlice'
 import { setInventory } from '../../features/inventory/inventorySlice';
 
 export const Player = () => {
@@ -18,8 +18,11 @@ export const Player = () => {
     const playerHealth = useAppSelector(state => state.player.health); 
     const playerXP = useAppSelector(state => state.player.experience);
     const playerLevel = useAppSelector(state => state.player.level);
-    const dmgtaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
+    const dmgTaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
+    const dmgTakenLog = useAppSelector(state => state.player.dmgLog);
+    const dmgDoneArr = useAppSelector(state => state.enemy.dmgLog);
     const dmgTakenArr = useAppSelector(state => state.player.dmgLog); // Select the current count
+    let combatLog = useAppSelector(state => state.player.combatLog);
     const stats = useAppSelector(state => state.player.stats)
     const defence = useAppSelector(state => state.player.defenceRating)
     const attack = useAppSelector(state => state.player.attackRating)
@@ -28,7 +31,6 @@ export const Player = () => {
     let equipment = useAppSelector(state => state.player.equipment);
     const screenWidth = Dimensions.get('window').width;
     let inventory: Array<Object>;
-    
     
     async function initializeData() {
         // const dispatch = useAppDispatch()
@@ -52,9 +54,8 @@ export const Player = () => {
         console.log("CRIT WEAP AND BASE", baseCrit, weaponCritMod)
         const crit =  baseCrit + weaponCritMod;
         inventory = obj.character.inventory;
-        dispatch(setStats(stats));
         const baseDef = obj.character.equipment.armor.stats.defence +
-         obj.character.equipment.ring.stats.defence;
+        obj.character.equipment.ring.stats.defence;
         // !!!! Make the defence in hitChance be the enemy defence(not the players)
         // Will need to be implemented somwhere else.
         const playerDmg = physicalDmg(baseDmg, stats.strength, 3);
@@ -62,6 +63,7 @@ export const Player = () => {
         let playerDR = defenceRating(baseDef, 1, stats.dexterity);
         // let hitChan = hitChance(playerAR, playerDef, 1, 1);
         // console.log(hitChan,"HIT")
+        dispatch(setStats(stats));
         dispatch(setHealth(health));
         dispatch(setXP(experience));
         dispatch(setLevel(level));
@@ -98,6 +100,10 @@ export const Player = () => {
     }
 
     useEffect(() => {
+        dispatch(fetchEquipment());
+    }, [dispatch]);
+
+    useEffect(() => {
         initializeData()
         console.log(inventory, "inventory!!!!")
     },[playerLevel, equipment])
@@ -110,26 +116,40 @@ export const Player = () => {
             duration: 700,
             useNativeDriver: true, 
         }).start();
-    },[dmgTakenArr.length, count])
-    
+        dispatch(setCombatLog(`You took ${dmgTakenArr[dmgTakenArr.length - 1]} damage.`))
+        dispatch(setCombatLog(`Enemy took ${dmgDoneArr[dmgTakenArr.length - 1]} damage .`))
+        console.log(combatLog, "combatLOG")
+    },[dmgTakenArr.length, dmgDoneArr.length, count])
+
     const { startCombat } = useCombat();
     return (
         <View style={[styles.playerContainer, { width: screenWidth }]}> 
             <View>
-            <ImageBackground
-                    source={require('../../resources/portrait.png')} 
-                    style={styles.enemy}
-                >
-                    <Animated.Text style={[styles.dmgTxt, { opacity: fadeAnimDmg }]}>
-                        <Text>{dmgtaken}</Text>
-                    </Animated.Text>
-            </ImageBackground>
-            <Text style={styles.text}>Player Life: {playerHealth}</Text>
-            <Text style={styles.text}>XP: {playerXP}</Text>
-            <Text style={styles.text}>Level: {playerLevel}</Text>
-            <Text style={styles.text}>DMG: {playerDmg} | DEF: {JSON.stringify(defence)}</Text>
-            <Text style={styles.text}>STATS: {JSON.stringify(stats)}</Text>
-            <Button title="Atk" onPress={ startCombat }></Button>
+                <ImageBackground
+                        source={require('../../resources/portrait.png')} 
+                        style={styles.enemy}
+                    >
+                        <Animated.Text style={[styles.dmgTxt, { opacity: fadeAnimDmg }]}>
+                            <Text>{dmgTaken}</Text>
+                        </Animated.Text>
+                </ImageBackground>
+                <Text style={styles.text}>Player Life: {playerHealth}</Text>
+                <Text style={styles.text}>XP: {playerXP}</Text>
+                <Text style={styles.text}>Level: {playerLevel}</Text>
+                <Text style={styles.text}>DMG: {playerDmg} | DEF: {JSON.stringify(defence)}</Text>
+                <Text style={styles.text}>STATS: {JSON.stringify(stats)}</Text>
+                <TouchableOpacity style={styles.button} onPress={ startCombat }>
+                    <Text>Attack</Text>
+                </TouchableOpacity>
+            </View>
+            <View>
+                <ScrollView style={styles.logView}>
+                {combatLog.map((val:any) => (
+                    <Text style={styles.text}>
+                        {val}
+                    </Text>   
+                ))}
+                </ScrollView>
             </View>
             <Inventory></Inventory>
         </View>
@@ -154,6 +174,7 @@ const styles = StyleSheet.create({
       text: {
         color: 'white',
         fontSize: 10,
+        maxWidth: 100,
       },
       dmgTxt: {
         color: 'red',
@@ -165,6 +186,17 @@ const styles = StyleSheet.create({
         // bottom: 0,
         // right: 0,
         // margin: 10,
+      },
+      button: {
+        backgroundColor: '#007bff',
+        padding: 10,
+        borderRadius: 5,
+        alignItems: 'center',
+        maxWidth: 100
+      },
+      logView: {
+        flex: 1,
+        flexDirection: 'column'
       }
 
 });
