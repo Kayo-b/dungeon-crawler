@@ -93,15 +93,15 @@ export const Inventory = () => {
 const styles = StyleSheet.create({
     text: {
         color: 'white',
-        borderWidth: 2,
-        borderColor: 'white',
         width: 150,
         height: 20,
     },
     viewContainer: {
         flex: 1,
-        borderWidth: 1,
         flexDirection: 'row',
+        maxWidth: 400,
+        maxHeight: 150,
+        overflow: 'scroll',
     },
     rowContainer: {
         flexDirection: 'column',

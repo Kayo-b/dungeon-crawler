@@ -31,23 +31,41 @@ export const Room = () => {
                 source={resources[currentLvl] as ImageSourcePropType} 
                 style={styles.backgroundImage}
                 >
-                <Enemy/>
+                 <View style={styles.enemiesContainer}> 
+                    <Enemy/>
+                </View>
+{/* 
+               <View style={styles.enemiesContainer}> 
+                    <Enemy/>
+                </View> */}
+
             </ImageBackground>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
+    container: {
+        flex: 1
+    },
     backgroundImage: {
         alignSelf: 'center', 
         resizeMode: 'cover', 
         width: '100%', 
         height: '100%',
+        flex: 1,
+        padding: 10,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        flexDirection: 'row'
     },
     button: {
         marginTop: 10,
         alignItems: 'center',
         backgroundColor: '#2196F3',
         padding: 5,
-    }
+    },
+    enemiesContainer: {
+        flexDirection: 'row',
+  },
 });

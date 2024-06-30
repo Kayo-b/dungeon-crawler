@@ -92,7 +92,7 @@ export const Enemy = () => {
                         transform: [{ translateY: moveAnimDmg }]}]}>
                             <Text>{dmgTaken}</Text>
                     </Animated.Text>
-                    <Text style={styles.text}>Life: {count}</Text>
+                    <Text style={styles.text}>Life:{count}</Text>
                 </ImageBackground>
             </Animated.View>
             {/* <Button title="test" onPress={() => dispatch(dmg())}></Button> */}

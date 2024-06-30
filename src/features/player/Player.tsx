@@ -26,7 +26,9 @@ export const Player = () => {
     const stats = useAppSelector(state => state.player.stats)
     const defence = useAppSelector(state => state.player.defenceRating)
     const attack = useAppSelector(state => state.player.attackRating)
-    const playerDmg = useAppSelector(state => state.player.playerDmg); 
+    const playerDmg = useAppSelector(state => state.player.playerDmg);
+    const playerLog = useAppSelector(state => state.player.dmgLog); 
+    const enemyLog = useAppSelector(state => state.enemy.dmgLog); 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current;
     let equipment = useAppSelector(state => state.player.equipment);
     const screenWidth = Dimensions.get('window').width;
@@ -151,7 +153,9 @@ export const Player = () => {
                 ))}
                 </ScrollView>
             </View>
-            <Inventory></Inventory>
+            <View style={styles.inventory}>
+                <Inventory></Inventory>
+            </View>
         </View>
     );
 };
@@ -165,6 +169,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         // justifyContent: 'space-between',
         padding: 10, 
+      },
+      playerStats: {
+        borderWidth: 1,
+        borderColor: 'white',
+
+      },
+      dmgLog: {
+        backgroundColor: 'gray'
       },
       enemy: {
         width: 65,
@@ -183,6 +195,9 @@ const styles = StyleSheet.create({
       },
       inventory: {
         position: 'relative',
+        // maxWidth: 600,
+        // maxHeight: 300,
+        // overflow: 'scroll',
         // bottom: 0,
         // right: 0,
         // margin: 10,
