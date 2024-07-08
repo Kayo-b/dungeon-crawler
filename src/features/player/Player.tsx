@@ -111,17 +111,29 @@ export const Player = () => {
     },[playerLevel, equipment])
 
     useEffect(() => {
-        console.log(dmgTakenArr, "DMG LOG PLAYER")
         fadeAnimDmg.setValue(1); 
         Animated.timing(fadeAnimDmg, {
             toValue: 0,
             duration: 700,
             useNativeDriver: true, 
         }).start();
+
+    },[count])
+    useEffect(() => {
+        console.log(dmgTakenArr, "DMG TAKEN")
+        if(dmgTakenArr.length > 0) {
         dispatch(setCombatLog(`You took ${dmgTakenArr[dmgTakenArr.length - 1]} damage.`))
-        dispatch(setCombatLog(`Enemy took ${dmgDoneArr[dmgTakenArr.length - 1]} damage .`))
-        console.log(combatLog, "combatLOG")
-    },[dmgTakenArr.length, dmgDoneArr.length, count])
+        }
+        console.log(combatLog, "DMG COMBAT LOG")
+    }, [dmgTakenArr.length])
+
+   useEffect(() => {
+        console.log(dmgDoneArr, "DMG DONE")
+        if(dmgDoneArr.length > 0) {
+        dispatch(setCombatLog(`Enemy took ${dmgDoneArr[dmgDoneArr.length - 1]} damage .`))
+        }
+        console.log(combatLog, "DMG COMBAT LOG")
+    }, [dmgDoneArr.length])
 
     const { startCombat } = useCombat();
     return (
@@ -144,9 +156,10 @@ export const Player = () => {
                     <Text>Attack</Text>
                 </TouchableOpacity>
             </View>
-            <View>
+            <View style={styles.dmgLog}>
+                <Text style={styles.dmgLog}>Combat Log</Text>
                 <ScrollView style={styles.logView}>
-                {combatLog.map((val:any) => (
+                {combatLog.map((val:any, index:number) => (
                     <Text style={styles.text}>
                         {val}
                     </Text>   
@@ -176,7 +189,8 @@ const styles = StyleSheet.create({
 
       },
       dmgLog: {
-        backgroundColor: 'gray'
+        backgroundColor: 'gray',
+        width: 125
       },
       enemy: {
         width: 65,
@@ -186,7 +200,7 @@ const styles = StyleSheet.create({
       text: {
         color: 'white',
         fontSize: 10,
-        maxWidth: 100,
+        maxWidth: 125,
       },
       dmgTxt: {
         color: 'red',

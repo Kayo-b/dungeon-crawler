@@ -6,6 +6,7 @@ import { dmg2Enemy } from './../features/enemy/enemySlice';
 import { dmgPlayer, dmg2Player, XP, levelUp } from './../features/player/playerSlice'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setInventory, setAddToInv } from '../features/inventory/inventorySlice';
+import  { emptyCombatLog } from '../features/player/playerSlice';
 
 interface Item {
     ID: number;
@@ -157,9 +158,12 @@ export const useCombat = () => {
                             }
                         })
                     }
+                    
+                    // Createa a separate "combat over" function to deal with all the combat ending things 
                     dropCalc();
                     saveData();
                     setCombat(false);
+                    emptyCombatLog();
                     console.log(loot, "LOOT")
                 }
             }, 1000 / playerAtkSpeed)
@@ -186,7 +190,7 @@ export const useCombat = () => {
                     enemyCombatIntRef.current = null;
                     combatRef.current = false;
                     setCombat(false);
-                    
+                    emptyCombatLog();
                 } 
             }, 1000 / enemyAtkSpeed)
         }
