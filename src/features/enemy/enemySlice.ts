@@ -20,9 +20,11 @@ interface EnemyState {
     xp: number;
     stats: Object;
     loot: Object[];
-
 }
-
+interface DmgPayload {
+ dmg: number;
+ crit: boolean;
+}
 const enemyInitialState: EnemyState = {
     currentEnemyIndex: 1,
     health: data.enemies[1].stats.health,
@@ -41,9 +43,13 @@ const enemySlice = createSlice({
     name: 'enemy',
     initialState: enemyInitialState,
     reducers: {
-        dmg2Enemy(state, action: PayloadAction<number | string>) {
-           state.health -= action.payload as number; 
-           state.dmgLog.push(action.payload as number > 0 ? action.payload as number * -1 : "Miss");
+        dmg2Enemy(state, action: PayloadAction<DmgPayload>) {
+           state.health -= action.payload.dmg as number; 
+           console.log(action.payload.crit, "PAYLOAD")
+           console.log(action.payload.dmg, "PAYLOAD")
+        //    state.dmgLog.push(action.payload.dmg as number > 0 ?
+        //     action.payload.dmg : "Miss");     
+            state.dmgLog.push(action.payload)
         },
         changeEnemy(state, action: PayloadAction<number>) {
             state.currentEnemyIndex = action.payload;

@@ -51,7 +51,7 @@ export const useCombat = () => {
     let tempPlayerHealth = playerHealth;
     let playerHR: number;
     let enemyHR: number;
-    const baseCrit = useAppSelector(state => state.player.critChance)
+    const baseCrit = useAppSelector(state => state.player.critChance * 10000)
     // let experience = data.character.experience;
     
     
@@ -134,13 +134,15 @@ export const useCombat = () => {
                         let dmg = (playerDmg + randomAddDmg);
                         if(randomCritVal <= baseCrit) {
                             dmg *= 2;
-                            dispatch(dmg2Enemy(dmg)); 
+                            dispatch(dmg2Enemy({'dmg':dmg, 'crit': true})); 
                             console.log("CRIT!", dmg);
+                            tempEnemyHealth -= dmg;
+                        } else {
+                            dispatch(dmg2Enemy({'dmg':dmg, 'crit': false})); 
+                            tempEnemyHealth -= dmg;
                         }
-                        dispatch(dmg2Enemy(dmg)); 
-                        tempEnemyHealth -= dmg;
                     } else {
-                        dispatch(dmg2Enemy(0));
+                        dispatch(dmg2Enemy({'dmg':0, 'crit': false}));
                     }
                 } else {
                     if(tempEnemyHealth <= 0) {
@@ -174,14 +176,26 @@ export const useCombat = () => {
         if(enemyCombatIntRef.current === null) {
             enemyCombatIntRef.current = setInterval(() => {
                 const randomVal = Math.random();
-                const randomAddDmg = Math.floor(randomVal * 2)
-                console.log(enemyHR, " STATS Enemy hit rate")
+                const randomAddDmg = Math.floor(randomVal * 2);
+                const randomCritVal = Math.random();
+                enemyHR = 1;
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
+                    console.log(randomVal <= enemyHR, "Enemy hit rate check")
                     if(randomVal <= enemyHR) { // FIX HIT RATE FOR ENEMY HITTINH PLAYER
-                        dispatch(dmg2Player(enemyDmg + randomAddDmg))
-                        tempPlayerHealth -= enemyDmg + randomAddDmg;    
+                        let dmg = (enemyDmg + randomAddDmg);
+                        console.log("DMG HELOOOOOOO",enemyDmg,randomAddDmg, dmg)
+                        if(randomCritVal <= baseCrit) {
+                            dmg *= 2;
+                            dispatch(dmg2Player({'dmg':dmg, 'crit': true}));
+                            tempPlayerHealth -= dmg;    
+                        } else{
+                            dispatch(dmg2Player({'dmg':dmg, 'crit': false}));
+                            tempPlayerHealth -= dmg;
+                        }
                     } else {
-                        dispatch(dmg2Player(0))
+
+                        console.log("DMG %%% ELSE")
+                        dispatch(dmg2Player({'dmg':0, 'crit': false}));
                     }
                 } else {
                      if(tempEnemyHealth <= 0) {

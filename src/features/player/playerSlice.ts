@@ -73,6 +73,10 @@ interface CounterState {
     critChance: number;
     combatLog: any;
 }
+interface DmgPayload {
+    dmg: number;
+    crit: boolean;
+}
 
 const initialState: CounterState = {
     health: health,
@@ -105,10 +109,13 @@ const playerSlice = createSlice({
             // immer makes it immutable (aka copy add value to copy...) 
             state.health--;
         },
-        dmg2Player(state, action: PayloadAction<number | string>) {
-            state.health -= action.payload as number;
-            console.log(action.payload, "action.payload player")
-            state.dmgLog.push(action.payload as number > 0 ? action.payload as number * - 1 : "Miss");
+        dmg2Player(state, action: PayloadAction<DmgPayload>) {
+            state.health -= action.payload.dmg as number;
+            console.log(action.payload.dmg, "action.payload player");
+            state.dmgLog.push(action.payload);
+            console.log("DMG HELOOOOO", action.payload.dmg)
+            console.log("DMG HELOOOOO", action.payload)
+            console.log("DMG HELOOOOO", state.dmgLog[state.dmgLog.length -1]);
             saveData(state.health);
         },
         setPlayerDmg(state, action: PayloadAction<number>) {

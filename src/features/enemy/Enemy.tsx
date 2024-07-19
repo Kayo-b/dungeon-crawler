@@ -9,10 +9,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const Enemy = () => {
     const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
-    const count = useAppSelector(state => state.enemy.health); // Select the current count
-    const dmgLog = useAppSelector(state => state.enemy.dmgLog); // Select the current count
-    const dmgTaken = useAppSelector(state => state.enemy.dmgLog[state.enemy.dmgLog.length - 1]); // Select the current count
-    const dmgTakenArr = useAppSelector(state => state.enemy.dmgLog); // Select the current count
+    const count = useAppSelector(state => state.enemy.health); 
+    const dmgLog = useAppSelector(state => state.enemy.dmgLog);
+    const dmgTakenArr = useAppSelector(state => state.enemy.dmgLog); 
+    const dmgTaken = dmgTakenArr.length > 0 ? dmgTakenArr[dmgTakenArr.length - 1].dmg :
+    0;
     const enemyIndex = useAppSelector(state => state.enemy.currentEnemyIndex); 
     const enemyAR = useAppSelector(state => state.enemy.atkSpeed);
     const enemyStats = useAppSelector(state => state.enemy.stats);
@@ -54,8 +55,8 @@ export const Enemy = () => {
         console.log(count,"health Enemy")
         fadeAnimDmg.setValue(1);
         moveAnimDmg.setValue(0);
-        console.log(dmgTakenArr, "DMG TAKEN ARR")
-        
+        console.log(dmgTakenArr[0], "DMG TAKEN ARR")
+        console.log(dmgTaken, "DMG TAKEN ????")
         Animated.sequence([
             Animated.timing(moveAnimDmg, {
                 toValue: -10,

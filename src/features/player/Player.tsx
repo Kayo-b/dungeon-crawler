@@ -18,10 +18,10 @@ export const Player = () => {
     const playerHealth = useAppSelector(state => state.player.health); 
     const playerXP = useAppSelector(state => state.player.experience);
     const playerLevel = useAppSelector(state => state.player.level);
-    const dmgTaken = useAppSelector(state => state.player.dmgLog[state.player.dmgLog.length - 1]); // Select the current count
     const dmgTakenLog = useAppSelector(state => state.player.dmgLog);
-    const dmgDoneArr = useAppSelector(state => state.enemy.dmgLog);
-    const dmgTakenArr = useAppSelector(state => state.player.dmgLog); // Select the current count
+    const dmgTaken = dmgTakenLog.length > 0 ? dmgTakenLog[dmgTakenLog.length - 1].dmg : 0;
+    const dmgDoneObj = useAppSelector(state => state.enemy.dmgLog);
+    const dmgTakenObj = useAppSelector(state => state.player.dmgLog); // Select the current count
     let combatLog = useAppSelector(state => state.player.combatLog);
     const stats = useAppSelector(state => state.player.stats)
     const defence = useAppSelector(state => state.player.defenceRating)
@@ -120,20 +120,25 @@ export const Player = () => {
 
     },[count])
     useEffect(() => {
-        console.log(dmgTakenArr, "DMG TAKEN")
-        if(dmgTakenArr.length > 0) {
-        dispatch(setCombatLog(`You took ${dmgTakenArr[dmgTakenArr.length - 1]} damage.`))
+        console.log(dmgTakenObj, "DMG HELOOOO 2")
+        const keys = Object.keys(dmgTakenObj);
+        if(keys.length > 0) {
+        keys[keys.length -1] === "Miss" ?
+        dispatch(setCombatLog(`Miss.`)) :
+        dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} damage.`));
         }
         console.log(combatLog, "DMG COMBAT LOG")
-    }, [dmgTakenArr.length])
+    }, [Object.keys(dmgTakenObj).length])
 
    useEffect(() => {
-        console.log(dmgDoneArr, "DMG DONE")
-        if(dmgDoneArr.length > 0) {
-        dispatch(setCombatLog(`Enemy took ${dmgDoneArr[dmgDoneArr.length - 1]} damage .`))
+        const keys = Object.keys(dmgDoneObj);
+        console.log(dmgDoneObj, "DMG DONE")
+        if(keys.length > 0) {
+        dispatch(setCombatLog(`Enemy took ${dmgDoneObj[keys.length - 1].dmg as number} damage .`))
         }
         console.log(combatLog, "DMG COMBAT LOG")
-    }, [dmgDoneArr.length])
+        console.log(dmgTaken,"damage taken")
+    }, [Object.keys(dmgDoneObj).length])
 
     const { startCombat } = useCombat();
     return (
