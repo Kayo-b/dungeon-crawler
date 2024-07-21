@@ -16,6 +16,7 @@ let stats = data.character.stats;
 let equipment = data.character.equipment;
 let critChance = data.character.stats.crit;
 let combatLog: any = [0]
+
 //Save in storage
 async function saveData(health: number) {
     const data = await AsyncStorage.getItem('characters');
@@ -23,6 +24,7 @@ async function saveData(health: number) {
     obj.character.stats.health = health;
     await AsyncStorage.setItem('characters', JSON.stringify(obj));
 }
+
 // Get data from storage and set it to state
 async function getData() {
     const data = await AsyncStorage.getItem('characters');
@@ -30,9 +32,10 @@ async function getData() {
     equipment = obj.character.equipment;
     stats = obj.character.stats;
     // await AsyncStorage.setItem('characters',JSON.stringify(obj));
-    console.log("SETDATA player slice", equipment)
+    console.log("SETDATA player slice", equipment);
     return equipment;
 }
+
 // async function getData() {
 //     const data = await AsyncStorage.getItem('characters');
 //     const obj = data ? JSON.parse(data) : {};
@@ -54,6 +57,7 @@ async function getData() {
 // }
 // getData();
 // calculateStats();
+
 interface Equipment {
     name: string,
     key: string,
@@ -87,7 +91,7 @@ const initialState: CounterState = {
     level: level,
     stats: stats,
     attackRating: 0,
-    defenceRating: 0,
+    defenceRating: 1,
     equipment: equipment,
     critChance: critChance,
     combatLog: combatLog,

@@ -28,6 +28,7 @@ export const useCombat = () => {
     const playerLVL = useAppSelector(state => state.player.level);
     const playerAR = useAppSelector(state => state.player.attackRating);
     const playerDR = useAppSelector(state => state.player.defenceRating);
+    console.log(playerDR, "Player DR")
     const enemyHealth = useAppSelector(state => state.enemy.health);
     const enemyDmg = useAppSelector(state => state.enemy.damage);
     const enemyAtkSpeed = useAppSelector(state => state.enemy.atkSpeed);
@@ -57,20 +58,24 @@ export const useCombat = () => {
     
     
     const startCombat = () => {
+        if(enemyHealth > 0 && playerHealth > 0) {
         combatRef.current = true;
-        console.log(playerDmg, "Player dmg Combat component");
-        playerHR = hitRate(playerAR, enemyDR, playerLVL, enemyLVL);
-        enemyHR = hitRate(enemyAR, playerDR, enemyLVL, playerLVL);
-        console.log(playerAR, enemyDR, playerLVL, enemyLVL, "STATS P")
-        console.log(enemyAR, playerDR, enemyLVL, playerLVL, "STATS E")
-        // enemyHR = hitRating(enemyAR, )
-        console.log(playerLVL, "player level");
-        console.log(enemyLVL, "enemy level");
-        console.log(enemyStats, loot, "STATS ENEMY")
-        console.log(enemyDR,"Enemy DR");
-        // setCombat(true);
-        playerLoop();
-        enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
+            console.log(playerDmg, "Player dmg Combat component");
+            playerHR = hitRate(playerAR, enemyDR, playerLVL, enemyLVL);
+            enemyHR = hitRate(enemyAR, playerDR, enemyLVL, playerLVL);
+            console.log(playerAR, enemyDR, playerLVL, enemyLVL, "STATS P")
+            console.log(enemyAR, playerDR, enemyLVL, playerLVL, "STATS ENEMY HitRate", hitRate(enemyAR, playerDR, enemyLVL, playerLVL))
+            // enemyHR = hitRating(enemyAR, )
+            console.log(playerLVL, "player level");
+            console.log(enemyLVL, "enemy level");
+            console.log(enemyStats, loot, "STATS ENEMY")
+            console.log(enemyDR,"Enemy DR");
+            // setCombat(true);
+            playerLoop();
+            enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
+        } else {
+            console.log("No combat conditions met")
+        } 
     }
     
     // Attacker Defence Rating, Defender Defence Rating, Attacker Level, Defender Level
@@ -178,9 +183,9 @@ export const useCombat = () => {
                 const randomVal = Math.random();
                 const randomAddDmg = Math.floor(randomVal * 2);
                 const randomCritVal = Math.random();
-                enemyHR = 1;
+                // enemyHR = 1;
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
-                    console.log(randomVal <= enemyHR, "Enemy hit rate check")
+                    console.log(randomVal <= enemyHR, "Enemy hit rate check", enemyHR)
                     if(randomVal <= enemyHR) { // FIX HIT RATE FOR ENEMY HITTINH PLAYER
                         let dmg = (enemyDmg + randomAddDmg);
                         console.log("DMG HELOOOOOOO",enemyDmg,randomAddDmg, dmg)

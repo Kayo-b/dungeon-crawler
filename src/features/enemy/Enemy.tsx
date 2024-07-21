@@ -3,7 +3,7 @@ import { ImageSourcePropType } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, ImageBackground, Animated } from 'react-native';
 import  { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { setAttackRating, setStats } from '../../features/enemy/enemySlice';
+import { setAttackRating, setStats, fetchEnemies } from '../../features/enemy/enemySlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { dmg, dmg2 } from '../../features/player/playerSlice'
 
@@ -17,27 +17,33 @@ export const Enemy = () => {
     const enemyIndex = useAppSelector(state => state.enemy.currentEnemyIndex); 
     const enemyAR = useAppSelector(state => state.enemy.atkSpeed);
     const enemyStats = useAppSelector(state => state.enemy.stats);
+    const enemies = useAppSelector(state => state.enemy.enemies)
     // const dex = stats.dexterity;
     const fadeAnim = useRef(new Animated.Value(1)).current; 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
     const moveAnimDmg = useRef(new Animated.Value(0)).current;
     let stats;
     let loot;
-    
+    console.log("SET DATA outside")
     const resources = [
         require('../../resources/skeleton_01.png'),
         require('../../resources/demonrat_01.png'),
     ]
+    useEffect(() => {
+        dispatch({ type: 'enemy/fetchData', payload: enemyIndex });
+    }, [dispatch, enemyIndex]);
     async function setData() {
-        console.log("SETDATA")
-        const data = await AsyncStorage.getItem('characters');
-        const obj = data ? JSON.parse(data) : {};
-        stats = obj.enemies[enemyIndex].stats; 
-        loot = obj.enemies[enemyIndex].loot;
-        let baseAR = obj.enemies[enemyIndex].stats.atkSpeed;
+        // const data = await AsyncStorage.getItem('characters');
+        // const obj = data ? JSON.parse(data) : {};
+        stats = enemies[enemyIndex].stats; 
+        loot = enemies[enemyIndex].loot;
+        let baseAR = enemies[enemyIndex].stats.atkSpeed;
         //await AsyncStorage.setItem('characters',JSON.stringify(obj));
         // dispatch(setStats(stats))
         let atkRating = attackRating(baseAR, stats.dexterity, 2, 1);
+        console.log(atkRating, "ATK RATING")
+        console.log(atkRating,"SETDATA <><><")
+        console.log("SETDATA <><><")
         dispatch(setAttackRating(atkRating));
     }
     const initializeData = () => {
@@ -45,11 +51,14 @@ export const Enemy = () => {
     }
     const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
         const value = (baseAR + dex * ARperDex) * (attackBonus + 1);
+        console.log(value, "ATK RATING")
         return value; 
     }
     useEffect(() => {
+        dispatch(fetchEnemies());
         setData();
-    }, []);
+
+    }, [dispatch]);
 
     useEffect(() => {
         console.log(count,"health Enemy")

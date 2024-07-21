@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -10,6 +10,7 @@ let loot = data.enemies[1].loot;
 
 interface EnemyState {
     currentEnemyIndex: number;
+    enemies: Array<Object>;
     health: number;
     dmgLog: any;
     damage: number;
@@ -27,6 +28,7 @@ interface DmgPayload {
 }
 const enemyInitialState: EnemyState = {
     currentEnemyIndex: 1,
+    enemies: data.enemies,
     health: data.enemies[1].stats.health,
     dmgLog: [],
     damage: data.enemies[1].stats.attack,
@@ -38,6 +40,12 @@ const enemyInitialState: EnemyState = {
     stats: stats,
     loot: loot
 }
+
+export const fetchEnemies = createAsyncThunk('enemies/fetchEnemies', async () => {
+    const data = await AsyncStorage.getItem('characters');
+        const obj = data ? JSON.parse(data) : {};
+    return obj.enemies || [];
+});
 
 const enemySlice = createSlice({
     name: 'enemy',
@@ -69,7 +77,11 @@ const enemySlice = createSlice({
         setStats(state, action: PayloadAction<Object>) {
             state.stats = action.payload;
         }
-
+    },
+    extraReducers: (builder) => {
+        builder.addCase(fetchEnemies.fulfilled, (state, action) => {
+            state.enemies = action.payload
+        })
     }
 })
 

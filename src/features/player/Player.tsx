@@ -56,8 +56,12 @@ export const Player = () => {
         console.log("CRIT WEAP AND BASE", baseCrit, weaponCritMod)
         const crit =  baseCrit + weaponCritMod;
         inventory = obj.character.inventory;
-        const baseDef = obj.character.equipment.armor.stats.defence +
-        obj.character.equipment.ring.stats.defence;
+        let defEquip = obj.character.equipment;
+        // Improve this logic for when defence equipment is equiped
+        const baseDef = defEquip.armor.name !== '' && defEquip.ring.name !== '' ?
+        obj.character.equipment.armor.stats.defence +
+        obj.character.equipment.ring.stats.defence : 0;
+        console.log(defEquip.armor.name, defEquip.ring.name, baseDef, "BASE DEF")
         // !!!! Make the defence in hitChance be the enemy defence(not the players)
         // Will need to be implemented somwhere else.
         const playerDmg = physicalDmg(baseDmg, stats.strength, 3);
