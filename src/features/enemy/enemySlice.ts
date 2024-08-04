@@ -4,8 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const enemyHealth = data.enemies[0].stats.health;
 const enemyDmg = data.enemies[0].stats.attack;
-let stats = data.enemies[1].stats;
-let loot = data.enemies[1].loot;
+const stats = data.enemies[1].stats;
+const loot = data.enemies[1].loot;
+const info = data.enemies[1].info;
 // Get data from storage and set it to state
 
 interface EnemyState {
@@ -21,6 +22,7 @@ interface EnemyState {
     xp: number;
     stats: Object;
     loot: Object[];
+    info: Object;
 }
 interface DmgPayload {
  dmg: number;
@@ -38,7 +40,8 @@ const enemyInitialState: EnemyState = {
     level: data.enemies[1].info.level,
     xp: data.enemies[1].info.xp,
     stats: stats,
-    loot: loot
+    loot: loot,
+    info: info
 }
 
 export const fetchEnemies = createAsyncThunk('enemies/fetchEnemies', async () => {
@@ -70,6 +73,7 @@ const enemySlice = createSlice({
             state.stats = data.enemies[action.payload].stats;
             console.log(data.enemies[action.payload].loot, "ACTION!")
             state.loot = data.enemies[action.payload].loot;
+            state.info = data.enemies[action.payload].info;
         },
         setAttackRating(state, action: PayloadAction<number>) {
             state.atkRating = action.payload;

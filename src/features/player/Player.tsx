@@ -28,7 +28,7 @@ export const Player = () => {
     const attack = useAppSelector(state => state.player.attackRating)
     const playerDmg = useAppSelector(state => state.player.playerDmg);
     const playerLog = useAppSelector(state => state.player.dmgLog); 
-    const enemyLog = useAppSelector(state => state.enemy.dmgLog); 
+    const enemyInfo = useAppSelector(state => state.enemy.info)
     const fadeAnimDmg = useRef(new Animated.Value(1)).current;
     let equipment = useAppSelector(state => state.player.equipment);
     const screenWidth = Dimensions.get('window').width;
@@ -126,9 +126,10 @@ export const Player = () => {
     useEffect(() => {
         console.log(dmgTakenObj, "DMG HELOOOO 2")
         const keys = Object.keys(dmgTakenObj);
+        console.log(keys, "keys")
         if(keys.length > 0) {
-        keys[keys.length -1] === "Miss" ?
-        dispatch(setCombatLog(`Miss.`)) :
+        keys[keys.length -1] === '0' ?
+        dispatch(setCombatLog(`${enemyInfo.name} missed.`)) :
         dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} damage.`));
         }
         console.log(combatLog, "DMG COMBAT LOG")
@@ -138,7 +139,9 @@ export const Player = () => {
         const keys = Object.keys(dmgDoneObj);
         console.log(dmgDoneObj, "DMG DONE")
         if(keys.length > 0) {
-        dispatch(setCombatLog(`Enemy took ${dmgDoneObj[keys.length - 1].dmg as number} damage .`))
+            keys[keys.length - 1] === '0' ?
+            dispatch(setCombatLog(`Attack Missed ${enemyInfo.name}`)) :
+            dispatch(setCombatLog(`${enemyInfo.name} took ${dmgDoneObj[keys.length - 1].dmg as number} damage .`))
         }
         console.log(combatLog, "DMG COMBAT LOG")
         console.log(dmgTaken,"damage taken")

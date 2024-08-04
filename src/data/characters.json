@@ -61,7 +61,6 @@
 },
   "enemies": [
     {
-      "name": "Skell",
       "stats": {
         "health": 14,
         "attack": 2,
@@ -79,13 +78,13 @@
         { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 1.5 }
       ],
       "info" : {
+        "name": "Skell",
         "description": "A skeleton warrior, armed with a rusty sword.",
         "level": 2,
         "xp": 10
       }
     },
     {
-      "name": "Ratazana",
       "stats": {
         "health": 10,
         "attack": 1,
@@ -105,6 +104,7 @@
         { "ID": 33, "type":"shield", "name": "Spiked Shield", "dropChange": 0.3 }
       ],
       "info" : {
+        "name": "Ratazana",
         "description": "A giant rat, spawn from the depts.",
         "level": 1,
         "xp": 6

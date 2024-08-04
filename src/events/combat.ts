@@ -80,6 +80,7 @@ export const useCombat = () => {
     
     // Attacker Defence Rating, Defender Defence Rating, Attacker Level, Defender Level
     const hitRate = (AAR: number, DDR: number, ALVL: number, DLVL: number) => {
+        
         return 2 * (AAR / (AAR + DDR)) * (ALVL / (ALVL + DLVL) );
     }
     
@@ -133,7 +134,7 @@ export const useCombat = () => {
                 const randomCritVal = Math.random();
                 console.log(playerHR, "STATS Player hit rate")
                 if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
-                    // console.log(randomVal, playerHR, "will it hit?", randomVal <= playerHR)
+                    console.log(randomVal, playerHR, "will it hit?", randomVal <= playerHR)
                     console.log("Crit Values Check", randomCritVal, baseCrit)
                     if(randomVal <= playerHR) {
                         let dmg = (playerDmg + randomAddDmg);
