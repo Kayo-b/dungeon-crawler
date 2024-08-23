@@ -8,7 +8,6 @@ import data from '../../data/characters.json';
 import itemData from '../../data/items.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
-
 import { setHealth, setCrit, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating, setEquipment, setCombatLog, fetchEquipment } from '../../features/player/playerSlice'
 import { setInventory } from '../../features/inventory/inventorySlice';
 
@@ -124,11 +123,11 @@ export const Player = () => {
 
     },[count])
     useEffect(() => {
-        console.log(dmgTakenObj, "DMG HELOOOO 2")
+        console.log(dmgTakenObj, "PAYLOAD DMG 2 PLAYER")
         const keys = Object.keys(dmgTakenObj);
         console.log(keys, "keys")
         if(keys.length > 0) {
-        keys[keys.length -1] === '0' ?
+        dmgTakenObj[keys.length -1].dmg === 0 ?
         dispatch(setCombatLog(`${enemyInfo.name} missed.`)) :
         dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} damage.`));
         }
@@ -137,9 +136,10 @@ export const Player = () => {
 
    useEffect(() => {
         const keys = Object.keys(dmgDoneObj);
-        console.log(dmgDoneObj, "DMG DONE")
+        console.log(dmgDoneObj, "PAYLOAD DMG DONE")
         if(keys.length > 0) {
-            keys[keys.length - 1] === '0' ?
+            console.log(dmgDoneObj[keys.length - 1], 'PAYLOAD KEYS')
+            dmgDoneObj[keys.length - 1].dmg === 0 ?
             dispatch(setCombatLog(`Attack Missed ${enemyInfo.name}`)) :
             dispatch(setCombatLog(`${enemyInfo.name} took ${dmgDoneObj[keys.length - 1].dmg as number} damage .`))
         }

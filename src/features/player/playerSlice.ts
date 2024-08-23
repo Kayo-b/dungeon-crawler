@@ -115,7 +115,7 @@ const playerSlice = createSlice({
         },
         dmg2Player(state, action: PayloadAction<DmgPayload>) {
             state.health -= action.payload.dmg as number;
-            console.log(action.payload.dmg, "action.payload player");
+            console.log(action.payload.dmg, "PAYLOAD player");
             state.dmgLog.push(action.payload);
             console.log("DMG HELOOOOO", action.payload.dmg)
             console.log("DMG HELOOOOO", action.payload)

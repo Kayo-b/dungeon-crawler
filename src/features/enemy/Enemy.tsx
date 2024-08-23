@@ -12,8 +12,9 @@ export const Enemy = () => {
     const count = useAppSelector(state => state.enemy.health); 
     const dmgLog = useAppSelector(state => state.enemy.dmgLog);
     const dmgTakenArr = useAppSelector(state => state.enemy.dmgLog); 
-    const dmgTaken = dmgTakenArr.length > 0 ? dmgTakenArr[dmgTakenArr.length - 1].dmg :
-    0;
+    console.log(dmgTakenArr, "DMG TAKEN ARR PAYLOAD")
+    const dmgTaken = dmgTakenArr.length > 0 ? dmgTakenArr[dmgTakenArr.length - 1] :
+    {test:1};
     const enemyIndex = useAppSelector(state => state.enemy.currentEnemyIndex); 
     const enemyAR = useAppSelector(state => state.enemy.atkSpeed);
     const enemyStats = useAppSelector(state => state.enemy.stats);
@@ -97,10 +98,10 @@ export const Enemy = () => {
                         style={[styles.enemy]}
                         resizeMode="contain"
                     >
-                    <Animated.Text style={[styles.damageText, {
+                    <Animated.Text style={[!dmgTaken.crit ? styles.damageNormalText : styles.damageCritText, {
                         opacity: fadeAnimDmg,
                         transform: [{ translateY: moveAnimDmg }]}]}>
-                            <Text>{dmgTaken}</Text>
+                            <Text>{dmgTaken.dmg === 0 ? "Miss" : dmgTaken.dmg}</Text>
                     </Animated.Text>
                     <Text style={styles.text}>Life:{count}</Text>
                 </ImageBackground>
@@ -122,12 +123,20 @@ const styles = StyleSheet.create({
         color: 'magenta',
         fontSize: 15,
     },
-    damageText: {
+    damageCritText: {
         color: 'red',
-        fontSize: 11,
+        fontSize: 22,
+        position: 'absolute',
+        top: -15,
+        left: 60
+    },
+    damageNormalText: {
+        color: 'white',
+        fontSize: 12,
         position: 'absolute',
         top: -15,
         left: 60
     }
+
 
 });

@@ -52,7 +52,7 @@ export const useCombat = () => {
     let tempPlayerHealth = playerHealth;
     let playerHR: number;
     let enemyHR: number;
-    const baseCrit = useAppSelector(state => state.player.critChance * 10000)
+    const baseCrit = useAppSelector(state => state.player.critChance)
     // let experience = data.character.experience;
     
     

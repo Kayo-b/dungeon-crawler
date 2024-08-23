@@ -72,7 +72,7 @@
         "defence": 5,
         "atkSpeed": 0.8,
         "crit": 0.05,
-        "dodge": 0.05
+        "dodge": 0.55
       },
       "loot": [
         { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 1.5 }
