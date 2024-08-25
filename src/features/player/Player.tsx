@@ -127,9 +127,13 @@ export const Player = () => {
         const keys = Object.keys(dmgTakenObj);
         console.log(keys, "keys")
         if(keys.length > 0) {
-        dmgTakenObj[keys.length -1].dmg === 0 ?
-        dispatch(setCombatLog(`${enemyInfo.name} missed.`)) :
-        dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} damage.`));
+            if(dmgTakenObj[keys.length -1].dmg === 0)  {
+                dispatch(setCombatLog(`${enemyInfo.name} missed.`));
+            } else if(dmgTakenObj[keys.length -1].crit) {
+                dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} critical damage.`));
+            } else {
+                dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} damage.`));
+            }
         }
         console.log(combatLog, "DMG COMBAT LOG")
     }, [Object.keys(dmgTakenObj).length])
@@ -139,9 +143,13 @@ export const Player = () => {
         console.log(dmgDoneObj, "PAYLOAD DMG DONE")
         if(keys.length > 0) {
             console.log(dmgDoneObj[keys.length - 1], 'PAYLOAD KEYS')
-            dmgDoneObj[keys.length - 1].dmg === 0 ?
-            dispatch(setCombatLog(`Attack Missed ${enemyInfo.name}`)) :
-            dispatch(setCombatLog(`${enemyInfo.name} took ${dmgDoneObj[keys.length - 1].dmg as number} damage .`))
+            if(dmgDoneObj[keys.length - 1].dmg === 0) {
+                dispatch(setCombatLog(`Attack Missed ${enemyInfo.name}`));
+            } else if(dmgDoneObj[keys.length - 1].crit) {
+                dispatch(setCombatLog(`${enemyInfo.name} took ${dmgDoneObj[keys.length - 1].dmg as number} critical damage .`))
+            } else {
+                dispatch(setCombatLog(`${enemyInfo.name} took ${dmgDoneObj[keys.length - 1].dmg as number} damage .`))
+            }
         }
         console.log(combatLog, "DMG COMBAT LOG")
         console.log(dmgTaken,"damage taken")

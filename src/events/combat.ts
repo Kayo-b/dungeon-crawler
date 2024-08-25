@@ -190,11 +190,12 @@ export const useCombat = () => {
                     if(randomVal <= enemyHR) { // FIX HIT RATE FOR ENEMY HITTINH PLAYER
                         let dmg = (enemyDmg + randomAddDmg);
                         console.log("DMG HELOOOOOOO",enemyDmg,randomAddDmg, dmg)
+                        console.log(randomCritVal, baseCrit, "CRIT ENEMY")
                         if(randomCritVal <= baseCrit) {
                             dmg *= 2;
                             dispatch(dmg2Player({'dmg':dmg, 'crit': true}));
                             tempPlayerHealth -= dmg;    
-                        } else{
+                        } else { 
                             dispatch(dmg2Player({'dmg':dmg, 'crit': false}));
                             tempPlayerHealth -= dmg;
                         }
