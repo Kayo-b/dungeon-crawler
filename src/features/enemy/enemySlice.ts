@@ -8,10 +8,46 @@ const stats = data.enemies[1].stats;
 const loot = data.enemies[1].loot;
 const info = data.enemies[1].info;
 // Get data from storage and set it to state
-
+interface EnemyStats {
+  health: number;
+  attack: number;
+  strength: number;
+  dexterity: number;
+  stamina: number;
+  vitality: number;
+  intelligence: number;
+  defence: number;
+  atkSpeed: number;
+  crit: number;
+  dodge: number;
+}
+interface LootItem {
+  name: string;
+  type: string;
+  ID: number;
+  dropChance: number;
+  amount?: number;
+}
+interface EnemyInfo {
+  name: string;
+  level: number;
+  xp: number;
+}
+interface Enemy {
+  stats: EnemyStats;
+  loot: LootItem[];
+  info: EnemyInfo;
+}
+interface infoObj {
+    name: String
+}
+interface enemies {
+    stats: Number;
+    loot: string;
+}
 interface EnemyState {
     currentEnemyIndex: number;
-    enemies: Array<Object>;
+    enemies:Enemy[]; 
     health: number;
     dmgLog: any;
     damage: number;
@@ -22,7 +58,7 @@ interface EnemyState {
     xp: number;
     stats: Object;
     loot: Object[];
-    info: Object;
+    info: infoObj;
 }
 interface DmgPayload {
  dmg: number;

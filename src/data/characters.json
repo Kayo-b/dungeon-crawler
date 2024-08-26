@@ -101,7 +101,7 @@
       "loot": [
         { "name": "Cooper coin", "type": "currency", "amout": 1, "ID": 1, "dropChance": 0.7},
         { "name": "Wooden Ring", "type": "ring", "ID": 3, "dropChance": 1 },
-        { "ID": 33, "type":"shield", "name": "Spiked Shield", "dropChange": 0.3 }
+        { "ID": 33, "type":"shield", "name": "Spiked Shield", "dropChance": 0.3 }
       ],
       "info" : {
         "name": "Ratazana",
