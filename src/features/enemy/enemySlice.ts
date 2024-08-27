@@ -116,6 +116,9 @@ const enemySlice = createSlice({
         },
         setStats(state, action: PayloadAction<Object>) {
             state.stats = action.payload;
+        },
+        emptyDmgLog(state) {
+            state.dmgLog = [];
         }
     },
     extraReducers: (builder) => {
@@ -125,5 +128,5 @@ const enemySlice = createSlice({
     }
 })
 
-export const { dmg2Enemy, changeEnemy, setAttackRating, setStats } = enemySlice.actions;
+export const { dmg2Enemy, changeEnemy, setAttackRating, setStats, emptyDmgLog } = enemySlice.actions;
 export default enemySlice.reducer;
