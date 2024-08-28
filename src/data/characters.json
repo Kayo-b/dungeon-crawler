@@ -75,7 +75,8 @@
         "dodge": 0.55
       },
       "loot": [
-        { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 1.5 }
+        { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 1.5 },
+        {"name":"Minor Healing Potion", "type":"consumable", "ID":"1", "dropChance":1.5}
       ],
       "info" : {
         "name": "Skell",

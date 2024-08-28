@@ -80,7 +80,6 @@ export const useCombat = () => {
     
     // Attacker Defence Rating, Defender Defence Rating, Attacker Level, Defender Level
     const hitRate = (AAR: number, DDR: number, ALVL: number, DLVL: number) => {
-        
         return 2 * (AAR / (AAR + DDR)) * (ALVL / (ALVL + DLVL) );
     }
     
@@ -99,11 +98,9 @@ export const useCombat = () => {
             obj.character.inventory.push(itemsObj.items[itemType][`${itemID}`])
             // inventory.push(itemsObj.items[itemType][`${itemID}`])
             dispatch(setAddToInv(itemsObj.items[itemType][`${itemID}`]));
-            
         }
         obj.character.stats.health = tempPlayerHealth;
         obj.character.experience += enemyXP;
-        
         console.log(obj.character.stats.health, "<< health");
         console.log(obj.character.experience, "<< EXP");
         if(obj.character.experience >= obj.character.xptolvlup) {
@@ -114,15 +111,12 @@ export const useCombat = () => {
             obj.character.stats.vitality = obj.character.stats.vitality + 1;
             obj.character.stats.agility = obj.character.stats.agility + 1;
             obj.character.stats.dexterity = obj.character.stats.dexterity + 3;
- 
-            dispatch(levelUp())
-
+             dispatch(levelUp())
         }
         console.log(obj.character.stats.strength, "OI")
         await AsyncStorage.setItem('characters',JSON.stringify(obj));
-
     }
-
+    
     const playerLoop = () => {
         console.log(playerDmg, "Player dmg")
         console.log(playerAtkSpeed, "Player atk speed")

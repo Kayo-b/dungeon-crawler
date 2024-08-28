@@ -3,14 +3,15 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { StyleSheet, Text, View, Button, ImageBackground, Animated, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { setEquipment } from '../../features/player/playerSlice'
+import { setEquipment, restoreHealth } from '../../features/player/playerSlice'
 import { setInventory } from './inventorySlice';
 export const Inventory = () => {
 
     const dispatch = useAppDispatch();
 
     const inventory = useAppSelector(state => state.inventory.inventory); 
-    const equipment = useAppSelector(state => state.player.equipment); 
+    const equipment = useAppSelector(state => state.player.equipment);
+    const playerHealth = useAppSelector(state => state.player.health); 
     let itemArr: Array<Object> = [];
     let equipmentArr: Array<Object> = [];
     console.log(inventory,"INV INV")
@@ -40,6 +41,11 @@ export const Inventory = () => {
             const objChar = dataChar ? JSON.parse(dataChar) : {};
             const itemType = val.type;
             if(itemType !== 'currency') {
+                if(itemType === 'consumable') {
+                    dispatch(restoreHealth(val.stats.amount));
+                    objChar.character.stats.health = playerHealth + val.stats.amount;
+                    console.log( typeof playerHealth, typeof val.stats.amount,objChar.character.stats, "obj health")
+                } else {
                 const currentEquipedItem =  objChar.character.equipment[itemType];
                 //transfer item from equip to inv
                 if(currentEquipedItem.name !== '') {
@@ -53,6 +59,7 @@ export const Inventory = () => {
                 // itemArr.splice(1, index)
                 dispatch(setInventory([...objChar.character.inventory]));
                 dispatch(setEquipment({ ...objChar.character.equipment }));
+            }
             } else {
                 console.log("cant equip currency")
             }
@@ -62,6 +69,7 @@ export const Inventory = () => {
             console.log("EQUIP", equipment)
             console.log("EQUIP2", objChar.character.equipment)
             console.log("EQUIP3", objChar.character.inventory)
+            console.log("EQUIP3", objChar.character.health, 'health<>')
 
         } catch (error) {
             console.error('Error equipping item:', error);

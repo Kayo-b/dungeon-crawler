@@ -122,6 +122,9 @@ const playerSlice = createSlice({
             console.log("DMG HELOOOOO", state.dmgLog[state.dmgLog.length -1]);
             saveData(state.health);
         },
+        restoreHealth(state, action: PayloadAction<Number>) {
+            state.health += action.payload as number;
+        },
         setPlayerDmg(state, action: PayloadAction<number>) {
             state.playerDmg = action.payload;
         },
@@ -164,7 +167,6 @@ const playerSlice = createSlice({
         emptyCombatLog(state) {
             state.combatLog = [];
         }
-        
     },
     extraReducers: (builder) => {
         builder.addCase(fetchEquipment.fulfilled, (state, action) => {
@@ -188,7 +190,8 @@ export const {
     setEquipment,
     setCrit,
     setCombatLog,
-    emptyCombatLog
+    emptyCombatLog,
+    restoreHealth
 } = playerSlice.actions;
 
 export default playerSlice.reducer;
