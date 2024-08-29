@@ -27,7 +27,6 @@ export const Inventory = () => {
         })
         console.log(equipmentArr)
     }
-    
     unpackInv();
     useEffect(() => {
         console.log('Updated Equipment State:', equipment);
@@ -40,41 +39,36 @@ export const Inventory = () => {
             const dataChar = await AsyncStorage.getItem('characters');
             const objChar = dataChar ? JSON.parse(dataChar) : {};
             const itemType = val.type;
-            if(itemType !== 'currency') {
-                if(itemType === 'consumable') {
+            if(itemType === 'currency') {
+                console.log("cant equip currency");
+                return;
+            }
+            if(itemType === 'consumable') {
                     dispatch(restoreHealth(val.stats.amount));
                     objChar.character.stats.health = playerHealth + val.stats.amount;
+                    // objChar.character.inventory = objChar.character.inventory.filter(val => val.name !== itemType)
+                    objChar.character.inventory.splice(index, 1)
+                    console.log(val,objChar.character.inventory,"VALLL")
+                
+                    dispatch(setInventory([...objChar.character.inventory]))
                     console.log( typeof playerHealth, typeof val.stats.amount,objChar.character.stats, "obj health")
-                } else {
+            } else {
                 const currentEquipedItem =  objChar.character.equipment[itemType];
                 //transfer item from equip to inv
                 if(currentEquipedItem.name !== '') {
                     objChar.character.inventory.push(objChar.character.equipment[itemType])
                 }
                 objChar.character.inventory.splice(index, 1)
-                console.log(objChar.character.inventory[index], "INDEX")
-                console.log(objChar.character.equipment[itemType], "ITEM EQUIP")
-                console.log(objChar.character.inventory,"ITEM EQUIP INVENTORY | ")
                 objChar.character.equipment[itemType] = val;
-                // itemArr.splice(1, index)
                 dispatch(setInventory([...objChar.character.inventory]));
                 dispatch(setEquipment({ ...objChar.character.equipment }));
             }
-            } else {
-                console.log("cant equip currency")
-            }
-    
+
             await AsyncStorage.setItem('characters', JSON.stringify(objChar));
-                            
-            console.log("EQUIP", equipment)
-            console.log("EQUIP2", objChar.character.equipment)
-            console.log("EQUIP3", objChar.character.inventory)
-            console.log("EQUIP3", objChar.character.health, 'health<>')
 
         } catch (error) {
             console.error('Error equipping item:', error);
         }
-        
     }
     return (
         <View style={styles.viewContainer}>
