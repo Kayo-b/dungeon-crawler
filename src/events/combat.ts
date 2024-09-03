@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import data from '../data/characters.json';
 import itemsData from '../data/items.json';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
-import { dmg2Enemy } from './../features/enemy/enemySlice';
+import { dmg2Enemy, setCurrentEnemy } from './../features/enemy/enemySlice';
 import { dmgPlayer, dmg2Player, XP, levelUp } from './../features/player/playerSlice'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setInventory, setAddToInv } from '../features/inventory/inventorySlice';
@@ -19,9 +19,12 @@ interface Item {
 interface LootObject {
     dropChance: number;
 }
-
+interface EnemyProps {
+    id: number,
+}
 
 export const useCombat = () => {
+    const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
     const playerHealth = useAppSelector(state => state.player.health);
     const playerAtkSpeed = useAppSelector(state => state.player.atkSpeed);
     const playerXP = useAppSelector(state => state.player.experience);
@@ -29,15 +32,16 @@ export const useCombat = () => {
     const playerAR = useAppSelector(state => state.player.attackRating);
     const playerDR = useAppSelector(state => state.player.defenceRating);
     console.log(playerDR, "Player DR")
-    const enemyHealth = useAppSelector(state => state.enemy.health);
-    const enemyDmg = useAppSelector(state => state.enemy.damage);
-    const enemyAtkSpeed = useAppSelector(state => state.enemy.atkSpeed);
-    const enemyDR = useAppSelector(state => state.enemy.defence);
-    const enemyXP = useAppSelector(state => state.enemy.xp);
-    const enemyLVL = useAppSelector(state => state.enemy.level);
-    const enemyAR = useAppSelector(state => state.enemy.atkRating);
-    const enemyStats = useAppSelector(state => state.enemy.stats);
-    const loot = useAppSelector(state => state.enemy.loot);
+    const enemyHealth = useAppSelector(state => state.enemy.enemies[currentEnemy].health);
+    const enemyDmg = useAppSelector(state => state.enemy.enemies[currentEnemy].damage);
+    const enemyAtkSpeed = useAppSelector(state => state.enemy.enemies[currentEnemy].atkSpeed);
+    const enemyDR = useAppSelector(state => state.enemy.enemies[currentEnemy].defence);
+    const enemyXP = useAppSelector(state => state.enemy.enemies[currentEnemy].xp);
+    const enemyLVL = useAppSelector(state => state.enemy.enemies[currentEnemy].level);
+    const enemyAR = useAppSelector(state => state.enemy.enemies[currentEnemy].atkRating);
+    const enemyStats = useAppSelector(state => state.enemy.enemies[currentEnemy].stats);
+    const loot = useAppSelector(state => state.enemy.enemies[currentEnemy].loot);
+    const enemies = useAppSelector(state => state.enemy.enemies);
     let inventory = [];
     const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
@@ -55,11 +59,24 @@ export const useCombat = () => {
     const baseCrit = useAppSelector(state => state.player.critChance)
     // let experience = data.character.experience;
     
-    
+
+    // const enemiesState = () => {
+    //     if(Object.keys(enemies).length > 1 && enemyHealth <= 0) {
+    //         setCurrentEnemy(1)
+    //     }
+    //     console.log(enemies)
+    //     console.log(enemyHealth)
+    //     console.log("^^^^^")
+    // }
+    // useEffect(() => {
+        
+
+    // },[currentEnemy])
     
     const startCombat = () => {
+        console.log(enemyHealth,"HEALTH")
         if(enemyHealth > 0 && playerHealth > 0) {
-        combatRef.current = true;
+            combatRef.current = true;
             console.log(playerDmg, "Player dmg Combat component");
             playerHR = hitRate(playerAR, enemyDR, playerLVL, enemyLVL);
             enemyHR = hitRate(enemyAR, playerDR, enemyLVL, playerLVL);
@@ -72,8 +89,10 @@ export const useCombat = () => {
             console.log(enemyDR,"Enemy DR");
             // setCombat(true);
             playerLoop();
+            console.log("CURRENT", currentEnemy)
             enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
         } else {
+            dispatch(setCurrentEnemy(1))
             console.log("No combat conditions met")
         } 
     }
@@ -107,10 +126,10 @@ export const useCombat = () => {
             obj.character.level = obj.character.level + 1; 
             obj.character.xptolvlup = obj.character.xptolvlup * 2;
             obj.character.stats.health = obj.character.stats.health + 5;
-            obj.character.stats.strength = obj.character.stats.strength + 2.5;
+            obj.character.stats.strength = obj.character.stats.strength + 1;
             obj.character.stats.vitality = obj.character.stats.vitality + 1;
             obj.character.stats.agility = obj.character.stats.agility + 1;
-            obj.character.stats.dexterity = obj.character.stats.dexterity + 3;
+            obj.character.stats.dexterity = obj.character.stats.dexterity + 1;
              dispatch(levelUp())
         }
         console.log(obj.character.stats.strength, "OI")
@@ -134,15 +153,15 @@ export const useCombat = () => {
                         let dmg = (playerDmg + randomAddDmg);
                         if(randomCritVal <= baseCrit) {
                             dmg *= 2;
-                            dispatch(dmg2Enemy({'dmg':dmg, 'crit': true})); 
+                            // dispatch(dmg2Enemy({id:1, damage:{'dmg':dmg, 'crit': true}})); 
                             console.log("CRIT!", dmg);
                             tempEnemyHealth -= dmg;
                         } else {
-                            dispatch(dmg2Enemy({'dmg':dmg, 'crit': false})); 
+                            dispatch(dmg2Enemy({ id:currentEnemy, damage:{'dmg':dmg, 'crit': false} })); 
                             tempEnemyHealth -= dmg;
                         }
                     } else {
-                        dispatch(dmg2Enemy({'dmg':0, 'crit': false}));
+                        dispatch(dmg2Enemy({ id:currentEnemy,damage:{'dmg':0, 'crit': false} }));
                     }
                 } else {
                     if(tempEnemyHealth <= 0) {

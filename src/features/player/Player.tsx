@@ -10,16 +10,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 import { setHealth, setCrit, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating, setEquipment, setCombatLog, fetchEquipment } from '../../features/player/playerSlice'
 import { setInventory } from '../../features/inventory/inventorySlice';
+import { setCurrentEnemy } from '../enemy/enemySlice';
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 
+    const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId)
     const count = useAppSelector(state => state.player.health); // Select the current count
     const playerHealth = useAppSelector(state => state.player.health); 
     const playerXP = useAppSelector(state => state.player.experience);
     const playerLevel = useAppSelector(state => state.player.level);
     const dmgTakenLog = useAppSelector(state => state.player.dmgLog);
     const dmgTaken = dmgTakenLog.length > 0 ? dmgTakenLog[dmgTakenLog.length - 1].dmg : 0;
-    const dmgDoneObj = useAppSelector(state => state.enemy.dmgLog);
+    console.log(useAppSelector(state => state.enemy.enemies), currentEnemy, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+    const dmgDoneObj = useAppSelector(state => state.enemy.enemies[currentEnemy].dmgLog);
     const dmgTakenObj = useAppSelector(state => state.player.dmgLog); // Select the current count
     let combatLog = useAppSelector(state => state.player.combatLog);
     const stats = useAppSelector(state => state.player.stats)
@@ -27,7 +30,8 @@ export const Player = () => {
     const attack = useAppSelector(state => state.player.attackRating)
     const playerDmg = useAppSelector(state => state.player.playerDmg);
     const playerLog = useAppSelector(state => state.player.dmgLog); 
-    const enemyInfo = useAppSelector(state => state.enemy.info)
+    const enemyInfo = useAppSelector(state => state.enemy.enemies[currentEnemy].info)
+    console.log(enemyInfo, currentEnemy, "CURRENT")
     const fadeAnimDmg = useRef(new Animated.Value(1)).current;
     let equipment = useAppSelector(state => state.player.equipment);
     const screenWidth = Dimensions.get('window').width;
@@ -35,6 +39,7 @@ export const Player = () => {
     
     async function initializeData() {
         // const dispatch = useAppDispatch()
+        
         const storedData = await AsyncStorage.getItem('characters');
         console.log(storedData, "storedData ")
         let obj = storedData ? JSON.parse(storedData) : {};
@@ -101,7 +106,7 @@ export const Player = () => {
     }
 
     const defenceRating = (baseDef: number, bonusDef: number, dex: number) => { 
-        return baseDef * (bonusDef + dex * 0.1);
+        return baseDef * (bonusDef + (dex * 0.1));
     }
 
     useEffect(() => {
@@ -154,7 +159,11 @@ export const Player = () => {
         console.log(combatLog, "DMG COMBAT LOG")
         console.log(dmgTaken,"damage taken")
     }, [Object.keys(dmgDoneObj).length])
-
+    let enemies = useAppSelector(state => state.enemy)
+    const changeEnemy = () => {
+        console.log()
+        console.log(enemies, "ASAAAAAAAAAAAAAAa")
+    }
     const { startCombat } = useCombat();
     return (
         <View style={[styles.playerContainer, { width: screenWidth }]}> 
@@ -174,6 +183,9 @@ export const Player = () => {
                 <Text style={styles.text}>STATS: {JSON.stringify(stats)}</Text>
                 <TouchableOpacity style={styles.button} onPress={ startCombat }>
                     <Text>Attack</Text>
+                </TouchableOpacity>
+                                <TouchableOpacity style={styles.button} onPress={ changeEnemy }>
+                    <Text>SwitchEnemy</Text>
                 </TouchableOpacity>
             </View>
             <View style={styles.dmgLog}>

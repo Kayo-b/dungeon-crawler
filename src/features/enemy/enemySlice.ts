@@ -46,38 +46,109 @@ interface enemies {
     loot: string;
 }
 interface EnemyState {
-    currentEnemyIndex: number;
-    enemies:Enemy[]; 
-    health: number;
-    dmgLog: any;
-    damage: number;
-    atkRating: number;
-    atkSpeed: number;
-    defence: number;
-    level: number;
-    xp: number;
-    stats: Object;
-    loot: Object[];
-    info: infoObj;
+    enemies: {
+        [key: number]: {
+            id: number
+            health: number;
+            dmgLog: DmgPayload[];
+            damage: number;
+            atkRating: number;
+            atkSpeed: number;
+            defence: number;
+            level: number;
+            xp: number;
+            stats: EnemyStats;
+            loot: LootItem[];
+            info: EnemyInfo;
+        }
+    };
+    
+    enemiesStorage: {
+        [key: number]: {
+            id: number;
+            health: number;
+            dmgLog: DmgPayload[];
+            damage: number;
+            atkRating: number;
+            atkSpeed: number;
+            defence: number;
+            level: number;
+            xp: number;
+            stats: EnemyStats;
+            loot: LootItem[];
+            info: EnemyInfo;
+        }
+    };
+    currentEnemyId: number;
 }
 interface DmgPayload {
  dmg: number;
  crit: boolean;
 }
+// const enemyInitialState: EnemyState = {
+//     currentEnemyIndex: 1,
+//     enemies: data.enemies,
+//     health: data.enemies[1].stats.health,
+//     dmgLog: [],
+//     damage: data.enemies[1].stats.attack,
+//     atkRating: 0,
+//     atkSpeed: data.enemies[1].stats.atkSpeed,
+//     defence: data.enemies[1].stats.defence,
+//     level: data.enemies[1].info.level,
+//     xp: data.enemies[1].info.xp,
+//     stats: stats,
+//     loot: loot,
+//     info: info
+// }
 const enemyInitialState: EnemyState = {
-    currentEnemyIndex: 1,
-    enemies: data.enemies,
-    health: data.enemies[1].stats.health,
-    dmgLog: [],
-    damage: data.enemies[1].stats.attack,
-    atkRating: 0,
-    atkSpeed: data.enemies[1].stats.atkSpeed,
-    defence: data.enemies[1].stats.defence,
-    level: data.enemies[1].info.level,
-    xp: data.enemies[1].info.xp,
-    stats: stats,
-    loot: loot,
-    info: info
+    // enemies: {},
+    enemies: {
+        0: {
+            id: 0,
+            health: 0,//data.enemies[0].stats.health,
+            dmgLog: [],
+            damage: 0,//data.enemies[0].stats.attack,
+            atkRating: 0,
+            atkSpeed: 0,//data.enemies[0].stats.atkSpeed,
+            defence: 0,//data.enemies[0].stats.defence,
+            level: 0,//data.enemies[0].info.level,
+            xp: 0,//data.enemies[0].info.xp,
+            stats: {},//stats,
+            loot: {},//loot,
+            info: {},//info,
+        },
+        // 1: {
+        //     health: data.enemies[1].stats.health,
+        //     dmgLog: [],
+        //     damage: data.enemies[1].stats.attack,
+        //     atkRating: 0,
+        //     atkSpeed: data.enemies[1].stats.atkSpeed,
+        //     defence: data.enemies[1].stats.defence,
+        //     level: data.enemies[1].info.level,
+        //     xp: data.enemies[1].info.xp,
+        //     stats: stats,
+        //     loot: loot,
+        //     info: info,
+        // }
+    },
+    enemiesStorage: {
+        0:{
+            id: 0,
+            health: 0,//data.enemies[0].stats.health,
+            dmgLog: [],
+            damage: 0,//data.enemies[0].stats.attack,
+            atkRating: 0,
+            atkSpeed: 0,//data.enemies[0].stats.atkSpeed,
+            defence: 0,//data.enemies[0].stats.defence,
+            level: 0,//data.enemies[0].info.level,
+            xp: 0,//data.enemies[0].info.xp,
+            stats: {},//stats,
+            loot: {},//loot,
+            info: {},//info,
+        }
+
+    },
+    currentEnemyId: 0
 }
 
 export const fetchEnemies = createAsyncThunk('enemies/fetchEnemies', async () => {
@@ -90,43 +161,63 @@ const enemySlice = createSlice({
     name: 'enemy',
     initialState: enemyInitialState,
     reducers: {
-        dmg2Enemy(state, action: PayloadAction<DmgPayload>) {
-           state.health -= action.payload.dmg as number; 
-           console.log(action.payload.crit, "PAYLOAD")
-           console.log(action.payload.dmg, "PAYLOAD")
-        //    state.dmgLog.push(action.payload.dmg as number > 0 ?
-        //     action.payload.dmg : "Miss");     
-            state.dmgLog.push(action.payload)
+        addEnemy(state, action: PayloadAction<number>) {
+            const id = action.payload;
+            state.enemies[id] = {
+                id: id,
+                health: data.enemies[id].stats.health,
+                dmgLog: [],
+                damage: data.enemies[id].stats.attack,
+                atkRating: 0,
+                atkSpeed: data.enemies[id].stats.atkSpeed,
+                defence: data.enemies[id].stats.defence,
+                level: data.enemies[id].info.level,
+                xp: data.enemies[id].info.xp,
+                stats: data.enemies[id].stats,
+                loot: data.enemies[id].loot,
+                info: data.enemies[id].info
+            };
+            console.log("ENEMY ADDED!!!")
         },
-        changeEnemy(state, action: PayloadAction<number>) {
-            state.currentEnemyIndex = action.payload;
-            state.health = data.enemies[action.payload].stats.health;   
-            state.damage = data.enemies[action.payload].stats.attack;
-            state.atkSpeed = data.enemies[action.payload].stats.atkSpeed;
-            state.xp = data.enemies[action.payload].info.xp;
-            state.defence = data.enemies[action.payload].stats.defence;
-            state.level = data.enemies[action.payload].info.level;
-            state.stats = data.enemies[action.payload].stats;
-            console.log(data.enemies[action.payload].loot, "ACTION!")
-            state.loot = data.enemies[action.payload].loot;
-            state.info = data.enemies[action.payload].info;
+        dmg2Enemy(state, action: PayloadAction<{ id: number, damage: DmgPayload }>) {
+            const { id, damage } = action.payload;
+            state.enemies[id].health -= damage.dmg;
+            state.enemies[id].dmgLog.push(damage);
         },
-        setAttackRating(state, action: PayloadAction<number>) {
-            state.atkRating = action.payload;
+        setCurrentEnemy(state, action: PayloadAction<number>) {
+            state.currentEnemyId = action.payload;
         },
-        setStats(state, action: PayloadAction<Object>) {
-            state.stats = action.payload;
+        setAttackRating(state, action: PayloadAction<{ id: number, rating: number }>) {
+            state.enemies[action.payload.id].atkRating = action.payload.rating;
         },
-        emptyDmgLog(state) {
-            state.dmgLog = [];
-        }
+        emptyDmgLog(state, action: PayloadAction<number>) {
+            state.enemies[action.payload].dmgLog = [];
+        },
+        // setStats(state, action: PayloadAction<Object>) {
+        //     state.enemy[action.payload.id]stats = action.payload;
+        // },
     },
     extraReducers: (builder) => {
         builder.addCase(fetchEnemies.fulfilled, (state, action) => {
-            state.enemies = action.payload
+            action.payload.forEach((enemy: Enemy, index: number) => {
+                state.enemiesStorage[index] = {
+                    id: index,
+                    health: enemy.stats.health,
+                    dmgLog: [],
+                    damage: enemy.stats.attack,
+                    atkRating: 0,
+                    atkSpeed: enemy.stats.atkSpeed,
+                    defence: enemy.stats.defence,
+                    level: enemy.info.level,
+                    xp: enemy.info.xp,
+                    stats: enemy.stats,
+                    loot: enemy.loot,
+                    info: enemy.info
+                };
+            });
         })
     }
 })
 
-export const { dmg2Enemy, changeEnemy, setAttackRating, setStats, emptyDmgLog } = enemySlice.actions;
+export const { dmg2Enemy, addEnemy, setAttackRating, emptyDmgLog, setCurrentEnemy } = enemySlice.actions;
 export default enemySlice.reducer;

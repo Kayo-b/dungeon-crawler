@@ -12,6 +12,7 @@ export const Room = () => {
     const dispatch = useAppDispatch(); 
     const enemyHealth = useAppSelector(state => state.enemy.health); 
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
+    const enemies = useAppSelector(state => state.enemy.enemies)
     const { changeLvl } = useRoom();
 
     const resources = [
@@ -31,14 +32,11 @@ export const Room = () => {
                 source={resources[currentLvl] as ImageSourcePropType} 
                 style={styles.backgroundImage}
                 >
-                 <View style={styles.enemiesContainer}> 
-                    <Enemy/>
+                {Object.entries(enemies).map(([index, enemy]) => ( 
+                <View style={styles.enemiesContainer}> 
+                        <Enemy index={index}/>
                 </View>
-{/* 
-               <View style={styles.enemiesContainer}> 
-                    <Enemy/>
-                </View> */}
-
+                    ))}
             </ImageBackground>
         </View>
     );

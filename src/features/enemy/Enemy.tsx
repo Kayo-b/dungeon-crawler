@@ -3,22 +3,31 @@ import { ImageSourcePropType } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, ImageBackground, Animated } from 'react-native';
 import  { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { setAttackRating, setStats, fetchEnemies } from '../../features/enemy/enemySlice';
+import { setAttackRating, fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { dmg, dmg2 } from '../../features/player/playerSlice'
+interface EnemyProps {
+    index: number
+}
+export const Enemy: React.FC<EnemyProps> = ({index}) => {
 
-export const Enemy = () => {
-    const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
-    const count = useAppSelector(state => state.enemy.health); 
-    const dmgLog = useAppSelector(state => state.enemy.dmgLog);
-    const dmgTakenArr = useAppSelector(state => state.enemy.dmgLog); 
+    const dispatch = useAppDispatch();
+    // const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId)
+    const enemies = useAppSelector(state => state.enemy.enemies)
+    const enemiesStorage = useAppSelector(state => state.enemy.enemiesStorage)
+    console.log(enemies,"ENEMIES #######", enemies[index], "IDDDD")
+    const id = enemies[index].id;
+    console.log(enemies, index, id, "*****************************************")
+    console.log(enemiesStorage[id].health, "*****************************************1")
+    const count = useAppSelector(state => state.enemy.enemiesStorage[id].health); 
+    const dmgLog = useAppSelector(state => state.enemy.enemiesStorage[id].dmgLog);
+    const dmgTakenArr = useAppSelector(state => state.enemy.enemiesStorage[id].dmgLog); 
     console.log(dmgTakenArr, "DMG TAKEN ARR PAYLOAD")
     const dmgTaken = dmgTakenArr.length > 0 ? dmgTakenArr[dmgTakenArr.length - 1] :
     {test:1};
-    const enemyIndex = useAppSelector(state => state.enemy.currentEnemyIndex); 
-    const enemyAR = useAppSelector(state => state.enemy.atkSpeed);
-    const enemyStats = useAppSelector(state => state.enemy.stats);
-    const enemies = useAppSelector(state => state.enemy.enemies)
+    // const enemyIndex = useAppSelector(state => state.enemy.currentEnemyId); 
+    const enemyAR = useAppSelector(state => state.enemy.enemiesStorage[id].atkSpeed);
+    const enemyStats = useAppSelector(state => state.enemy.enemiesStorage[id].stats);
     // const dex = stats.dexterity;
     const fadeAnim = useRef(new Animated.Value(1)).current; 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
@@ -31,21 +40,21 @@ export const Enemy = () => {
         require('../../resources/demonrat_01.png'),
     ]
     useEffect(() => {
-        dispatch({ type: 'enemy/fetchData', payload: enemyIndex });
-    }, [dispatch, enemyIndex]);
+        dispatch({ type: 'enemy/fetchData', payload: id});
+    }, [dispatch, id]);
     async function setData() {
         // const data = await AsyncStorage.getItem('characters');
         // const obj = data ? JSON.parse(data) : {};
-        stats = enemies[enemyIndex].stats; 
-        loot = enemies[enemyIndex].loot;
-        let baseAR = enemies[enemyIndex].stats.atkSpeed;
+        stats = enemiesStorage[id].stats; 
+        loot = enemiesStorage[id].loot;
+        let baseAR = enemiesStorage[id].stats.atkSpeed;
         //await AsyncStorage.setItem('characters',JSON.stringify(obj));
         // dispatch(setStats(stats))
         let atkRating = attackRating(baseAR, stats.dexterity, 2, 1);
         console.log(atkRating, "ATK RATING")
         console.log(atkRating,"SETDATA <><><")
         console.log("SETDATA <><><")
-        dispatch(setAttackRating(atkRating));
+        dispatch(setAttackRating({id: id, rating: atkRating}));
     }
     const initializeData = () => {
         
@@ -58,11 +67,10 @@ export const Enemy = () => {
     useEffect(() => {
         dispatch(fetchEnemies());
         setData();
-
     }, [dispatch]);
 
     useEffect(() => {
-        console.log(count,"health Enemy")
+        console.log(count,"health Enemy", id,"enemyID")
         fadeAnimDmg.setValue(1);
         moveAnimDmg.setValue(0);
         console.log(dmgTakenArr[0], "DMG TAKEN ARR")
@@ -94,7 +102,7 @@ export const Enemy = () => {
         <View > 
             <Animated.View style={{ opacity: fadeAnim }}>
                 <ImageBackground
-                        source={resources[enemyIndex] as ImageSourcePropType} 
+                        source={resources[id] as ImageSourcePropType} 
                         style={[styles.enemy]}
                         resizeMode="contain"
                     >
