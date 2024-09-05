@@ -183,6 +183,8 @@ const enemySlice = createSlice({
             const { id, damage } = action.payload;
             state.enemies[id].health -= damage.dmg;
             state.enemies[id].dmgLog.push(damage);
+            console.log(state.enemies[id].health, "STATE HEALTH")
+            console.log(damage.dmg, "DMG  STATE ")
         },
         setCurrentEnemy(state, action: PayloadAction<number>) {
             state.currentEnemyId = action.payload;

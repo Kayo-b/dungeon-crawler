@@ -6,6 +6,7 @@ import { Enemy } from '../enemy/Enemy';
 import { changeEnemy } from '../../features/enemy/enemySlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
+import { useEffect } from 'react';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 
 export const Room = () => {
@@ -13,13 +14,17 @@ export const Room = () => {
     const enemyHealth = useAppSelector(state => state.enemy.health); 
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
-    const { changeLvl } = useRoom();
+    const { changeLvl, getEnemies } = useRoom();
 
     const resources = [
         require('../../resources/dungeon-room_01.jpg'),
         require('../../resources/dungeon-room_02.jpg'),
     ]
+    // changeLvl()
+    useEffect(() => {
+        getEnemies();
 
+    },[])
     return (
         <View style={styles.backgroundImage}>
             <TouchableOpacity 

@@ -11,7 +11,6 @@ import  { emptyCombatLog } from '../features/player/playerSlice';
 interface Item {
     ID: number;
     type: string;
-    unique: string;
     Durability: number;
     dropChance: number;
 }
@@ -153,7 +152,7 @@ export const useCombat = () => {
                         let dmg = (playerDmg + randomAddDmg);
                         if(randomCritVal <= baseCrit) {
                             dmg *= 2;
-                            // dispatch(dmg2Enemy({id:1, damage:{'dmg':dmg, 'crit': true}})); 
+                            dispatch(dmg2Enemy({id:1, damage:{'dmg':dmg, 'crit': true}})); 
                             console.log("CRIT!", dmg);
                             tempEnemyHealth -= dmg;
                         } else {

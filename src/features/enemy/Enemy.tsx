@@ -19,15 +19,15 @@ export const Enemy: React.FC<EnemyProps> = ({index}) => {
     const id = enemies[index].id;
     console.log(enemies, index, id, "*****************************************")
     console.log(enemiesStorage[id].health, "*****************************************1")
-    const count = useAppSelector(state => state.enemy.enemiesStorage[id].health); 
-    const dmgLog = useAppSelector(state => state.enemy.enemiesStorage[id].dmgLog);
-    const dmgTakenArr = useAppSelector(state => state.enemy.enemiesStorage[id].dmgLog); 
+    const count = useAppSelector(state => state.enemy.enemies[id].health); 
+    const dmgLog = useAppSelector(state => state.enemy.enemies[id].dmgLog);
+    const dmgTakenArr = useAppSelector(state => state.enemy.enemies[id].dmgLog); 
     console.log(dmgTakenArr, "DMG TAKEN ARR PAYLOAD")
     const dmgTaken = dmgTakenArr.length > 0 ? dmgTakenArr[dmgTakenArr.length - 1] :
     {test:1};
     // const enemyIndex = useAppSelector(state => state.enemy.currentEnemyId); 
-    const enemyAR = useAppSelector(state => state.enemy.enemiesStorage[id].atkSpeed);
-    const enemyStats = useAppSelector(state => state.enemy.enemiesStorage[id].stats);
+    const enemyAR = useAppSelector(state => state.enemy.enemies[id].atkSpeed);
+    const enemyStats = useAppSelector(state => state.enemy.enemies[id].stats);
     // const dex = stats.dexterity;
     const fadeAnim = useRef(new Animated.Value(1)).current; 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
