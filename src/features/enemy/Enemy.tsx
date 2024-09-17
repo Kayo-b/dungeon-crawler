@@ -15,10 +15,10 @@ export const Enemy: React.FC<EnemyProps> = ({index}) => {
     // const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId)
     const enemies = useAppSelector(state => state.enemy.enemies)
     const enemiesStorage = useAppSelector(state => state.enemy.enemiesStorage)
+    console.log(enemiesStorage, "*****************************************STORAGE1")
     console.log(enemies,"ENEMIES #######", enemies[index], "IDDDD")
-    const id = enemies[index].id;
-    console.log(enemies, index, id, "*****************************************")
-    console.log(enemiesStorage[id].health, "*****************************************1")
+    const id = Object.values(enemies)[index].id;
+    console.log(enemies, index, id, enemies[index], "***************************************** !@#")
     const count = useAppSelector(state => state.enemy.enemies[id].health); 
     const dmgLog = useAppSelector(state => state.enemy.enemies[id].dmgLog);
     const dmgTakenArr = useAppSelector(state => state.enemy.enemies[id].dmgLog); 
@@ -45,16 +45,17 @@ export const Enemy: React.FC<EnemyProps> = ({index}) => {
     async function setData() {
         // const data = await AsyncStorage.getItem('characters');
         // const obj = data ? JSON.parse(data) : {};
-        stats = enemiesStorage[id].stats; 
-        loot = enemiesStorage[id].loot;
-        let baseAR = enemiesStorage[id].stats.atkSpeed;
+        stats = enemies[index].stats; 
+        loot = enemies[index].loot;
+        let baseAR = enemies[index].stats.atkSpeed;
         //await AsyncStorage.setItem('characters',JSON.stringify(obj));
         // dispatch(setStats(stats))
         let atkRating = attackRating(baseAR, stats.dexterity, 2, 1);
         console.log(atkRating, "ATK RATING")
         console.log(atkRating,"SETDATA <><><")
         console.log("SETDATA <><><")
-        dispatch(setAttackRating({id: id, rating: atkRating}));
+        console.log("SET ATTACK RATING", id, index, atkRating, enemies[index])
+        dispatch(setAttackRating({id: index, rating: atkRating}));
     }
     const initializeData = () => {
         
@@ -67,7 +68,7 @@ export const Enemy: React.FC<EnemyProps> = ({index}) => {
     useEffect(() => {
         dispatch(fetchEnemies());
         setData();
-    }, [dispatch]);
+    }, [Object.values(enemies).length]);
 
     useEffect(() => {
         console.log(count,"health Enemy", id,"enemyID")

@@ -2,11 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import data from '../data/characters.json';
 import itemsData from '../data/items.json';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
-import { dmg2Enemy, setCurrentEnemy } from './../features/enemy/enemySlice';
+import { dmg2Enemy, setCurrentEnemy, removeEnemy } from './../features/enemy/enemySlice';
 import { dmgPlayer, dmg2Player, XP, levelUp } from './../features/player/playerSlice'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setInventory, setAddToInv } from '../features/inventory/inventorySlice';
 import  { emptyCombatLog } from '../features/player/playerSlice';
+import { setEnemyCount, setEnemyPack } from './combatSlice';
 
 interface Item {
     ID: number;
@@ -23,7 +24,67 @@ interface EnemyProps {
 }
 
 export const useCombat = () => {
-    const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
+    const dispatch = useAppDispatch();
+        let enemyHealth: number;
+        let enemyDmg: number; 
+        let enemyAtkSpeed: number;
+        let enemyDR: number;
+        let enemyXP: number;
+        let enemyLVL: number;
+        let enemyAR: number; 
+        let enemyStats: Object;
+        let loot: Object;
+        let enemies: Object;
+        let enemyHR: number;
+        let tempEnemyHealth1: number;
+        let tempEnemyHealth2: number;
+        let enemyPack: boolean;
+        // let enemyHealth1: number;
+        // let enemyHealth2: number;
+        const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
+        enemies = useAppSelector(state => state.enemy.enemies);
+    const processEnemies = () => {
+        let enemyHealth1 = null;
+        let enemyHealth2 = null;
+    
+        Object.entries(enemies).forEach(([key, entry], index) => {
+            console.log(typeof index, "INDEX");
+            console.log(index, "INDEX");
+            console.log(key, "INDEX entry");
+            
+            if (index === 0) {
+            enemyHealth1 = entry.health; 
+            } else if (index === 1) {
+            enemyHealth2 = entry.health;
+            }
+    
+            console.log(entry.health, "ENEMY HEALTH");
+        });
+    
+        return { enemyHealth1, enemyHealth2 };
+    };
+    let healthArray = [];
+    let remainingEnemy = false;
+    const { enemyHealth1, enemyHealth2 } = processEnemies();
+    console.log(enemyHealth1, enemyHealth2, "ENEMY HEALTH 123")
+    enemyPack = useAppSelector(state => state.combat.enemyPack);
+    enemyHealth = useAppSelector(state => state.enemy.enemies[currentEnemy].health);
+    enemyDmg = useAppSelector(state => state.enemy.enemies[currentEnemy].damage);
+    enemyAtkSpeed = useAppSelector(state => state.enemy.enemies[currentEnemy].atkSpeed);
+    enemyDR = useAppSelector(state => state.enemy.enemies[currentEnemy].defence);
+    enemyXP = useAppSelector(state => state.enemy.enemies[currentEnemy].xp);
+    enemyLVL = useAppSelector(state => state.enemy.enemies[currentEnemy].level);
+    enemyAR = useAppSelector(state => state.enemy.enemies[currentEnemy].atkRating);
+    enemyStats = useAppSelector(state => state.enemy.enemies[currentEnemy].stats);
+    loot = useAppSelector(state => state.enemy.enemies[currentEnemy].loot);
+    tempEnemyHealth1 = enemyHealth1;
+    tempEnemyHealth2 = enemyHealth2;
+    if(tempEnemyHealth1 !== null) {
+        healthArray.push(tempEnemyHealth1)
+    }
+    if(tempEnemyHealth2 !== null) {
+        healthArray.push(tempEnemyHealth2)
+    }
     const playerHealth = useAppSelector(state => state.player.health);
     const playerAtkSpeed = useAppSelector(state => state.player.atkSpeed);
     const playerXP = useAppSelector(state => state.player.experience);
@@ -31,30 +92,18 @@ export const useCombat = () => {
     const playerAR = useAppSelector(state => state.player.attackRating);
     const playerDR = useAppSelector(state => state.player.defenceRating);
     console.log(playerDR, "Player DR")
-    const enemyHealth = useAppSelector(state => state.enemy.enemies[currentEnemy].health);
-    const enemyDmg = useAppSelector(state => state.enemy.enemies[currentEnemy].damage);
-    const enemyAtkSpeed = useAppSelector(state => state.enemy.enemies[currentEnemy].atkSpeed);
-    const enemyDR = useAppSelector(state => state.enemy.enemies[currentEnemy].defence);
-    const enemyXP = useAppSelector(state => state.enemy.enemies[currentEnemy].xp);
-    const enemyLVL = useAppSelector(state => state.enemy.enemies[currentEnemy].level);
-    const enemyAR = useAppSelector(state => state.enemy.enemies[currentEnemy].atkRating);
-    const enemyStats = useAppSelector(state => state.enemy.enemies[currentEnemy].stats);
-    const loot = useAppSelector(state => state.enemy.enemies[currentEnemy].loot);
-    const enemies = useAppSelector(state => state.enemy.enemies);
     let inventory = [];
-    const dispatch = useAppDispatch();
     const [playerTurn, setPlayerTurn] = useState(true);
     const [combat, setCombat] = useState(false);
+    const [rerender, setRerender] = useState(false);
     const combatRef = useRef(false);
     const playerCombatIntRef: any = useRef<number | null>(null)
     const enemyCombatIntRef: any = useRef<number | null>(null)
     let itemsListObj;
     let lootItem: Item;
     let playerDmg = useAppSelector(state => state.player.playerDmg)
-    let tempEnemyHealth = enemyHealth;
     let tempPlayerHealth = playerHealth;
     let playerHR: number;
-    let enemyHR: number;
     const baseCrit = useAppSelector(state => state.player.critChance)
     // let experience = data.character.experience;
     
@@ -67,15 +116,35 @@ export const useCombat = () => {
     //     console.log(enemyHealth)
     //     console.log("^^^^^")
     // }
-    // useEffect(() => {
-        
 
-    // },[currentEnemy])
     
+    
+    let enemiesArr = Object.values(enemies)
+    // useEffect(() => {
+    //     if(engage) {
+    //         startCombat();
+    //     }
+    // },[Object.values(enemies).length])
+
+    useEffect(() => {
+    //    console.log(currentEnemy, "CURRENT ENEMY")
+    // console.log(rerender)
+    // console.log(rerender,"START COMBAT @@@@@")
+    //     if(enemiesArr.length > 0 && enemyPack) {
+    //         // setCurrentEnemy(0);
+    //         // console.log(combatRef.current,"AQUI")
+    //         startCombat();
+    //     console.log("START COMBAT INSIDE")
+    //     }
+    // startCombat();
+    
+    },[currentEnemy, enemiesArr.length])
     const startCombat = () => {
-        console.log(enemyHealth,"HEALTH")
+        // dispatch(setCurrentEnemy(id))
+        console.log(enemyHealth,"START COMBAT INSIDE 2")
         if(enemyHealth > 0 && playerHealth > 0) {
             combatRef.current = true;
+            console.log(combatRef.current, "AQUI OLHA 1")
             console.log(playerDmg, "Player dmg Combat component");
             playerHR = hitRate(playerAR, enemyDR, playerLVL, enemyLVL);
             enemyHR = hitRate(enemyAR, playerDR, enemyLVL, playerLVL);
@@ -88,10 +157,11 @@ export const useCombat = () => {
             console.log(enemyDR,"Enemy DR");
             // setCombat(true);
             playerLoop();
-            console.log("CURRENT", currentEnemy)
+            // console.log("CURRENT", currentEnemy)
             enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
+            // enemyLoop(0);// Default player initiative, make change so it becomes random or depends on stats.
         } else {
-            dispatch(setCurrentEnemy(1))
+            // dispatch(setCurrentEnemy(1))
             console.log("No combat conditions met")
         } 
     }
@@ -140,30 +210,35 @@ export const useCombat = () => {
         console.log(playerAtkSpeed, "Player atk speed")
         console.log(playerHR,"Hit rate")
         if(playerCombatIntRef.current === null) {
+            // Object.values(enemies).forEach( (val, index) => {
             playerCombatIntRef.current = setInterval(() => {
                 const randomVal = Math.random();
                 const randomAddDmg = Math.floor(randomVal * 2)
                 const randomCritVal = Math.random();
                 console.log(playerHR, "STATS Player hit rate")
-                if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
+                console.log(healthArray, tempPlayerHealth, combatRef.current, "AQUI OLHA 2"
+                )
+                if(healthArray[0] > 0 && tempPlayerHealth > 0 && combatRef.current) {
                     console.log(randomVal, playerHR, "will it hit?", randomVal <= playerHR)
                     console.log("Crit Values Check", randomCritVal, baseCrit)
                     if(randomVal <= playerHR) {
                         let dmg = (playerDmg + randomAddDmg);
                         if(randomCritVal <= baseCrit) {
                             dmg *= 2;
-                            dispatch(dmg2Enemy({id:1, damage:{'dmg':dmg, 'crit': true}})); 
-                            console.log("CRIT!", dmg);
-                            tempEnemyHealth -= dmg;
+                            dispatch(dmg2Enemy({id:currentEnemy, damage:{'dmg':dmg, 'crit': true}})); 
+                            healthArray[0] -= (dmg - 1);
                         } else {
                             dispatch(dmg2Enemy({ id:currentEnemy, damage:{'dmg':dmg, 'crit': false} })); 
-                            tempEnemyHealth -= dmg;
+                            dispatch(dmg2Enemy({ id:1, damage:{'dmg':dmg, 'crit': false} })); 
+                            console.log("NO CRIT!", dmg);
+                            healthArray[0] -= dmg;
+                            healthArray[1] -= (dmg - 1);
                         }
                     } else {
                         dispatch(dmg2Enemy({ id:currentEnemy,damage:{'dmg':0, 'crit': false} }));
                     }
                 } else {
-                    if(tempEnemyHealth <= 0) {
+                    if(healthArray[0] <= 0) {
                         dispatch(XP(enemyXP));
                     }
                     clearInterval(playerCombatIntRef.current);
@@ -187,48 +262,88 @@ export const useCombat = () => {
                     console.log(loot, "LOOT")
                 }
             }, 1000 / playerAtkSpeed)
+            // })
+            
         }
     }
 
     const enemyLoop = () => {
+        console.log(enemies, "ENEMIES ARR OBJ")
         if(enemyCombatIntRef.current === null) {
+            Object.values(enemies).forEach( (val, index) => {
+                // console.log(val, "ENEMIES ARR OBJ")
+                // console.log(val.name, "SET ATTACK RATING", index, healthArray[currentEnemy], val.atkRating, enemyAR)
             enemyCombatIntRef.current = setInterval(() => {
                 const randomVal = Math.random();
                 const randomAddDmg = Math.floor(randomVal * 2);
                 const randomCritVal = Math.random();
+
                 // enemyHR = 1;
-                if(tempEnemyHealth > 0 && tempPlayerHealth > 0 && combatRef.current) {
+                if(!combatRef.current) return;
+                console.log(healthArray[0], tempPlayerHealth, combatRef.current, "AQUI OLHA 3")
+                console.log(currentEnemy, val, combatRef.current, "INDEXXXXXXX CURENT ENEMY &&&&&&")
+                const totalHealth = healthArray.reduce((sum, health) => sum + health, 0);
+                console.log(totalHealth, "!!! Total health", combatRef.current, healthArray[0])
+                if(healthArray[0] > 0 && tempPlayerHealth > 0 && combatRef.current) {
                     console.log(randomVal <= enemyHR, "Enemy hit rate check", enemyHR)
                     if(randomVal <= enemyHR) { // FIX HIT RATE FOR ENEMY HITTINH PLAYER
-                        let dmg = (enemyDmg + randomAddDmg);
-                        console.log("DMG HELOOOOOOO",enemyDmg,randomAddDmg, dmg)
+                        let dmg = val.damage + randomAddDmg;//(enemyDmg + randomAddDmg);
+                        console.log("DMG ()()()()()()(",dmg)
                         console.log(randomCritVal, baseCrit, "CRIT ENEMY")
                         if(randomCritVal <= baseCrit) {
                             dmg *= 2;
                             dispatch(dmg2Player({'dmg':dmg, 'crit': true}));
-                            tempPlayerHealth -= dmg;    
+                            tempPlayerHealth -= dmg;
+                            console.log("DMG ()()() 2", dmg)
                         } else { 
                             dispatch(dmg2Player({'dmg':dmg, 'crit': false}));
                             tempPlayerHealth -= dmg;
+                            
+                            console.log("DMG ()()() 3", dmg)
                         }
                     } else {
-
                         console.log("DMG %%% ELSE")
                         dispatch(dmg2Player({'dmg':0, 'crit': false}));
                     }
                 } else {
-                     if(tempEnemyHealth <= 0) {
-                    }                  
-                    clearInterval(enemyCombatIntRef.current);
-                    enemyCombatIntRef.current = null;
+                    if(healthArray[0] <= 0 && healthArray.length > 1) {
+                        enemiesArr.splice(currentEnemy, 1);
+                        healthArray.splice(0,1)
+                        dispatch(setCurrentEnemy(currentEnemy + 1))
+                        dispatch(removeEnemy(currentEnemy));
+                        console.log("++++++++++++++++++++++++++")
+
+                    } 
                     combatRef.current = false;
                     setCombat(false);
-                    emptyCombatLog();
+                    clearInterval(enemyCombatIntRef.current);
+                    enemyCombatIntRef.current = null;
+                    dispatch(emptyCombatLog());        
+                    if(enemiesArr.length === 0) {
+                        dispatch(setCurrentEnemy(0))
+                    } else {
+                        dispatch(setEnemyPack(true));
+                    }
+                    // if(enemiesArr.length === 0) {
+                    //     combatRef.current = false;
+                    //     setCombat(false);
+                    //     clearInterval(enemyCombatIntRef.current);
+                    //     enemyCombatIntRef.current = null;
+                    //     dispatch(emptyCombatLog());
+                    //     // setCurrentEnemy(1)
+                    // }   
+                    // combatRef.current = false;
+                    // dispatch(setCurrentEnemy(1))
+                   
+                    // if(enemiesArr.length >= 1) {
+                    //     console.log(enemiesArr.length, "ENEMIES ARR") 
+                    //     startCombat();
+                    // } 
                 } 
             }, 1000 / enemyAtkSpeed)
+        })
         }
     }
-
     // const attack = () => {
     //     if(playerTurn) {
     //         const playerDmg = 1 + Math.floor(Math.random() * 2);
@@ -271,6 +386,5 @@ export const useCombat = () => {
     //     const spellDamage = 3; // Example value
     //     dispatch(castSpell(spellDamage));
     // };
-
     return { startCombat };
 };

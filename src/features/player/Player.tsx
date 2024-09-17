@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // import {dmg, dmg2 } from '../../features/player/playerSlice'
 import { setHealth, setCrit, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating, setEquipment, setCombatLog, fetchEquipment } from '../../features/player/playerSlice'
 import { setInventory } from '../../features/inventory/inventorySlice';
-import { setCurrentEnemy } from '../enemy/enemySlice';
+import { setCurrentEnemy, fetchEnemies, addEnemy } from '../enemy/enemySlice';
 
 export const Player = () => {
     const dispatch = useAppDispatch(); 
@@ -39,7 +39,7 @@ export const Player = () => {
     
     async function initializeData() {
         // const dispatch = useAppDispatch()
-        
+
         const storedData = await AsyncStorage.getItem('characters');
         console.log(storedData, "storedData ")
         let obj = storedData ? JSON.parse(storedData) : {};
@@ -72,6 +72,7 @@ export const Player = () => {
         let playerAR = attackRating(baseAR, stats.dexterity, 1, 1);
         let playerDR = defenceRating(baseDef, 1, stats.dexterity);
         // let hitChan = hitChance(playerAR, playerDef, 1, 1);
+
         // console.log(hitChan,"HIT")
         dispatch(setStats(stats));
         dispatch(setHealth(health));
@@ -111,13 +112,13 @@ export const Player = () => {
 
     useEffect(() => {
         dispatch(fetchEquipment());
+
     }, [dispatch]);
 
     useEffect(() => {
         initializeData()
         console.log(inventory, "inventory!!!!")
     },[playerLevel, equipment])
-
     useEffect(() => {
         fadeAnimDmg.setValue(1); 
         Animated.timing(fadeAnimDmg, {
@@ -125,7 +126,6 @@ export const Player = () => {
             duration: 700,
             useNativeDriver: true, 
         }).start();
-
     },[count])
     useEffect(() => {
         console.log(dmgTakenObj, "PAYLOAD DMG 2 PLAYER")
@@ -161,10 +161,17 @@ export const Player = () => {
     }, [Object.keys(dmgDoneObj).length])
     let enemies = useAppSelector(state => state.enemy)
     const changeEnemy = () => {
+        dispatch(setCurrentEnemy(1))
+        // startCombat()
         console.log()
         console.log(enemies, "ASAAAAAAAAAAAAAAa")
     }
     const { startCombat } = useCombat();
+    const combatStart = () => {
+        startCombat()
+        // dispatch(setCurrentEnemy(0))
+        // dispatch(setCurrentEnemy(1))
+    }
     return (
         <View style={[styles.playerContainer, { width: screenWidth }]}> 
             <View>

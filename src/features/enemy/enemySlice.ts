@@ -103,20 +103,20 @@ interface DmgPayload {
 const enemyInitialState: EnemyState = {
     // enemies: {},
     enemies: {
-        0: {
-            id: 0,
-            health: 0,//data.enemies[0].stats.health,
-            dmgLog: [],
-            damage: 0,//data.enemies[0].stats.attack,
-            atkRating: 0,
-            atkSpeed: 0,//data.enemies[0].stats.atkSpeed,
-            defence: 0,//data.enemies[0].stats.defence,
-            level: 0,//data.enemies[0].info.level,
-            xp: 0,//data.enemies[0].info.xp,
-            stats: {},//stats,
-            loot: {},//loot,
-            info: {},//info,
-        },
+        // 0: {
+        //     id: 0,
+        //     health: 0,//data.enemies[0].stats.health,
+        //     dmgLog: [],
+        //     damage: 0,//data.enemies[0].stats.attack,
+        //     atkRating: 0,
+        //     atkSpeed: 0,//data.enemies[0].stats.atkSpeed,
+        //     defence: 0,//data.enemies[0].stats.defence,
+        //     level: 0,//data.enemies[0].info.level,
+        //     xp: 0,//data.enemies[0].info.xp,
+        //     stats: {},//stats,
+        //     loot: {},//loot,
+        //     info: {},//info,
+        // },
         // 1: {
         //     health: data.enemies[1].stats.health,
         //     dmgLog: [],
@@ -132,20 +132,20 @@ const enemyInitialState: EnemyState = {
         // }
     },
     enemiesStorage: {
-        0:{
-            id: 0,
-            health: 0,//data.enemies[0].stats.health,
-            dmgLog: [],
-            damage: 0,//data.enemies[0].stats.attack,
-            atkRating: 0,
-            atkSpeed: 0,//data.enemies[0].stats.atkSpeed,
-            defence: 0,//data.enemies[0].stats.defence,
-            level: 0,//data.enemies[0].info.level,
-            xp: 0,//data.enemies[0].info.xp,
-            stats: {},//stats,
-            loot: {},//loot,
-            info: {},//info,
-        }
+        // 0:{
+        //     id: 0,
+        //     health: 0,//data.enemies[0].stats.health,
+        //     dmgLog: [],
+        //     damage: 0,//data.enemies[0].stats.attack,
+        //     atkRating: 0,
+        //     atkSpeed: 0,//data.enemies[0].stats.atkSpeed,
+        //     defence: 0,//data.enemies[0].stats.defence,
+        //     level: 0,//data.enemies[0].info.level,
+        //     xp: 0,//data.enemies[0].info.xp,
+        //     stats: {},//stats,
+        //     loot: {},//loot,
+        //     info: {},//info,
+        // }
 
     },
     currentEnemyId: 0
@@ -162,6 +162,7 @@ const enemySlice = createSlice({
     initialState: enemyInitialState,
     reducers: {
         addEnemy(state, action: PayloadAction<number>) {
+            clearEnemies();
             const id = action.payload;
             state.enemies[id] = {
                 id: id,
@@ -195,6 +196,14 @@ const enemySlice = createSlice({
         emptyDmgLog(state, action: PayloadAction<number>) {
             state.enemies[action.payload].dmgLog = [];
         },
+        removeEnemy(state, action: PayloadAction<number>) {
+            const idToRemove = action.payload;
+            delete state.enemies[idToRemove];
+            state.enemies
+        },
+        clearEnemies(state) {
+            state.enemies = {};
+        }
         // setStats(state, action: PayloadAction<Object>) {
         //     state.enemy[action.payload.id]stats = action.payload;
         // },
@@ -221,5 +230,5 @@ const enemySlice = createSlice({
     }
 })
 
-export const { dmg2Enemy, addEnemy, setAttackRating, emptyDmgLog, setCurrentEnemy } = enemySlice.actions;
+export const { dmg2Enemy, addEnemy, setAttackRating, removeEnemy, emptyDmgLog, setCurrentEnemy, clearEnemies } = enemySlice.actions;
 export default enemySlice.reducer;

@@ -24,7 +24,10 @@ export const Room = () => {
     useEffect(() => {
         getEnemies();
 
-    },[])
+    },[Object.values(enemies).length])
+    Object.values(enemies).map((val, index) => {
+        console.log('ENEMIES OBJECT VALUES', val, index);
+    })
     return (
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
@@ -37,7 +40,7 @@ export const Room = () => {
                 source={resources[currentLvl] as ImageSourcePropType} 
                 style={styles.backgroundImage}
                 >
-                {Object.entries(enemies).map(([index, enemy]) => ( 
+                {Object.entries(enemies).map((val,index) => ( 
                 <View style={styles.enemiesContainer}> 
                         <Enemy index={index}/>
                 </View>
