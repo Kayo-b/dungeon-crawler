@@ -22,7 +22,13 @@ export const Player = () => {
     const dmgTakenLog = useAppSelector(state => state.player.dmgLog);
     const dmgTaken = dmgTakenLog.length > 0 ? dmgTakenLog[dmgTakenLog.length - 1].dmg : 0;
     console.log(useAppSelector(state => state.enemy.enemies), currentEnemy, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-    const dmgDoneObj = useAppSelector(state => state.enemy.enemies[currentEnemy].dmgLog);
+    console.log(currentEnemy, "CURRENT ENEMY ID", typeof currentEnemy)
+    const enemiesObj = useAppSelector(state => state.enemy.enemies);
+    let dmgDoneObj = {}
+    if(Object.values(enemiesObj).length !== 0) {
+        dmgDoneObj = useAppSelector(state => state.enemy.enemies[currentEnemy].dmgLog);
+
+    }
     const dmgTakenObj = useAppSelector(state => state.player.dmgLog); // Select the current count
     let combatLog = useAppSelector(state => state.player.combatLog);
     const stats = useAppSelector(state => state.player.stats)
@@ -30,7 +36,10 @@ export const Player = () => {
     const attack = useAppSelector(state => state.player.attackRating)
     const playerDmg = useAppSelector(state => state.player.playerDmg);
     const playerLog = useAppSelector(state => state.player.dmgLog); 
-    const enemyInfo = useAppSelector(state => state.enemy.enemies[currentEnemy].info)
+    let enemyInfo = {};
+    if(Object.values(enemiesObj).length !== 0) {
+        enemyInfo = useAppSelector(state => state.enemy.enemies[currentEnemy].info)
+    }
     console.log(enemyInfo, currentEnemy, "CURRENT")
     const fadeAnimDmg = useRef(new Animated.Value(1)).current;
     let equipment = useAppSelector(state => state.player.equipment);
@@ -168,7 +177,7 @@ export const Player = () => {
     }
     const { startCombat } = useCombat();
     const combatStart = () => {
-        startCombat()
+        startCombat(currentEnemy)
         // dispatch(setCurrentEnemy(0))
         // dispatch(setCurrentEnemy(1))
     }
@@ -188,7 +197,7 @@ export const Player = () => {
                 <Text style={styles.text}>Level: {playerLevel}</Text>
                 <Text style={styles.text}>DMG: {playerDmg} | DEF: {JSON.stringify(defence)}</Text>
                 <Text style={styles.text}>STATS: {JSON.stringify(stats)}</Text>
-                <TouchableOpacity style={styles.button} onPress={ startCombat }>
+                <TouchableOpacity style={styles.button} onPress={ () => startCombat(currentEnemy) }>
                     <Text>Attack</Text>
                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.button} onPress={ changeEnemy }>

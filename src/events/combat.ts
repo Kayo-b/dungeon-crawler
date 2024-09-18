@@ -105,19 +105,6 @@ export const useCombat = () => {
     let tempPlayerHealth = playerHealth;
     let playerHR: number;
     const baseCrit = useAppSelector(state => state.player.critChance)
-    // let experience = data.character.experience;
-    
-
-    // const enemiesState = () => {
-    //     if(Object.keys(enemies).length > 1 && enemyHealth <= 0) {
-    //         setCurrentEnemy(1)
-    //     }
-    //     console.log(enemies)
-    //     console.log(enemyHealth)
-    //     console.log("^^^^^")
-    // }
-
-    
     
     let enemiesArr = Object.values(enemies)
     // useEffect(() => {
@@ -127,19 +114,15 @@ export const useCombat = () => {
     // },[Object.values(enemies).length])
 
     useEffect(() => {
-    //    console.log(currentEnemy, "CURRENT ENEMY")
-    // console.log(rerender)
-    // console.log(rerender,"START COMBAT @@@@@")
-    //     if(enemiesArr.length > 0 && enemyPack) {
-    //         // setCurrentEnemy(0);
-    //         // console.log(combatRef.current,"AQUI")
-    //         startCombat();
-    //     console.log("START COMBAT INSIDE")
-    //     }
-    // startCombat();
-    
+        if(enemiesArr.length > 0 && enemyPack) {
+            playerCombatIntRef.current = null;
+            startCombat(currentEnemy);
+            console.log("ENEMY ID OUTSIDE ", currentEnemy);
+        }
     },[currentEnemy, enemiesArr.length])
-    const startCombat = () => {
+
+    const startCombat = (enemyId:number) => {
+        console.log(enemyId, "ENEMY ID !@#")
         // dispatch(setCurrentEnemy(id))
         console.log(enemyHealth,"START COMBAT INSIDE 2")
         if(enemyHealth > 0 && playerHealth > 0) {
@@ -156,7 +139,7 @@ export const useCombat = () => {
             console.log(enemyStats, loot, "STATS ENEMY")
             console.log(enemyDR,"Enemy DR");
             // setCombat(true);
-            playerLoop();
+            playerLoop(enemyId);
             // console.log("CURRENT", currentEnemy)
             enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
             // enemyLoop(0);// Default player initiative, make change so it becomes random or depends on stats.
@@ -205,37 +188,47 @@ export const useCombat = () => {
         await AsyncStorage.setItem('characters',JSON.stringify(obj));
     }
     
-    const playerLoop = () => {
+    console.log("DMG 1 ENEMYU ENEMIE OUTSIDE", enemies, currentEnemy)
+    const playerLoop = (enemyId:number) => {
+        console.log(enemyId, "ENEMY ID IN PLAYER LOOP")
         console.log(playerDmg, "Player dmg")
         console.log(playerAtkSpeed, "Player atk speed")
         console.log(playerHR,"Hit rate")
         if(playerCombatIntRef.current === null) {
             // Object.values(enemies).forEach( (val, index) => {
-            playerCombatIntRef.current = setInterval(() => {
-                const randomVal = Math.random();
-                const randomAddDmg = Math.floor(randomVal * 2)
-                const randomCritVal = Math.random();
-                console.log(playerHR, "STATS Player hit rate")
-                console.log(healthArray, tempPlayerHealth, combatRef.current, "AQUI OLHA 2"
-                )
-                if(healthArray[0] > 0 && tempPlayerHealth > 0 && combatRef.current) {
-                    console.log(randomVal, playerHR, "will it hit?", randomVal <= playerHR)
-                    console.log("Crit Values Check", randomCritVal, baseCrit)
-                    if(randomVal <= playerHR) {
-                        let dmg = (playerDmg + randomAddDmg);
-                        if(randomCritVal <= baseCrit) {
-                            dmg *= 2;
-                            dispatch(dmg2Enemy({id:currentEnemy, damage:{'dmg':dmg, 'crit': true}})); 
-                            healthArray[0] -= (dmg - 1);
-                        } else {
-                            dispatch(dmg2Enemy({ id:currentEnemy, damage:{'dmg':dmg, 'crit': false} })); 
-                            dispatch(dmg2Enemy({ id:1, damage:{'dmg':dmg, 'crit': false} })); 
+                playerCombatIntRef.current = setInterval(() => {
+                    const randomVal = Math.random();
+                    const randomAddDmg = Math.floor(randomVal * 2)
+                    const randomCritVal = Math.random();
+                    console.log(playerHR, "STATS Player hit rate")
+                    
+                    console.log(healthArray, tempPlayerHealth, combatRef.current, "AQUI OLHA 2"
+                    )
+                    if(healthArray[0] > 0 && tempPlayerHealth > 0 && combatRef.current) {
+                        console.log(randomVal, playerHR, "will it hit?", randomVal <= playerHR)
+                        console.log("Crit Values Check", randomCritVal, baseCrit)
+                        console.log("DMG 1 ENEMYU RANDOM VAL", randomVal <= playerHR)
+                        if(randomVal <= playerHR) {
+                            let dmg = (playerDmg + randomAddDmg);
+                            console.log("DMG 1 ENEMYU RANDOM CRIT VAL", randomCritVal <= baseCrit)
+                            console.log("ENEMY ID $%%%%%%%%%%%%% ", enemyId, typeof enemyId)
+                            if(randomCritVal <= baseCrit) {
+                                dmg *= 2;
+                                dispatch(dmg2Enemy({id:enemyId, damage:{'dmg':dmg, 'crit': true}})); 
+                                healthArray[0] -= dmg;
+                                if(healthArray[0] <= 0) clearInterval(playerCombatIntRef.current);
+                                console.log("DMG 1 ENEMYU", dmg)
+                            } else {
+                                dispatch(dmg2Enemy({ id:enemyId, damage:{'dmg':dmg, 'crit': false} })); 
                             console.log("NO CRIT!", dmg);
                             healthArray[0] -= dmg;
-                            healthArray[1] -= (dmg - 1);
+
+                            if(healthArray[0] <= 0) clearInterval(playerCombatIntRef.current);
+                            console.log("DMG 1 ENEMYU NO CRIT", dmg)
                         }
                     } else {
-                        dispatch(dmg2Enemy({ id:currentEnemy,damage:{'dmg':0, 'crit': false} }));
+                        dispatch(dmg2Enemy({ id:enemyId,damage:{'dmg':0, 'crit': false} }));
+                        console.log("DMG 1 ENEMYU MISS")
                     }
                 } else {
                     if(healthArray[0] <= 0) {
@@ -271,8 +264,6 @@ export const useCombat = () => {
         console.log(enemies, "ENEMIES ARR OBJ")
         if(enemyCombatIntRef.current === null) {
             Object.values(enemies).forEach( (val, index) => {
-                // console.log(val, "ENEMIES ARR OBJ")
-                // console.log(val.name, "SET ATTACK RATING", index, healthArray[currentEnemy], val.atkRating, enemyAR)
             enemyCombatIntRef.current = setInterval(() => {
                 const randomVal = Math.random();
                 const randomAddDmg = Math.floor(randomVal * 2);
@@ -309,8 +300,8 @@ export const useCombat = () => {
                     if(healthArray[0] <= 0 && healthArray.length > 1) {
                         enemiesArr.splice(currentEnemy, 1);
                         healthArray.splice(0,1)
-                        dispatch(setCurrentEnemy(currentEnemy + 1))
                         dispatch(removeEnemy(currentEnemy));
+                        dispatch(setCurrentEnemy(1))
                         console.log("++++++++++++++++++++++++++")
 
                     } 
@@ -320,71 +311,15 @@ export const useCombat = () => {
                     enemyCombatIntRef.current = null;
                     dispatch(emptyCombatLog());        
                     if(enemiesArr.length === 0) {
-                        dispatch(setCurrentEnemy(0))
+                        dispatch(setCurrentEnemy(0));
+                        dispatch(setEnemyPack(false));
                     } else {
                         dispatch(setEnemyPack(true));
                     }
-                    // if(enemiesArr.length === 0) {
-                    //     combatRef.current = false;
-                    //     setCombat(false);
-                    //     clearInterval(enemyCombatIntRef.current);
-                    //     enemyCombatIntRef.current = null;
-                    //     dispatch(emptyCombatLog());
-                    //     // setCurrentEnemy(1)
-                    // }   
-                    // combatRef.current = false;
-                    // dispatch(setCurrentEnemy(1))
-                   
-                    // if(enemiesArr.length >= 1) {
-                    //     console.log(enemiesArr.length, "ENEMIES ARR") 
-                    //     startCombat();
-                    // } 
                 } 
             }, 1000 / enemyAtkSpeed)
         })
         }
     }
-    // const attack = () => {
-    //     if(playerTurn) {
-    //         const playerDmg = 1 + Math.floor(Math.random() * 2);
-    //         setTimeout(() => dispatch(dmgTaken(playerDmg)), 500)
-    //         setPlayerTurn(false);
-    //     } else if(enemyHealth > 0 && !playerTurn) {
-    //         setTimeout(() => dispatch(dmg2Player(enemyDmg)), 500);   
-    //         setPlayerTurn(true);
-    //         console.log("Enemy attack", playerHealth)
-    //     } else {
-    //         // setCombat(false);
-    //         combatRef.current = false;
-    //         console.log("Combat ended")
-    //     }
-    // };
-     
-    // useEffect(() => {
-    //     return () => {
-    //         if(playerCombatIntRef.current) clearInterval(playerCombatIntRef.current);
-    //         if(enemyCombatIntRef.current) clearInterval(enemyCombatIntRef.current);
-    //     };
-    //  },[combat]);
-
-    
-    // const counterAttack = () => {
-    //     console.log(enemyHealth,"Enemy health")
-    //     if(enemyHealth > 0) {
-    //         const enemyDmg = 1 + Math.floor(Math.random() * 2);
-    //         setTimeout(() => dispatch(dmg2Player(enemyDmg)), 500);   
-    //     }
-
-    // }
-
-    // const usePotion = () => {
-    //     const healAmount = 5; // Example value
-    //     dispatch(heal(healAmount));
-    // };
-
-    // const castMagic = () => {
-    //     const spellDamage = 3; // Example value
-    //     dispatch(castSpell(spellDamage));
-    // };
     return { startCombat };
 };

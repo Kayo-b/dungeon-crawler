@@ -2,7 +2,7 @@
 "character": {
   "name": "Test Demork",
   "stats": {
-    "health": 40,
+    "health": 90,
     "strength": 8,
     "dexterity": 40,
     "stamina": 12,
