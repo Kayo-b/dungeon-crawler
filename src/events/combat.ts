@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setInventory, setAddToInv } from '../features/inventory/inventorySlice';
 import  { emptyCombatLog } from '../features/player/playerSlice';
 import { setEnemyCount, setEnemyPack } from './combatSlice';
+import { current } from '@reduxjs/toolkit';
 
 interface Item {
     ID: number;
@@ -116,13 +117,13 @@ export const useCombat = () => {
     useEffect(() => {
         if(enemiesArr.length > 0 && enemyPack) {
             playerCombatIntRef.current = null;
-            startCombat(currentEnemy);
+            startCombat();
             console.log("ENEMY ID OUTSIDE ", currentEnemy);
         }
     },[currentEnemy, enemiesArr.length])
 
-    const startCombat = (enemyId:number) => {
-        console.log(enemyId, "ENEMY ID !@#")
+    const startCombat = () => {
+        // console.log(enemyId, "ENEMY ID !@#")
         // dispatch(setCurrentEnemy(id))
         console.log(enemyHealth,"START COMBAT INSIDE 2")
         if(enemyHealth > 0 && playerHealth > 0) {
@@ -139,7 +140,7 @@ export const useCombat = () => {
             console.log(enemyStats, loot, "STATS ENEMY")
             console.log(enemyDR,"Enemy DR");
             // setCombat(true);
-            playerLoop(enemyId);
+            playerLoop();
             // console.log("CURRENT", currentEnemy)
             enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
             // enemyLoop(0);// Default player initiative, make change so it becomes random or depends on stats.
@@ -189,8 +190,7 @@ export const useCombat = () => {
     }
     
     console.log("DMG 1 ENEMYU ENEMIE OUTSIDE", enemies, currentEnemy)
-    const playerLoop = (enemyId:number) => {
-        console.log(enemyId, "ENEMY ID IN PLAYER LOOP")
+    const playerLoop = () => {
         console.log(playerDmg, "Player dmg")
         console.log(playerAtkSpeed, "Player atk speed")
         console.log(playerHR,"Hit rate")
@@ -211,48 +211,68 @@ export const useCombat = () => {
                         if(randomVal <= playerHR) {
                             let dmg = (playerDmg + randomAddDmg);
                             console.log("DMG 1 ENEMYU RANDOM CRIT VAL", randomCritVal <= baseCrit)
-                            console.log("ENEMY ID $%%%%%%%%%%%%% ", enemyId, typeof enemyId)
                             if(randomCritVal <= baseCrit) {
                                 dmg *= 2;
-                                dispatch(dmg2Enemy({id:enemyId, damage:{'dmg':dmg, 'crit': true}})); 
+                                dispatch(dmg2Enemy({id:currentEnemy, damage:{'dmg':dmg, 'crit': true}})); 
                                 healthArray[0] -= dmg;
                                 if(healthArray[0] <= 0) clearInterval(playerCombatIntRef.current);
                                 console.log("DMG 1 ENEMYU", dmg)
                             } else {
-                                dispatch(dmg2Enemy({ id:enemyId, damage:{'dmg':dmg, 'crit': false} })); 
+                                dispatch(dmg2Enemy({ id:currentEnemy, damage:{'dmg':dmg, 'crit': false} })); 
                             console.log("NO CRIT!", dmg);
                             healthArray[0] -= dmg;
 
-                            if(healthArray[0] <= 0) clearInterval(playerCombatIntRef.current);
+                            if(healthArray[0] <= 0) {
+                                clearInterval(playerCombatIntRef.current);
+                                dispatch(XP(enemyXP));
+                                // playerCombatIntRef.current = null;
+                                // combatRef.current = false;
+                                const dropCalc = () => {
+                                    const random = Math.random();
+                                    (loot as LootObject[]).forEach((val: any) => {
+                                        if(random <= val.dropChance) {
+                                            console.log(val, "LOOT DROPPED !!!!!!!!")
+                                            lootItem = val
+                                        }
+                                    })
+                                }
+                                // Createa a separate "combat over" function to deal with all the combat ending things 
+                                console.log("AQUI OLHA 5")
+                                dropCalc();
+                                saveData();
+                                setCombat(false);
+                                emptyCombatLog();
+                                console.log(loot, "LOOT")
+                            }
                             console.log("DMG 1 ENEMYU NO CRIT", dmg)
                         }
                     } else {
-                        dispatch(dmg2Enemy({ id:enemyId,damage:{'dmg':0, 'crit': false} }));
+                        dispatch(dmg2Enemy({ id:currentEnemy, damage:{'dmg':0, 'crit': false} }));
                         console.log("DMG 1 ENEMYU MISS")
                     }
                 } else {
-                    if(healthArray[0] <= 0) {
-                        dispatch(XP(enemyXP));
-                    }
-                    clearInterval(playerCombatIntRef.current);
-                    playerCombatIntRef.current = null;
-                    combatRef.current = false;
-                    const dropCalc = () => {
-                        const random = Math.random();
-                        (loot as LootObject[]).forEach((val: any) => {
-                            if(random <= val.dropChance) {
-                                console.log(val, "LOOT DROPPED !!!!!!!!")
-                                lootItem = val
-                            }
-                        })
-                    }
-                    
-                    // Createa a separate "combat over" function to deal with all the combat ending things 
-                    dropCalc();
-                    saveData();
-                    setCombat(false);
-                    emptyCombatLog();
-                    console.log(loot, "LOOT")
+                    // if(healthArray[0] <= 0) {
+                    //     dispatch(XP(enemyXP));
+                    // }
+                    // clearInterval(playerCombatIntRef.current);
+                    // playerCombatIntRef.current = null;
+                    // combatRef.current = false;
+                    // const dropCalc = () => {
+                    //     const random = Math.random();
+                    //     (loot as LootObject[]).forEach((val: any) => {
+                    //         if(random <= val.dropChance) {
+                    //             console.log(val, "LOOT DROPPED !!!!!!!!")
+                    //             lootItem = val
+                    //         }
+                    //     })
+                    // }
+                    // // Createa a separate "combat over" function to deal with all the combat ending things 
+                    // console.log("AQUI OLHA 5")
+                    // dropCalc();
+                    // saveData();
+                    // setCombat(false);
+                    // emptyCombatLog();
+                    // console.log(loot, "LOOT")
                 }
             }, 1000 / playerAtkSpeed)
             // })
@@ -306,6 +326,7 @@ export const useCombat = () => {
 
                     } 
                     combatRef.current = false;
+                    console.log("AQUI OLHA 4")
                     setCombat(false);
                     clearInterval(enemyCombatIntRef.current);
                     enemyCombatIntRef.current = null;
