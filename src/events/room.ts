@@ -17,6 +17,7 @@ export const useRoom = () => {
         dispatch(changeRoom(Math.floor(Math.random() * 2)));
         dispatch(emptyCombatLog());
         dispatch(emptyDmgLog(0));
+        dispatch(setCurrentEnemy(0));
     }        
 
     const getEnemies = () => {

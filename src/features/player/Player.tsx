@@ -139,14 +139,14 @@ export const Player = () => {
     useEffect(() => {
         console.log(dmgTakenObj, "PAYLOAD DMG 2 PLAYER")
         const keys = Object.keys(dmgTakenObj);
-        console.log(keys, "keys")
+        console.log(dmgTakenObj, "DMG TAKEN 111111111111")
         if(keys.length > 0) {
             if(dmgTakenObj[keys.length -1].dmg === 0)  {
                 dispatch(setCombatLog(`${enemyInfo.name} missed.`));
             } else if(dmgTakenObj[keys.length -1].crit) {
-                dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} critical damage.`));
+                dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} critical damage.`));   
             } else {
-                dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} damage.`));
+                dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} damage. From ${dmgTakenObj[keys.length - 1].enemy}`));
             }
         }
         console.log(combatLog, "DMG COMBAT LOG")

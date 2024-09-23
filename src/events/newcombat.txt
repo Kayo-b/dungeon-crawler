@@ -1,0 +1,206 @@
+import { useEffect, useState, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { dmg2Enemy, setCurrentEnemy, removeEnemy } from '../features/enemy/enemySlice';
+import { dmg2Player, XP, levelUp, emptyCombatLog } from '../features/player/playerSlice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setAddToInv } from '../features/inventory/inventorySlice';
+import { setEnemyPack } from './combatSlice';
+
+interface Item {
+    ID: number;
+    type: string;
+    Durability: number;
+    dropChance: number;
+}
+
+interface LootObject {
+    dropChance: number;
+}
+
+export const useCombat = () => {
+    const dispatch = useAppDispatch();
+    const enemies = useAppSelector(state => state.enemy.enemies);
+    const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
+    const playerHealth = useAppSelector(state => state.player.health);
+    const playerAtkSpeed = useAppSelector(state => state.player.atkSpeed);
+    const playerDmg = useAppSelector(state => state.player.playerDmg);
+    const playerAR = useAppSelector(state => state.player.attackRating);
+    const playerDR = useAppSelector(state => state.player.defenceRating);
+    const playerLVL = useAppSelector(state => state.player.level);
+    const baseCrit = useAppSelector(state => state.player.critChance);
+
+    const enemyXP = useAppSelector(state => state.enemy.enemies[currentEnemy].xp);
+    const [combat, setCombat] = useState(false);
+    const combatRef = useRef(false);
+    const playerCombatIntRef = useRef<NodeJS.Timeout | null>(null);
+    const enemyCombatIntRefs = useRef<{ [key: number]: NodeJS.Timeout | null }>({});
+
+    let tempEnemyHealth = enemies[currentEnemy].health;
+    let tempPlayerHealth = playerHealth;
+
+    const startCombat = () => {
+        if (Object.keys(enemies).length > 0 && playerHealth > 0) {
+            combatRef.current = true;
+            setCombat(true);
+            dispatch(setCurrentEnemy(Object.keys(enemies)[String(0)]));
+            playerLoop();
+            enemyLoop();
+        }
+    };
+
+    const hitRate = (AAR: number, DDR: number, ALVL: number, DLVL: number) => {
+        return 2 * (AAR / (AAR + DDR)) * (ALVL / (ALVL + DLVL));
+    };
+
+    const playerLoop = () => {
+        if (playerCombatIntRef.current === null) {
+            playerCombatIntRef.current = setInterval(() => {
+                if (!combatRef.current || Object.keys(enemies).length === 0) {
+                    clearInterval(playerCombatIntRef.current!);
+                    playerCombatIntRef.current = null;
+                    return;
+                }
+
+                const randomVal = Math.random();
+                const randomAddDmg = Math.floor(randomVal * 2);
+                const randomCritVal = Math.random();
+                const targetEnemy = enemies[currentEnemy];
+                const playerHR = hitRate(playerAR, targetEnemy.defence, playerLVL, targetEnemy.level);
+
+                if (randomVal <= playerHR) {
+                    let dmg = playerDmg + randomAddDmg;
+                    if (randomCritVal <= baseCrit) {
+                        dmg *= 2;
+                        dispatch(dmg2Enemy({ id: currentEnemy, damage: { dmg, crit: true } }));
+                        tempEnemyHealth = tempEnemyHealth - dmg;
+                    } else {
+                        dispatch(dmg2Enemy({ id: currentEnemy, damage: { dmg, crit: false } }));
+                        tempEnemyHealth = tempEnemyHealth - dmg;
+                    }
+                        console.log(tempEnemyHealth, dmg, "DMG MORTAL")
+                        // console.log(tempHealth - dmg, "DMG ")
+                    if (tempEnemyHealth - dmg <= 0) {
+                        console.log("INIMIGO MORREU")
+                        handleEnemyDeath(currentEnemy);
+                    }
+                } else {
+                    dispatch(dmg2Enemy({ id: currentEnemy, damage: { dmg: 0, crit: false } }));
+                }
+            }, 1000 / playerAtkSpeed);
+        }
+    };
+
+    const enemyLoop = () => {
+        Object.entries(enemies).forEach(([id, enemy]) => {
+            if (enemyCombatIntRefs.current[id] === undefined) {
+                enemyCombatIntRefs.current[id] = setInterval(() => {
+                    if (!combatRef.current || tempPlayerHealth <= 0) {
+                        clearInterval(enemyCombatIntRefs.current[id]!);
+                        delete enemyCombatIntRefs.current[id];
+                        return;
+                    }
+
+                    const randomVal = Math.random();
+                    const randomAddDmg = Math.floor(randomVal * 2);
+                    const randomCritVal = Math.random();
+                    const enemyHR = hitRate(enemy.atkRating, playerDR, enemy.level, playerLVL);
+
+                    if (randomVal <= enemyHR) {
+                        let dmg = enemy.damage + randomAddDmg;
+                        if (randomCritVal <= baseCrit) {
+                            dmg *= 2;
+                            dispatch(dmg2Player({ dmg, crit: true }));
+                        } else {
+                            dispatch(dmg2Player({ dmg, crit: false }));
+                        }
+                        tempPlayerHealth -= dmg;
+
+                        if (tempPlayerHealth <= 0) {
+                            handlePlayerDeath();
+                        }
+                    } else {
+                        dispatch(dmg2Player({ dmg: 0, crit: false }));
+                    }
+                }, 1000 / enemy.atkSpeed);
+            }
+        });
+    };
+
+    const handleEnemyDeath = (enemyId: number) => {
+        dispatch(XP(enemies[enemyId].xp));
+        dispatch(removeEnemy(enemyId));
+        clearInterval(enemyCombatIntRefs.current[enemyId]!);
+        delete enemyCombatIntRefs.current[enemyId];
+        dispatch(setCurrentEnemy(1));
+            console.log("END COMBATS")
+            // endCombat();
+        if (Object.keys(enemies).length > 0) {
+            const nextEnemyId = Object.keys(enemies)[0];
+            dispatch(setCurrentEnemy(Number(nextEnemyId)));
+        } else {
+            console.log("END COMBATS")
+            endCombat();
+        }
+    };
+
+    const handlePlayerDeath = () => {
+        endCombat();
+        // Implement player death logic here (e.g., game over screen, respawn)
+    };
+
+    const endCombat = () => {
+        combatRef.current = false;
+        setCombat(false);
+        clearInterval(playerCombatIntRef.current!);
+        playerCombatIntRef.current = null;
+        Object.values(enemyCombatIntRefs.current).forEach(clearInterval);
+        enemyCombatIntRefs.current = {};
+        dispatch(emptyCombatLog());
+        dispatch(setEnemyPack(false));
+        saveData();
+    };
+    let lootItem: Item;
+    const saveData = async () => {
+        const data = await AsyncStorage.getItem('characters');
+        const obj = data ? JSON.parse(data) : {};
+        const itemsData = await AsyncStorage.getItem('items');
+        const itemsObj = itemsData ? JSON.parse(itemsData) : {};
+        if(lootItem !== undefined && lootItem !== null) {
+            const itemType = lootItem.type;
+            const itemID = lootItem.ID;
+            console.log(lootItem, "LOOT ITEM");
+            console.log(itemType,"ITEM TYPE")
+            console.log(itemID,"ITEM DROP ID");
+            console.log(itemsObj.items[itemType][`${itemID}`], "ITEMS FROM THE DROPPP !!!") 
+            obj.character.inventory.push(itemsObj.items[itemType][`${itemID}`])
+            // inventory.push(itemsObj.items[itemType][`${itemID}`])
+            dispatch(setAddToInv(itemsObj.items[itemType][`${itemID}`]));
+        }
+        obj.character.stats.health = tempPlayerHealth;
+        obj.character.experience += enemyXP;
+        console.log(obj.character.stats.health, "<< health");
+        console.log(obj.character.experience, "<< EXP");
+        if(obj.character.experience >= obj.character.xptolvlup) {
+            obj.character.level = obj.character.level + 1; 
+            obj.character.xptolvlup = obj.character.xptolvlup * 2;
+            obj.character.stats.health = obj.character.stats.health + 5;
+            obj.character.stats.strength = obj.character.stats.strength + 1;
+            obj.character.stats.vitality = obj.character.stats.vitality + 1;
+            obj.character.stats.agility = obj.character.stats.agility + 1;
+            obj.character.stats.dexterity = obj.character.stats.dexterity + 1;
+             dispatch(levelUp())
+        }
+        console.log(obj.character.stats.strength, "OI")
+        await AsyncStorage.setItem('characters',JSON.stringify(obj));// Implement your data saving logic here
+        // This function should update the player's stats, inventory, and experience
+    };
+
+    useEffect(() => {
+        return () => {
+            if (playerCombatIntRef.current) clearInterval(playerCombatIntRef.current);
+            Object.values(enemyCombatIntRefs.current).forEach(clearInterval);
+        };
+    }, []);
+
+    return { startCombat, combat };
+};

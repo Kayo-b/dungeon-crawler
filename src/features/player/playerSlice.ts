@@ -80,6 +80,7 @@ interface CounterState {
 interface DmgPayload {
     dmg: number;
     crit: boolean;
+    enemy: string;
 }
 
 const initialState: CounterState = {
@@ -118,7 +119,7 @@ const playerSlice = createSlice({
             console.log(action.payload.dmg, "PAYLOAD player");
             state.dmgLog.push(action.payload);
             console.log("DMG HELOOOOO", action.payload.dmg)
-            console.log("DMG HELOOOOO", action.payload)
+            console.log("DMG HELOOOOO", action.payload.enemy)
             console.log("DMG HELOOOOO", state.dmgLog[state.dmgLog.length -1]);
             saveData(state.health);
         },

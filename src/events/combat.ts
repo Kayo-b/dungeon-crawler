@@ -294,7 +294,7 @@ export const useCombat = () => {
                 console.log(healthArray[0], tempPlayerHealth, combatRef.current, "AQUI OLHA 3")
                 console.log(currentEnemy, val, combatRef.current, "INDEXXXXXXX CURENT ENEMY &&&&&&")
                 const totalHealth = healthArray.reduce((sum, health) => sum + health, 0);
-                console.log(totalHealth, "!!! Total health", combatRef.current, healthArray[0])
+                console.log(totalHealth, "!!! Total health", combatRef.current, healthArray[0], val.info.name, 'ENEMY VAL 0000')
                 if(healthArray[0] > 0 && tempPlayerHealth > 0 && combatRef.current) {
                     console.log(randomVal <= enemyHR, "Enemy hit rate check", enemyHR)
                     if(randomVal <= enemyHR) { // FIX HIT RATE FOR ENEMY HITTINH PLAYER
@@ -303,18 +303,18 @@ export const useCombat = () => {
                         console.log(randomCritVal, baseCrit, "CRIT ENEMY")
                         if(randomCritVal <= baseCrit) {
                             dmg *= 2;
-                            dispatch(dmg2Player({'dmg':dmg, 'crit': true}));
+                            dispatch(dmg2Player({'dmg':dmg, 'crit': true, 'enemy': val.info.name}));
                             tempPlayerHealth -= dmg;
                             console.log("DMG ()()() 2", dmg)
                         } else { 
-                            dispatch(dmg2Player({'dmg':dmg, 'crit': false}));
+                            dispatch(dmg2Player({'dmg':dmg, 'crit': false, 'enemy': val.info.name}));
                             tempPlayerHealth -= dmg;
                             
                             console.log("DMG ()()() 3", dmg)
                         }
                     } else {
                         console.log("DMG %%% ELSE")
-                        dispatch(dmg2Player({'dmg':0, 'crit': false}));
+                        dispatch(dmg2Player({'dmg':0, 'crit': false, 'enemy': val.info.name}));
                     }
                 } else {
                     if(healthArray[0] <= 0 && healthArray.length > 1) {
