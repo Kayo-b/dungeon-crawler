@@ -10,38 +10,44 @@ interface EnemyProps {
     index: number
 }
 export const Enemy: React.FC<EnemyProps> = ({index}) => {
-
     const dispatch = useAppDispatch();
     // const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId)
     const enemies = useAppSelector(state => state.enemy.enemies)
+    const currentEnemy = useAppSelector(state => state.enemy.enemies)
     const enemiesStorage = useAppSelector(state => state.enemy.enemiesStorage)
     console.log(enemiesStorage, "*****************************************STORAGE1")
-    console.log(enemies,"ENEMIES #######", enemies[index], "IDDDD")
+    console.log(enemies,"ENEMIES #######", enemies[index], "IDDDD", index,"INDEXXXXXXX")
     const id = Object.values(enemies)[index].id;
-    console.log(enemies, index, id, enemies[index], "***************************************** !@#")
-    const count = useAppSelector(state => state.enemy.enemies[id].health); 
-    const dmgLog = useAppSelector(state => state.enemy.enemies[id].dmgLog);
-    const dmgTakenArr = useAppSelector(state => state.enemy.enemies[id].dmgLog); 
+
+    // console.log(enemies, index, id, enemies[index], "***************************************** !@#")
+    const count = useAppSelector(state => state.enemy.enemies[index].health); 
+    const dmgLog = useAppSelector(state => state.enemy.enemies[index].dmgLog);
+    const dmgTakenArr = useAppSelector(state => state.enemy.enemies[index].dmgLog); 
     console.log(dmgTakenArr, "DMG TAKEN ARR PAYLOAD")
     const dmgTaken = dmgTakenArr.length > 0 ? dmgTakenArr[dmgTakenArr.length - 1] :
     {test:1};
+
     // const enemyIndex = useAppSelector(state => state.enemy.currentEnemyId); 
-    const enemyAR = useAppSelector(state => state.enemy.enemies[id].atkSpeed);
-    const enemyStats = useAppSelector(state => state.enemy.enemies[id].stats);
+    const enemyAR = useAppSelector(state => state.enemy.enemies[index].atkSpeed);
+    const enemyStats = useAppSelector(state => state.enemy.enemies[index].stats);
     // const dex = stats.dexterity;
     const fadeAnim = useRef(new Animated.Value(1)).current; 
     const fadeAnimDmg = useRef(new Animated.Value(1)).current; 
     const moveAnimDmg = useRef(new Animated.Value(0)).current;
     let stats;
     let loot;
+
     console.log("SET DATA outside")
+
     const resources = [
         require('../../resources/skeleton_01.png'),
         require('../../resources/demonrat_01.png'),
     ]
+
     useEffect(() => {
         dispatch({ type: 'enemy/fetchData', payload: id});
     }, [dispatch, id]);
+
     async function setData() {
         // const data = await AsyncStorage.getItem('characters');
         // const obj = data ? JSON.parse(data) : {};
@@ -54,17 +60,16 @@ export const Enemy: React.FC<EnemyProps> = ({index}) => {
         console.log(atkRating, "ATK RATING")
         console.log(atkRating,"SETDATA <><><")
         console.log("SETDATA <><><")
-        console.log("SET ATTACK RATING", id, index, atkRating, enemies[index])
+        // console.log("SET ATTACK RATING", id, index, atkRating, enemies[index])
         dispatch(setAttackRating({id: index, rating: atkRating}));
     }
-    const initializeData = () => {
-        
-    }
+    
     const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
         const value = (baseAR + dex * ARperDex) * (attackBonus + 1);
         console.log(value, "ATK RATING")
         return value; 
     }
+
     useEffect(() => {
         dispatch(fetchEnemies());
         setData();

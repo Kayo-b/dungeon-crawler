@@ -161,10 +161,11 @@ const enemySlice = createSlice({
     name: 'enemy',
     initialState: enemyInitialState,
     reducers: {
-        addEnemy(state, action: PayloadAction<number>) {
-            clearEnemies();
-            const id = action.payload;
-            state.enemies[id] = {
+        addEnemy(state, action: PayloadAction<{index: number, id: number}>) {
+            // clearEnemies();
+            const {index, id} = action.payload;
+            console.log(index, id, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<,,")
+            state.enemies[index] = {
                 id: id,
                 health: data.enemies[id].stats.health,
                 dmgLog: [],
@@ -178,13 +179,14 @@ const enemySlice = createSlice({
                 loot: data.enemies[id].loot,
                 info: data.enemies[id].info
             };
+            state.enemiesStorage = state.enemies;
             console.log("ENEMY ADDED!!!")
         },
         dmg2Enemy(state, action: PayloadAction<{ id: number, damage: DmgPayload }>) {
             const { id, damage } = action.payload;
             state.enemies[id].health -= damage.dmg;
             state.enemies[id].dmgLog.push(damage);
-            console.log(state.enemies[id].health, "STATE HEALTH")
+            console.log(state.enemies[id], "STATE ENEMIES")
             console.log(damage.dmg, "DMG  STATE ")
         },
         setCurrentEnemy(state, action: PayloadAction<number>) {
@@ -198,18 +200,15 @@ const enemySlice = createSlice({
         },
         removeEnemy(state, action: PayloadAction<number>) {
             const idToRemove = action.payload;
-            delete state.enemies[idToRemove];
-            state.enemies
+            delete state.enemiesStorage[idToRemove];
+            // state.enemiesStorage
+            console.log("ENEMY REMOVED!!!", state.enemiesStorage)
         },
         clearEnemies(state) {
             state.enemies = {};
         }
-        // setStats(state, action: PayloadAction<Object>) {
-        //     state.enemy[action.payload.id]stats = action.payload;
-        // },
     },
-    extraReducers: (builder) => {
-        builder.addCase(fetchEnemies.fulfilled, (state, action) => {
+    extraReducers: (builder) => {        builder.addCase(fetchEnemies.fulfilled, (state, action) => {
             action.payload.forEach((enemy: Enemy, index: number) => {
                 state.enemiesStorage[index] = {
                     id: index,

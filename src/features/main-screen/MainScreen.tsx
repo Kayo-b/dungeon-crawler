@@ -14,7 +14,7 @@ export const MainScreen = () => {
     // const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
     // const count = useAppSelector(state => state.counter.value); // Select the current count
         dispatch(fetchEnemies())
-        dispatch(addEnemy(0))
+        dispatch(addEnemy({index:0, id:0}))
     return (
         <View style={styles.mainScreen}>
             <Room/>

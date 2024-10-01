@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Button, ImageBackground, TouchableOpacity, Touc
 import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
-import { changeEnemy } from '../../features/enemy/enemySlice';
+import { fetchEnemies } from '../../features/enemy/enemySlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
 import { useEffect } from 'react';
@@ -11,9 +11,10 @@ import { useEffect } from 'react';
 
 export const Room = () => {
     const dispatch = useAppDispatch(); 
-    const enemyHealth = useAppSelector(state => state.enemy.health); 
+    // const enemyHealth = useAppSelector(state => state.enemy.enemies[0].stats.health); 
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
+    const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
     const { changeLvl, getEnemies } = useRoom();
 
     const resources = [
@@ -22,16 +23,20 @@ export const Room = () => {
     ]
     // changeLvl()
     useEffect(() => {
-        getEnemies();
+        dispatch(fetchEnemies());
+    }, [currentEnemy, dispatch]);
+    useEffect(() => {
+        // dispatch(getEnemies);
+        console.log("ENEMIES #### ROOM REFRESH", enemies)
+    },[Object.values(enemies).length, enemies, dispatch])
 
-    },[Object.values(enemies).length])
     Object.values(enemies).map((val, index) => {
         console.log('ENEMIES OBJECT VALUES', val, index);
     })
     return (
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
-            style={{...styles.button, opacity: enemyHealth <= 0 ? 1 : 0 }} 
+            style={{...styles.button, opacity: 1}} 
             onPress={ changeLvl }>
                <Text>Next Level</Text> 
             </TouchableOpacity>
@@ -40,9 +45,10 @@ export const Room = () => {
                 source={resources[currentLvl] as ImageSourcePropType} 
                 style={styles.backgroundImage}
                 >
-                {Object.entries(enemies).map((val,index) => ( 
+                {Object.values(enemies).map((val,index) => ( 
                 <View style={styles.enemiesContainer}> 
                         <Enemy index={index}/>
+
                 </View>
                     ))}
             </ImageBackground>
