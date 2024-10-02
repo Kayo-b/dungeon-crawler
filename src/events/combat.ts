@@ -110,6 +110,7 @@ export const useCombat = () => {
     const combatRef = useRef(false);
     const playerCombatIntRef: any = useRef<number | null>(null)
     const enemyCombatIntRef: any = useRef<number | null>(null)
+    const secEnemyCombatIntRef: any = useRef<number | null>(null)
     let itemsListObj;
     let lootItem: Item;
     let playerDmg = useAppSelector(state => state.player.playerDmg)
@@ -122,13 +123,13 @@ export const useCombat = () => {
     const [enemiesCountState, setEnemiesCountState] = useState(enemiesCount);
 
     console.log( "ENEMIES ARRAY LENGTH", enemiesCountState, enemiesCount, enemiesArr.length)
-    // useEffect(() => {
-    //     if(enemyPack) {
-    //         playerCombatIntRef.current = null;
-    //         startCombat();
-    //         console.log("ENEMY ID OUTSIDE ", currentEnemy);
-    //     }
-    // },[currentEnemy, enemiesArr.length])
+    useEffect(() => {
+        // if(enemyPack) {
+        //     playerCombatIntRef.current = null;
+        //     startCombat();
+        //     console.log("ENEMY ID OUTSIDE ", currentEnemy);
+        // }
+    },[currentEnemy])
 
     const startCombat = () => {
         // console.log(enemyId, "ENEMY ID !@#")
@@ -152,6 +153,7 @@ export const useCombat = () => {
             playerLoop();
             // console.log("CURRENT", currentEnemy)
             enemyLoop();// Default player initiative, make change so it becomes random or depends on stats.
+            if(currentEnemy !== 2) secEnemyLoop();
             // enemyLoop(0);// Default player initiative, make change so it becomes random or depends on stats.
         } else {
             // dispatch(setCurrentEnemy(1))
@@ -225,41 +227,6 @@ export const useCombat = () => {
                             console.log("NO CRIT!", dmg);
                             healthArray[currentEnemy] -= dmg;
                                 console.log("current enemy health", healthArray[currentEnemy])
-                            // if(healthArray[currentEnemy] <= 0) {
-                            //     clearInterval(playerCombatIntRef.current);
-                            //     playerCombatIntRef.current = null;
-                            //     Object.values(enemies).splice(0, 1);
-                            //     // healthArray.splice(0,1)
-                            //     dispatch(XP(enemyXP));
-                            //     // combatRef.current = false;
-
-                            //     const dropCalc = () => {
-                            //         const random = Math.random();
-                            //         (loot as LootObject[]).forEach((val: any) => {
-                            //             if(random <= val.dropChance) {
-                            //                 console.log(val, "LOOT DROPPED !!!!!!!!")
-                            //                 lootItem = val
-                            //             }
-                            //         })
-                            //     }
-                            //     // Createa a separate "combat over" function to deal with all the combat ending things 
-                            //     console.log("AQUI OLHA 5")
-                            //     dropCalc();
-                            //     saveData();
-                            //     setCombat(false);
-                            //     emptyCombatLog();
-                            //     // dispatch(removeEnemy(0));
-                            //     enemiesCount--;
-                            //     console.log(enemiesCount, "LENGTH")
-                            //     if(enemiesCount <= 1) {
-                            //         combatRef.current = false;
-                            //         dispatch(setCurrentEnemy(0));
-                            //         dispatch(setEnemyPack(false));
-                            //     } else {
-                            //         dispatch(setEnemyPack(true));
-                            //         setCurrentEnemy(1);
-                            //     }
-                            // }
                             console.log("DMG 1 ENEMYU NO CRIT", dmg)
                         }
                     } else {
@@ -271,6 +238,7 @@ export const useCombat = () => {
                         dispatch(XP(enemyXP));
                     }
                     clearInterval(playerCombatIntRef.current);
+                    clearInterval(secEnemyCombatIntRef.current);
                     playerCombatIntRef.current = null;
                     const dropCalc = () => {
                         const random = Math.random(); (loot as LootObject[]).forEach((val: any) => { if(random <= val.dropChance) { console.log(val, "LOOT DROPPED !!!!!!!!")
@@ -278,15 +246,7 @@ export const useCombat = () => {
                             }
                         })
                     }
-                    // Createa a separate "combat over" function to deal with all the combat ending things 
-                    // if(enemiesCount <= 1) {
-                    //     combatRef.current = false;
-                    //     dispatch(setEnemyPack(false));
-                    // } else {
-                    //     dispatch(setEnemyPack(true));
-                    //     combatRef.current = true;
-                    //     setCurrentEnemy(1);
-                    // }                 
+             
                         // dispatch(removeEnemy(currentEnemy));
                         console.log(enemiesStorage,"ENEMY COUNT 2", healthArray, currentEnemy)
                         const entries = Object.entries(enemies);
@@ -303,7 +263,14 @@ export const useCombat = () => {
             }, 1000 / playerAtkSpeed)
         }
     }
-
+    const secEnemyLoop = () => {
+        let count = 0;
+        secEnemyCombatIntRef.current = setInterval(() => {
+            dispatch(dmg2Player({'dmg': enemiesArr[currentEnemy + 1].damage, 'crit':false, 'enemy':`${enemiesArr[currentEnemy + 1].info.name}+ *2*!`}))
+            console.log(healthArray,healthArray[0], enemiesArr, currentEnemy, "@@@@ HEALTH ARRAY")
+            count++
+        }, 1500)       
+    }
     const enemyLoop = () => {
         console.log("COMBAT REF ENEMYLOOP", enemyCombatIntRef.current, enemies)
         if(enemyCombatIntRef.current === null) {

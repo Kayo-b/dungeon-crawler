@@ -151,6 +151,4 @@ const styles = StyleSheet.create({
         top: -15,
         left: 60
     }
-
-
 });

@@ -10,11 +10,16 @@ import data from '../data/characters.json';
 
 export const useRoom = () => {
     const dispatch = useAppDispatch();
-    
+    let n = Math.floor(Math.random() * 3)
+    const addRandomEnemies = (n:number) => {
+        for(let x = 0; x <= n; x++ ) {
+            let z = Math.floor(Math.random() * 2)
+            dispatch(addEnemy({ index:x, id:z }));
+        }
+        
+    } 
     const changeLvl = () => {
-        dispatch(addEnemy({ index:2, id:1 }));
-        dispatch(addEnemy({ index:1, id:0 }));
-        dispatch(addEnemy({ index:0, id:0 }));
+        addRandomEnemies(n)
         dispatch(changeRoom(Math.floor(Math.random() * 2)));
         dispatch(emptyCombatLog());
         dispatch(emptyDmgLog(0));
