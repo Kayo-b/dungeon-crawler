@@ -203,6 +203,8 @@ export const useCombat = () => {
     
     console.log("DMG 1 ENEMYU ENEMIE OUTSIDE", enemies, currentEnemy, enemiesArr[0].id)
     const playerLoop = (id) => {
+        let lootNew = enemiesArr[id].loot
+        console.log(lootNew, "<<< LOOT")
         console.log(playerCombatIntRef.current,"combat int ref")
         if(playerCombatIntRef.current === null) {
                 playerCombatIntRef.current = setInterval(() => {
@@ -220,7 +222,7 @@ export const useCombat = () => {
                             if(randomCritVal <= baseCrit) {
                                 dmg *= 2;
                                 dispatch(dmg2Enemy({id:id, damage:{'dmg':dmg, 'crit': true}})); 
-                                healthArray[0] -= dmg;
+                                healthArray[id] -= dmg;
                                 // if(healthArray[0] <= 0) clearInterval(playerCombatIntRef.current);
                                 console.log("DMG 1 ENEMYU", dmg)
                             } else {
@@ -235,14 +237,15 @@ export const useCombat = () => {
                         console.log("DMG 1 ENEMYU MISS")
                     }
                 } else {
-                    if(healthArray[0] <= 0) {
+                    if(healthArray[id] <= 0) {
                         dispatch(XP(enemyXP));
                     }
                     clearInterval(playerCombatIntRef.current);
                     clearInterval(secEnemyCombatIntRef.current);
                     playerCombatIntRef.current = null;
+                    console.log("LOOT ENEMIES", loot)
                     const dropCalc = () => {
-                        const random = Math.random(); (loot as LootObject[]).forEach((val: any) => { if(random <= val.dropChance) { console.log(val, "LOOT DROPPED !!!!!!!!")
+                        const random = Math.random(); (lootNew as LootObject[]).forEach((val: any) => { if(random <= val.dropChance) { console.log(val, "LOOT DROPPED !!!!!!!!")
                                 lootItem = val
                             }
                         })
@@ -284,14 +287,14 @@ export const useCombat = () => {
                         let dmg = enemiesArr[0].damage + randomAddDmg;
                         if(randomCritVal <= baseCrit) {
                             dmg *= 2;
-                            dispatch(dmg2Player({'dmg':dmg, 'crit': true, 'enemy': enemiesArr[0].info.name}));
+                            dispatch(dmg2Player({'dmg':dmg, 'crit': true, 'enemy': enemiesArr[id].info.name}));
                             tempPlayerHealth -= dmg;
-                        } else { dispatch(dmg2Player({'dmg':dmg, 'crit': false, 'enemy': enemiesArr[0].info.name}));
+                        } else { dispatch(dmg2Player({'dmg':dmg, 'crit': false, 'enemy': enemiesArr[id].info.name}));
                             tempPlayerHealth -= dmg;
                         }
                     } else {
                         console.log("DMG %%% ELSE")
-                        dispatch(dmg2Player({'dmg':0, 'crit': false, 'enemy': enemiesArr[0].info.name}));
+                        dispatch(dmg2Player({'dmg':0, 'crit': false, 'enemy': enemiesArr[id].info.name}));
                     }
                 } else {
                     if(healthArray[id] <= 0 && healthArray.length > 1) {
