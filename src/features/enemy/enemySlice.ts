@@ -200,9 +200,10 @@ const enemySlice = createSlice({
         },
         removeEnemy(state, action: PayloadAction<number>) {
             const idToRemove = action.payload;
-            delete state.enemiesStorage[idToRemove];
-            // state.enemiesStorage
-            console.log("ENEMY REMOVED!!!", state.enemiesStorage)
+            delete state.enemies[idToRemove];
+            state.currentEnemyId = 1;
+            state.enemies
+            console.log("ENEMY REMOVED!!!", Object.values(state.enemies), state.currentEnemyId)
         },
         clearEnemies(state) {
             state.enemies = {};

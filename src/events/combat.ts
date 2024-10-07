@@ -247,12 +247,10 @@ export const useCombat = () => {
                             }
                         })
                     }
-             
                         // dispatch(removeEnemy(currentEnemy));
                         console.log(enemiesStorage,"ENEMY COUNT 2", healthArray, currentEnemy)
                         const entries = Object.entries(enemies);
                         console.log(entries, "ENTRIES")//
-                        // Checar se o proximo inimigo existe
                         // if(healthArray.length - 1 > currentEnemy) dispatch(setCurrentEnemy(currentEnemy + 1)); 
                     console.log("AQUI OLHA 5")
                     dropCalc();

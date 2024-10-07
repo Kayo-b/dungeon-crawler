@@ -19,12 +19,12 @@ export const useRoom = () => {
         
     } 
     const changeLvl = () => {
+        dispatch(clearEnemies());
         addRandomEnemies(n)
         dispatch(changeRoom(Math.floor(Math.random() * 2)));
         dispatch(emptyCombatLog());
         dispatch(emptyDmgLog(0));
         dispatch(setCurrentEnemy(0));
-        // setEnemyPack(false);
     }        
 
     const getEnemies = () => {

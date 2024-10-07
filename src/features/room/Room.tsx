@@ -3,12 +3,13 @@ import { StyleSheet, Text, View, Button, ImageBackground, TouchableOpacity, Touc
 import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
-import { fetchEnemies } from '../../features/enemy/enemySlice';
+import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
 import { useEffect } from 'react';
 import { useCombat } from '../../events/combat'
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
+let display = 0;
 
 export const Room = () => {
     const dispatch = useAppDispatch(); 
@@ -23,17 +24,23 @@ export const Room = () => {
         require('../../resources/dungeon-room_02.jpg'),
     ]
     // changeLvl()
+    let enemiesVal = Object.values(enemies)
     useEffect(() => {
         dispatch(fetchEnemies());
     }, [currentEnemy, dispatch]);
     useEffect(() => {
         // dispatch(getEnemies);
-        console.log("ENEMIES #### ROOM REFRESH", enemies)
+        enemiesVal = Object.values(enemies)
+        console.log("ENEMIES #### ROOM REFRESH", enemies, new Date().toLocaleTimeString(), enemiesVal[currentEnemy].health)
     },[Object.values(enemies).length, enemies, dispatch])
 
     Object.values(enemies).map((val, index) => {
         console.log('ENEMIES OBJECT VALUES', val, index);
-    })
+    });
+    const startCombatAux = (index:number) => {
+        dispatch(setCurrentEnemy(index));
+        startCombat(index);
+    }
     return (
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
@@ -43,17 +50,18 @@ export const Room = () => {
             </TouchableOpacity>
             {/* <Button style={{styles.button}} title="next level" onPress={ changeLvl }></Button> */}
             <ImageBackground
-                source={resources[currentLvl] as ImageSourcePropType} 
-                style={styles.backgroundImage}
-                >
-                {Object.values(enemies).map((val,index) => ( 
-                <View style={styles.enemiesContainer}> 
-                        <TouchableOpacity onPress={() => startCombat(index)}>
+            source={resources[currentLvl] as ImageSourcePropType} 
+            style={styles.backgroundImage}>
+            {enemiesVal.map((val, index) => (
+                val.health > 0 ? ( 
+                    <View style={styles.enemiesContainer} key={index}>
+                        <TouchableOpacity onPress={() => startCombatAux(index)}>
                             <Enemy index={index} />
                         </TouchableOpacity>
-                </View>
-                    ))}
-            </ImageBackground>
+                    </View>
+                ) : null
+            ))}
+        </ImageBackground>
         </View>
     );
 };

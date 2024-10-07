@@ -172,15 +172,13 @@ export const Player = () => {
     const changeEnemy = () => {
         dispatch(setCurrentEnemy(1))
         // startCombat()
-        console.log()
-        console.log(enemies, "ASAAAAAAAAAAAAAAa")
     }
     const { startCombat } = useCombat();
-    const combatStart = () => {
-        startCombat()
-        // dispatch(setCurrentEnemy(0))
-        // dispatch(setCurrentEnemy(1))
-    }
+    // const combatStart = () => {
+    //     startCombat()
+    //     // dispatch(setCurrentEnemy(0))
+    //     // dispatch(setCurrentEnemy(1))
+    // }
     return (
         <View style={[styles.playerContainer, { width: screenWidth }]}> 
             <View>
@@ -197,9 +195,9 @@ export const Player = () => {
                 <Text style={styles.text}>Level: {playerLevel}</Text>
                 <Text style={styles.text}>DMG: {playerDmg} | DEF: {JSON.stringify(defence)}</Text>
                 <Text style={styles.text}>STATS: {JSON.stringify(stats)}</Text>
-                <TouchableOpacity style={styles.button} onPress={ startCombat }>
+                {/* <TouchableOpacity style={styles.button} onPress={ startCombat }>
                     <Text>Attack</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
                                 <TouchableOpacity style={styles.button} onPress={ changeEnemy }>
                     <Text>SwitchEnemy</Text>
                 </TouchableOpacity>
