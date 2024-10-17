@@ -154,7 +154,7 @@ export const useCombat = () => {
             playerLoop(id);
             // console.log("CURRENT", currentEnemy)
             enemyLoop(id);// Default player initiative, make change so it becomes random or depends on stats.
-            // if(currentEnemy !== 2) secEnemyLoop(id);
+            if(enemiesArr.length > 1) secEnemyLoop(id);
             // enemyLoop(0);// Default player initiative, make change so it becomes random or depends on stats.
         } else {
             // dispatch(setCurrentEnemy(1))
@@ -202,7 +202,7 @@ export const useCombat = () => {
     }
     
     console.log("DMG 1 ENEMYU ENEMIE OUTSIDE", enemies, currentEnemy, enemiesArr[0].id)
-    const playerLoop = (id) => {
+    const playerLoop = (id: number) => {
         let lootNew = enemiesArr[id].loot
         console.log(lootNew, "<<< LOOT")
         console.log(playerCombatIntRef.current,"combat int ref")
@@ -265,15 +265,42 @@ export const useCombat = () => {
             }, 1000 / playerAtkSpeed)
         }
     }
-    const secEnemyLoop = (id) => {
-        let count = 0;
+
+    const secEnemyLoop = (id: number) => {
+        let secEnemy: number;
+        let secEnemyArr: Array<number> = [];
+        const setSecEnemy = (id: number) => {
+            enemiesArr.forEach((enemy, index) => {
+                if(enemy.health > 0 && index !== id) {
+                    secEnemy = index;
+                    secEnemyArr.push(secEnemy);
+                }
+            })
+        }
+        setSecEnemy(id);
+        
+        const firstEnemyDmg = enemiesArr[secEnemyArr[0]].damage;
+        const firstEnemyName = enemiesArr[secEnemyArr[0]].info.name;
         secEnemyCombatIntRef.current = setInterval(() => {
-            dispatch(dmg2Player({'dmg': enemiesArr[id].damage, 'crit':false, 'enemy':`${enemiesArr[id].info.name}+ *2*!`}))
-            console.log(healthArray,healthArray[0], enemiesArr, id, "@@@@ HEALTH ARRAY")
-            count++
-        }, 1500)       
+            dispatch(dmg2Player({'dmg': firstEnemyDmg, 'crit':false, 'enemy':`${firstEnemyName} *1*!`}))
+            if(healthArray[id] <= 0) {
+                clearInterval(secEnemyCombatIntRef.current)
+            }
+        }, 1300)  // Add secondary enemy attack speed.  
+        if(secEnemyArr.length > 1) {
+        const secEnemyDmg = enemiesArr[secEnemyArr[1]].damage;
+        const secEnemyName = enemiesArr[secEnemyArr[1]].info.name;
+        secEnemyCombatIntRef.current2 = setInterval(() => {
+            dispatch(dmg2Player({'dmg': secEnemyDmg, 'crit':false, 'enemy':`${secEnemyName} *2*!`}))
+            if(healthArray[id] <= 0) {
+                clearInterval(secEnemyCombatIntRef.current2)
+            }
+        }, 1800) // Add secondary enemy attack speed.  
+        }
+
     }
-    const enemyLoop = (id) => {
+
+    const enemyLoop = (id: number) => {
         console.log("COMBAT REF ENEMYLOOP", enemyCombatIntRef.current, enemies)
         if(enemyCombatIntRef.current === null) {
             enemyCombatIntRef.current = setInterval(() => {
