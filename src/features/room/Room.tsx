@@ -14,6 +14,7 @@ let display = 0;
 export const Room = () => {
     const dispatch = useAppDispatch(); 
     // const enemyHealth = useAppSelector(state => state.enemy.enemies[0].stats.health); 
+    const inCombat = useAppSelector(state => state.combat.inCombat);
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
     const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
@@ -38,8 +39,10 @@ export const Room = () => {
         console.log('ENEMIES OBJECT VALUES', val, index);
     });
     const startCombatAux = (index:number) => {
-        dispatch(setCurrentEnemy(index));
-        startCombat(index);
+        if(!inCombat) {
+            dispatch(setCurrentEnemy(index));
+            startCombat(index);
+        } 
     }
     return (
         <View style={styles.backgroundImage}>

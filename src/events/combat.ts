@@ -7,7 +7,7 @@ import { dmgPlayer, dmg2Player, XP, levelUp } from './../features/player/playerS
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setInventory, setAddToInv } from '../features/inventory/inventorySlice';
 import  { emptyCombatLog } from '../features/player/playerSlice';
-import { setEnemyCount, setEnemyPack } from './combatSlice';
+import { setEnemyCount, setInCombat } from './combatSlice';
 import { current } from '@reduxjs/toolkit';
 
 interface Item {
@@ -133,6 +133,7 @@ export const useCombat = () => {
 
     const startCombat = (id:number) => {
         // console.log(enemyId, "ENEMY ID !@#")
+        dispatch(setInCombat(true)); 
         dispatch(setCurrentEnemy(id))
         console.log(id,"INDEZ ID", currentEnemy)
         console.log(enemyHealth,"START COMBAT INSIDE 2")
@@ -260,7 +261,7 @@ export const useCombat = () => {
                     saveData();
                     setCombat(false);
                     emptyCombatLog();
-                    console.log(loot, "LOOT")
+                    dispatch(setInCombat(false));
                 }
             }, 1000 / playerAtkSpeed)
         }
