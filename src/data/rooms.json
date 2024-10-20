@@ -4,13 +4,13 @@
             "id": 1,
             "name": "Room 1",
             "description": "This is the first room in the dungeon.",
-            "background": "dungeon-room_00.jpg"
+            "background": "dung-corridor.png"
         },
         {
             "id": 2,
             "name": "Room 2",
             "description": "This is the second room in the dungeon.",
-            "background": "dungeon-room_01.jpg"
+            "background": "dung-corridor.png"
         },
         {
             "id": 3,

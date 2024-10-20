@@ -6,7 +6,7 @@ import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCombat } from '../../events/combat'
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 let display = 0;
@@ -21,9 +21,17 @@ export const Room = () => {
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
     const resources = [
+        require('../../resources/dung-corridor.png'),
         require('../../resources/dungeon-room_01.jpg'),
-        require('../../resources/dungeon-room_02.jpg'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dungeon-room_01.jpg'),
+        require('../../resources/dung-corridor.png'),
     ]
+    const [position, setPosition] = useState(resources);
+    
     // changeLvl()
     let enemiesVal = Object.values(enemies)
     useEffect(() => {
@@ -32,8 +40,9 @@ export const Room = () => {
     useEffect(() => {
         // dispatch(getEnemies);
         enemiesVal = Object.values(enemies)
+        console.log(resources,"MOVE")
         console.log("ENEMIES #### ROOM REFRESH", enemies, new Date().toLocaleTimeString(), enemiesVal[currentEnemy].health)
-    },[Object.values(enemies).length, enemies, dispatch])
+    },[Object.values(enemies).length, enemies, dispatch, position])
 
     Object.values(enemies).map((val, index) => {
         console.log('ENEMIES OBJECT VALUES', val, index);
@@ -48,13 +57,32 @@ export const Room = () => {
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
-            onPress={ changeLvl }>
-               <Text>Next Level</Text> 
+            onPress={ () => setPosition(position.slice(1) ) }>
+               <Text>Move ↑</Text> 
+            </TouchableOpacity>
+                        <TouchableOpacity 
+            style={{...styles.button, opacity: 1}} 
+            onPress={ () => setPosition(position.slice(1) ) }>
+               <Text>Move ↓</Text> 
             </TouchableOpacity>
             {/* <Button style={{styles.button}} title="next level" onPress={ changeLvl }></Button> */}
             <ImageBackground
-            source={resources[currentLvl] as ImageSourcePropType} 
+            source={resources[0] as ImageSourcePropType} 
             style={styles.backgroundImage}>
+            {position.map((val, index) => {
+                console.log(position, 'position')
+                    return <ImageBackground 
+                    source={position[index] as ImageSourcePropType} 
+                    style={[
+                        styles.backgroundImage,
+                        {
+                            transform: [{scale: index === 1 ? 0.67 : 0.67/index+0.1}],
+                            position: 'absolute'
+                        }
+                    ]} 
+                    >
+                    </ImageBackground>
+            })}
             {enemiesVal.map((val, index) => (
                 val.health > 0 ? ( 
                     <View style={styles.enemiesContainer} key={index}>
@@ -83,6 +111,20 @@ const styles = StyleSheet.create({
         justifyContent: 'space-around',
         alignItems: 'center',
         flexDirection: 'row'
+    },
+        backgroundImage2: {
+        alignSelf: 'center', 
+        resizeMode: 'cover', 
+        width: '100%', 
+        height: '100%',
+        transform: [{scale: 0.65}],
+        flex: 0,
+        padding: 10,
+        position: 'absolute',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        flexDirection: 'row',
+
     },
     button: {
         marginTop: 10,
