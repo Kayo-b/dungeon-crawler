@@ -53,16 +53,22 @@ export const Room = () => {
             startCombat(index);
         } 
     }
+    
+    const mapPlacement = () => {
+        setPosition(position.slice(1));
+        
+
+    }
     return (
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
-            onPress={ () => setPosition(position.slice(1) ) }>
+            onPress={ () => mapPlacement() }>
                <Text>Move ↑</Text> 
             </TouchableOpacity>
                         <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
-            onPress={ () => setPosition(position.slice(1) ) }>
+            onPress={ () => mapPlacement() }>
                <Text>Move ↓</Text> 
             </TouchableOpacity>
             {/* <Button style={{styles.button}} title="next level" onPress={ changeLvl }></Button> */}
