@@ -59,13 +59,16 @@ export const Room = () => {
     const mapPlacement = () => {
         setBacktrack([...backtrack, position[0]]);
         setPosition(position.slice(1));
-        console.log(backtrack,backtrackArr, "backtrack")
+        console.log(backtrack,position, "backtrack")
     }
     const mapPlacement2 = () => {
         // setBacktrack([...backtrack, position[0]]);
-        setPosition(backtrack);
+        let backtrackRev = backtrack.reverse();
+        let positionTemp = position.reverse();
+        setPosition(backtrackRev);
+        setBacktrack(positionTemp);
         // setPosition(position.slice(1));
-        console.log(backtrack,backtrackArr, "backtrack")
+        console.log(backtrack,position,"backtrack")
     }
     return (
         <View style={styles.backgroundImage}>
