@@ -30,7 +30,9 @@ export const Room = () => {
         require('../../resources/dungeon-room_01.jpg'),
         require('../../resources/dung-corridor.png'),
     ]
+    const backtrackArr: Array<NodeRequire> = [];
     const [position, setPosition] = useState(resources);
+    const [backtrack, setBacktrack] = useState(backtrackArr)
     
     // changeLvl()
     let enemiesVal = Object.values(enemies)
@@ -55,9 +57,15 @@ export const Room = () => {
     }
     
     const mapPlacement = () => {
+        setBacktrack([...backtrack, position[0]]);
         setPosition(position.slice(1));
-        
-
+        console.log(backtrack,backtrackArr, "backtrack")
+    }
+    const mapPlacement2 = () => {
+        // setBacktrack([...backtrack, position[0]]);
+        setPosition(backtrack);
+        // setPosition(position.slice(1));
+        console.log(backtrack,backtrackArr, "backtrack")
     }
     return (
         <View style={styles.backgroundImage}>
@@ -68,7 +76,7 @@ export const Room = () => {
             </TouchableOpacity>
                         <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
-            onPress={ () => mapPlacement() }>
+            onPress={ () => mapPlacement2() }>
                <Text>Move ↓</Text> 
             </TouchableOpacity>
             {/* <Button style={{styles.button}} title="next level" onPress={ changeLvl }></Button> */}
