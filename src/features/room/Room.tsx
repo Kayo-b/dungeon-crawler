@@ -1,9 +1,10 @@
-import { StatusBar } from 'expo-status-bar';
+import { setStatusBarNetworkActivityIndicatorVisible, StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, ImageBackground, TouchableOpacity, Touchable } from 'react-native';
 import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
+import { changeDir } from '../../features/room/roomSlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
 import { useEffect, useState } from 'react';
@@ -18,16 +19,23 @@ export const Room = () => {
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
     const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
+    const currentDir = useAppSelector(state => state.room.direction)
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
     const resources = [
         require('../../resources/dung-corridor.png'),
-        require('../../resources/dungeon-room_01.jpg'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
         require('../../resources/dung-corridor.png'),
         require('../../resources/dungeon-room_01.jpg'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-turn.png'),
+    ]
+    const resources2 = [
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-corridor.png'),
+        require('../../resources/dung-corridor.png'),
         require('../../resources/dung-corridor.png'),
     ]
     const backtrackArr: Array<NodeRequire> = [];
@@ -70,6 +78,39 @@ export const Room = () => {
         // setPosition(position.slice(1));
         console.log(backtrack,position,"backtrack")
     }
+    const turn = (dir:string) => {
+        switch(currentDir){
+            
+            case 'N':
+                if(dir === 'R') dispatch(changeDir('E'));
+                if(dir === 'L') dispatch(changeDir('W'));
+                setPosition(resources2)
+                setBacktrack([])
+            break;
+            
+            case 'S':
+                if(dir === 'R') dispatch(changeDir('W'));
+                if(dir === 'L') dispatch(changeDir('E'));
+            break;
+
+            case 'W':
+                if(dir === 'R') dispatch(changeDir('N'));
+                if(dir === 'L') dispatch(changeDir('S'));
+            break;
+            
+            case 'E':
+                if(dir === 'R') dispatch(changeDir('S'));
+                if(dir === 'L') dispatch(changeDir('N'));
+            break;
+
+            default:
+                console.log(
+                    "DEFAULT"
+                )
+       }
+       // Align with horizontal tile array if there is a path to that direction(aka if section its 2 or 3)
+       console.log(currentDir, "direction");
+    }
     return (
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
@@ -77,10 +118,20 @@ export const Room = () => {
             onPress={ () => mapPlacement() }>
                <Text>Move ↑</Text> 
             </TouchableOpacity>
-                        <TouchableOpacity 
+            <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
             onPress={ () => mapPlacement2() }>
                <Text>Move ↓</Text> 
+            </TouchableOpacity>
+            <TouchableOpacity 
+            style={{...styles.button, opacity: 1}} 
+            onPress={ () => turn('R') }>
+               <Text>Right</Text> 
+            </TouchableOpacity>           
+            <TouchableOpacity 
+            style={{...styles.button, opacity: 1}} 
+            onPress={ () => turn('L') }>
+               <Text>Left</Text> 
             </TouchableOpacity>
             {/* <Button style={{styles.button}} title="next level" onPress={ changeLvl }></Button> */}
             <ImageBackground
