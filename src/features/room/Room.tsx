@@ -32,12 +32,33 @@ export const Room = () => {
         require('../../resources/dung-turn.png'),
     ]
     const resources2 = [
+        require('../../resources/dung-turn.png'),
         require('../../resources/dung-corridor.png'),
         require('../../resources/dung-corridor.png'),
         require('../../resources/dung-corridor.png'),
         require('../../resources/dung-corridor.png'),
         require('../../resources/dung-corridor.png'),
     ]
+    const dg_map = [
+        [0, 0, 2, 1, 1, 2, 0, 0],
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [2, 1, 3, 2, 0, 2, 1, 2],
+        [1, 0, 2, 1, 0, 0, 0, 1],
+        [1, 0, 0, 3, 1, 1, 1, 2],
+        [1, 0, 0, 1, 0, 0, 0, 0],
+        [2, 1, 1, 3, 0, 0, 0, 0],
+        [0, 0, 0, 2, 1, 1, 1, 0]
+    ]
+    const tileArrConstr = (map) => {
+        let verticalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) // [[],[],[],[],[],[],[],[],[]]; 
+        for(let i = 0; i < map.length; i++) {
+            let row: Array<number> = map[i];
+            for(let j = 0; j < row.length; j++) {
+                verticalTileArr[j].push(row[j])
+            }
+        }
+        console.log(verticalTileArr)
+    }
     const backtrackArr: Array<NodeRequire> = [];
     const [position, setPosition] = useState(resources);
     const [backtrack, setBacktrack] = useState(backtrackArr)

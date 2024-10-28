@@ -6,12 +6,16 @@ interface RoomState {
     currentLvlIndex: number;
     currentLvl: number;
     direction: string;
+    posX: number;
+    posY: number;
 }
 
 const roomInitialState: RoomState = {
     currentLvlIndex: 0,
     currentLvl: data.rooms[0].id,
     direction: 'N', // N S W E
+    posX: 0,
+    posY: 0,
 }
 // console.log(data.rooms[0].background, "Background");
 const roomSlice = createSlice ({
@@ -24,9 +28,16 @@ const roomSlice = createSlice ({
         },
         changeDir(state, action: PayloadAction<string>) {
             state.direction = action.payload;
+        },
+        changeX(state, action: PayloadAction<number>) {
+            state.posX = action.payload;
+        },
+        changeY(state, action: PayloadAction<number>) {
+            state.posY = action.payload;
         }
+        
     }
 })
 
-export const { changeRoom, changeDir } = roomSlice.actions;
+export const { changeRoom, changeDir, changeX, changeY} = roomSlice.actions;
 export default roomSlice.reducer;
