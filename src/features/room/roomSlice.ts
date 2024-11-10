@@ -8,6 +8,8 @@ interface RoomState {
     direction: string;
     posX: number;
     posY: number;
+    verticalRes?: number[];
+    horizontalRes?: number[];
 }
 
 const roomInitialState: RoomState = {
@@ -16,6 +18,8 @@ const roomInitialState: RoomState = {
     direction: 'N', // N S W E
     posX: 0,
     posY: 0,
+    verticalRes: [],
+    horizontalRes: []
 }
 // console.log(data.rooms[0].background, "Background");
 const roomSlice = createSlice ({
@@ -34,10 +38,20 @@ const roomSlice = createSlice ({
         },
         changeY(state, action: PayloadAction<number>) {
             state.posY = action.payload;
+        },
+        setVertRes(state, action: PayloadAction<number[]>) {
+            state.verticalRes = action.payload;
+        },
+        setHorzRes(state, action: PayloadAction<number[]>) {
+            state.horizontalRes = action.payload;
+        },
+        currentLocation(state, action: PayloadAction<number[]>) {
+            state.posX = action.payload[0];
+            state.posY = action.payload[1];
         }
         
     }
 })
 
-export const { changeRoom, changeDir, changeX, changeY} = roomSlice.actions;
+export const { changeRoom, changeDir, changeX, changeY, currentLocation, setHorzRes, setVertRes} = roomSlice.actions;
 export default roomSlice.reducer;

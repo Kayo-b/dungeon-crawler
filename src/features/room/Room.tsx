@@ -4,11 +4,12 @@ import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
-import { changeDir } from '../../features/room/roomSlice';
+import { changeDir, setHorzRes, setVertRes , currentLocation } from '../../features/room/roomSlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
 import { useEffect, useState } from 'react';
 import { useCombat } from '../../events/combat'
+import { current } from '@reduxjs/toolkit';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 let display = 0;
 
@@ -19,50 +20,94 @@ export const Room = () => {
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
     const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
-    const currentDir = useAppSelector(state => state.room.direction)
+    const currentDir = useAppSelector(state => state.room.direction);
+    const verticalResources = useAppSelector(state => state.room.verticalRes);
+    const horizontalResources = useAppSelector(state => state.room.horizontalRes);
+    const positionY = useAppSelector(state => state.room.posY);
+    const positionX = useAppSelector(state => state.room.posX);
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
-    const resources = [
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dungeon-room_01.jpg'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-turn.png'),
-    ]
-    const resources2 = [
-        require('../../resources/dung-turn.png'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
-        require('../../resources/dung-corridor.png'),
-    ]
-    const dg_map = [
-        [0, 0, 2, 1, 1, 2, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0, 0],
-        [2, 1, 3, 2, 0, 2, 1, 2],
-        [1, 0, 2, 1, 0, 0, 0, 1],
-        [1, 0, 0, 3, 1, 1, 1, 2],
-        [1, 0, 0, 1, 0, 0, 0, 0],
-        [2, 1, 1, 3, 0, 0, 0, 0],
-        [0, 0, 0, 2, 1, 1, 1, 0]
-    ]
-    const tileArrConstr = (map) => {
-        let verticalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) // [[],[],[],[],[],[],[],[],[]]; 
-        for(let i = 0; i < map.length; i++) {
-            let row: Array<number> = map[i];
-            for(let j = 0; j < row.length; j++) {
-                verticalTileArr[j].push(row[j])
-            }
-        }
-        console.log(verticalTileArr)
-    }
+    dispatch(currentLocation([2,0]))
+    
+    // generate resources array based on dg_map layout
+    // 1- take verticalTileArr for vertical tiles array and  dg_map for horizontal
+    // 2- take current position of player
+    // 3- based on position generate tiles with resources.
+
+    const [resources, setRes1] = useState([])
+    const [resources2, setRes2] = useState([])
+    // generateMapResources()
     const backtrackArr: Array<NodeRequire> = [];
     const [position, setPosition] = useState(resources);
     const [backtrack, setBacktrack] = useState(backtrackArr)
     
+    const turnTile = require('../../resources/dung-turn.png');
+    const corridorTile = require('../../resources/dung-corridor.png');
+
+    const dg_map = [
+        [0, 0, 2, 1, 1, 2, 0, 0],
+        [0, 0, 2, 0, 0, 1, 0, 0],
+        [0, 0, 2, 0, 0, 2, 1, 2],
+        [1, 0, 2, 1, 0, 0, 0, 1],
+        [1, 0, 2, 3, 1, 1, 1, 2],
+        [1, 0, 2, 1, 0, 0, 0, 0],
+        [2, 1, 1, 3, 0, 0, 0, 0],
+        [0, 0, 0, 2, 1, 1, 1, 0]
+    ]
+    let verticalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) 
+    const generateMapResources = () => {
+        let tempArrX = verticalTileArr[positionX];
+        setRes1([]) 
+        for(let i = 0; i < tempArrX.length; i++) {
+            console.log(tempArrX,tempArrX[i],'resources1')
+            switch(tempArrX[i]){
+                case 1:
+                    // setRes1([corridorTile, ...resources]);
+                    setRes1(resources.push(corridorTile));
+                break;
+                case 2:
+                    // setRes1([turnTile, ...resources]);
+                    setRes1(resources.push(turnTile));
+                break;
+                default:
+                    // resources.push(0)
+                
+            }
+        }
+        // setPosition(resources)
+
+        dispatch(setVertRes(verticalTileArr[positionX]))
+        dispatch(setHorzRes(dg_map[positionY]))
+        console.log(verticalTileArr[positionX], "map resssss1")
+        console.log(resources,'resources1')
+        // console.log(verticalResources, "map resssss1")
+        // console.log(store.getState().room.verticalRes, "map resssss2")
+    }
+    
+    useEffect(() => {
+        tileArrConstr(dg_map);
+        generateMapResources();
+    },[positionX, positionY])
+    
+    useEffect(() => {
+        console.log(verticalResources, "map resssss3")
+        console.log(horizontalResources, "map resssss4")
+        console.log(position, resources, 'position3')
+    }, [verticalResources, horizontalResources, resources]);
+
+    
+    const tileArrConstr = (map:Array<number[]>) => {
+        // let horizontalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) 
+        for(let i = 0; i < map.length; i++) {
+            let row: Array<number> = map[i]; // pass posY  as i value to be the row position
+            for(let j = 0; j < row.length; j++) {
+                verticalTileArr[j].push(row[j]);
+            }
+        }
+        console.log(verticalTileArr, "dog_map");
+    }
+
+
     // changeLvl()
     let enemiesVal = Object.values(enemies)
     useEffect(() => {
