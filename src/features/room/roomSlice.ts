@@ -8,8 +8,8 @@ interface RoomState {
     direction: string;
     posX: number;
     posY: number;
-    verticalRes?: number[];
-    horizontalRes?: number[];
+    verticalRes?: NodeRequire[];
+    horizontalRes?: NodeRequire[];
 }
 
 const roomInitialState: RoomState = {
@@ -39,10 +39,10 @@ const roomSlice = createSlice ({
         changeY(state, action: PayloadAction<number>) {
             state.posY = action.payload;
         },
-        setVertRes(state, action: PayloadAction<number[]>) {
+        setVertRes(state, action: PayloadAction<NodeRequire[]>) {
             state.verticalRes = action.payload;
         },
-        setHorzRes(state, action: PayloadAction<number[]>) {
+        setHorzRes(state, action: PayloadAction<NodeRequire[]>) {
             state.horizontalRes = action.payload;
         },
         currentLocation(state, action: PayloadAction<number[]>) {

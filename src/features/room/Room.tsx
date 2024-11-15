@@ -33,86 +33,96 @@ export const Room = () => {
     // 1- take verticalTileArr for vertical tiles array and  dg_map for horizontal
     // 2- take current position of player
     // 3- based on position generate tiles with resources.
-
+    
     const [resources, setRes1] = useState([])
     const [resources2, setRes2] = useState([])
     // generateMapResources()
     const backtrackArr: Array<NodeRequire> = [];
-    const [position, setPosition] = useState(resources);
+    const [position, setPosition] = useState<NodeRequire[]>(resources);
     const [backtrack, setBacktrack] = useState(backtrackArr)
+    const [verticalTileArr, setVerticalTileArr] = useState<Array<Array<number>>>(Array.from({ length: 8 }, () => []));
     
     const turnTile = require('../../resources/dung-turn.png');
     const corridorTile = require('../../resources/dung-corridor.png');
 
     const dg_map = [
         [0, 0, 2, 1, 1, 2, 0, 0],
-        [0, 0, 2, 0, 0, 1, 0, 0],
-        [0, 0, 2, 0, 0, 2, 1, 2],
-        [1, 0, 2, 1, 0, 0, 0, 1],
-        [1, 0, 2, 3, 1, 1, 1, 2],
-        [1, 0, 2, 1, 0, 0, 0, 0],
-        [2, 1, 1, 3, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0, 2, 1, 2],
+        [1, 0, 1, 1, 0, 0, 0, 1],
+        [1, 0, 1, 3, 1, 1, 1, 2],
+        [1, 0, 1, 1, 0, 0, 0, 0],
+        [2, 1, 2, 3, 0, 0, 0, 0],
         [0, 0, 0, 2, 1, 1, 1, 0]
     ]
-    let verticalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) 
     const generateMapResources = () => {
         let tempArrX = verticalTileArr[positionX];
-        setRes1([]) 
+        console.log(tempArrX,"TEMP ARR 1")
+        let tempArr = [];
         for(let i = 0; i < tempArrX.length; i++) {
-            console.log(tempArrX,tempArrX[i],'resources1')
+            console.log(tempArrX,tempArrX[i],resources,'resourcesxx')
             switch(tempArrX[i]){
                 case 1:
                     // setRes1([corridorTile, ...resources]);
-                    setRes1(resources.push(corridorTile));
+                    tempArr.push(corridorTile);
                 break;
                 case 2:
                     // setRes1([turnTile, ...resources]);
-                    setRes1(resources.push(turnTile));
+                    tempArr.push(turnTile)
                 break;
                 default:
-                    // resources.push(0)
+                    // setVertRes('0')
                 
             }
         }
         // setPosition(resources)
 
-        dispatch(setVertRes(verticalTileArr[positionX]))
-        dispatch(setHorzRes(dg_map[positionY]))
-        console.log(verticalTileArr[positionX], "map resssss1")
-        console.log(resources,'resources1')
+        // dispatch(setVertRes(verticalTileArr[positionX]))
+        // dispatch(setHorzRes(dg_map[positionY]))
+        // console.log(verticalTileArr[positionX], "map resssss1")
+        // console.log(resources,'resources1')
         // console.log(verticalResources, "map resssss1")
         // console.log(store.getState().room.verticalRes, "map resssss2")
+        setVertRes(tempArr)
+        setPosition(tempArr)
+        console.log(tempArr,"TEMP ARR")
+        console.log(verticalResources,"TEMP ARR 3")
     }
     
     useEffect(() => {
         tileArrConstr(dg_map);
-        generateMapResources();
     },[positionX, positionY])
-    
-    useEffect(() => {
-        console.log(verticalResources, "map resssss3")
-        console.log(horizontalResources, "map resssss4")
-        console.log(position, resources, 'position3')
-    }, [verticalResources, horizontalResources, resources]);
-
-    
-    const tileArrConstr = (map:Array<number[]>) => {
-        // let horizontalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) 
-        for(let i = 0; i < map.length; i++) {
-            let row: Array<number> = map[i]; // pass posY  as i value to be the row position
-            for(let j = 0; j < row.length; j++) {
-                verticalTileArr[j].push(row[j]);
+    // useEffect(() => {
+        //     console.log(verticalResources, "TEMP ARR 4")
+        //     console.log(horizontalResources, "map resssss4")
+        //     console.log(position, resources, 'TEMP ARR 5')
+        // }, [verticalResources, horizontalResources, resources]);
+        
+        const tileArrConstr = (map:Array<number[]>) => {
+            const newVerticalArr:Array<Array<number>> = Array.from({ length: 8 }, () => []);
+            console.log('backtrack 3',map.length, verticalTileArr)
+            // let horizontalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) 
+            for(let i = 0; i < map.length; i++) {
+                let row: Array<number> = map[i]; // pass posY  as i value to be the row position
+                for(let j = 0; j < row.length; j++) {
+                    newVerticalArr[j].push(row[j])
+                }
             }
+            console.log('backtrack4', newVerticalArr)
+            setVerticalTileArr(newVerticalArr)
         }
-        console.log(verticalTileArr, "dog_map");
-    }
+        
+        
+        useEffect(() => {
+            console.log(verticalTileArr, 'fodase')
+            generateMapResources();
+        },[verticalTileArr])
 
-
-    // changeLvl()
     let enemiesVal = Object.values(enemies)
     useEffect(() => {
         dispatch(fetchEnemies());
     }, [currentEnemy, dispatch]);
+
     useEffect(() => {
         // dispatch(getEnemies);
         enemiesVal = Object.values(enemies)
@@ -133,7 +143,7 @@ export const Room = () => {
     const mapPlacement = () => {
         setBacktrack([...backtrack, position[0]]);
         setPosition(position.slice(1));
-        console.log(backtrack,position, "backtrack")
+        console.log(backtrack,position,verticalTileArr,positionX, "backtrack")
     }
     const mapPlacement2 = () => {
         // setBacktrack([...backtrack, position[0]]);
@@ -144,9 +154,9 @@ export const Room = () => {
         // setPosition(position.slice(1));
         console.log(backtrack,position,"backtrack")
     }
+    //in resources array + map array(one for loading tiles other for controling position and dictating what will happen)
     const turn = (dir:string) => {
         switch(currentDir){
-            
             case 'N':
                 if(dir === 'R') dispatch(changeDir('E'));
                 if(dir === 'L') dispatch(changeDir('W'));
