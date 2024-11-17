@@ -4,7 +4,7 @@ import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
-import { changeDir, setHorzRes, setVertRes , currentLocation } from '../../features/room/roomSlice';
+import { changeDir, setHorzRes, setVertRes , setCurrentPos } from '../../features/room/roomSlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
 import { useEffect, useState } from 'react';
@@ -27,7 +27,7 @@ export const Room = () => {
     const positionX = useAppSelector(state => state.room.posX);
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
-    dispatch(currentLocation([2,0]))
+    // dispatch(setCurrentPos([2,6]))
     
     // generate resources array based on dg_map layout
     // 1- take verticalTileArr for vertical tiles array and  dg_map for horizontal
@@ -38,7 +38,7 @@ export const Room = () => {
     const [resources2, setRes2] = useState([])
     // generateMapResources()
     const backtrackArr: Array<NodeRequire> = [];
-    const [position, setPosition] = useState<NodeRequire[]>(resources);
+    const [pathTileArr, setPathTileArray] = useState<NodeRequire[]>(resources);
     const [backtrack, setBacktrack] = useState(backtrackArr)
     const [verticalTileArr, setVerticalTileArr] = useState<Array<Array<number>>>(Array.from({ length: 8 }, () => []));
     
@@ -48,20 +48,26 @@ export const Room = () => {
     const dg_map = [
         [0, 0, 2, 1, 1, 2, 0, 0],
         [0, 0, 1, 0, 0, 1, 0, 0],
-        [0, 0, 1, 0, 0, 2, 1, 2],
-        [1, 0, 1, 1, 0, 0, 0, 1],
-        [1, 0, 1, 3, 1, 1, 1, 2],
-        [1, 0, 1, 1, 0, 0, 0, 0],
-        [2, 1, 2, 3, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 1, 0, 2],
+        [1, 0, 1, 0, 0, 1, 0, 1],
+        [3, 1, 1, 0, 0, 1, 1, 2],
+        [1, 0, 1, 0, 0, 1, 0, 0],
+        [1, 0, 2, 1, 1, 2, 0, 0],
         [0, 0, 0, 2, 1, 1, 1, 0]
     ]
-    const generateMapResources = () => {
-        let tempArrX = verticalTileArr[positionX];
-        console.log(tempArrX,"TEMP ARR 1")
+
+    const generateMapResources = (arrayDir:String) => {
+        let mapArr = [];
+        if(arrayDir === 'vertical') {
+            mapArr = verticalTileArr[positionX];
+        } else {
+            mapArr = dg_map[positionY]
+        }
+        console.log(mapArr,"TEMP ARR 1")
         let tempArr = [];
-        for(let i = 0; i < tempArrX.length; i++) {
-            console.log(tempArrX,tempArrX[i],resources,'resourcesxx')
-            switch(tempArrX[i]){
+        for(let i = 0; i < mapArr.length; i++) {
+            console.log(mapArr,mapArr[i],resources,'resourcesxx')
+            switch(mapArr[i]){
                 case 1:
                     // setRes1([corridorTile, ...resources]);
                     tempArr.push(corridorTile);
@@ -72,11 +78,9 @@ export const Room = () => {
                 break;
                 default:
                     // setVertRes('0')
-                
             }
         }
-        // setPosition(resources)
-
+        // setPathTileArray(resources)
         // dispatch(setVertRes(verticalTileArr[positionX]))
         // dispatch(setHorzRes(dg_map[positionY]))
         // console.log(verticalTileArr[positionX], "map resssss1")
@@ -84,39 +88,49 @@ export const Room = () => {
         // console.log(verticalResources, "map resssss1")
         // console.log(store.getState().room.verticalRes, "map resssss2")
         setVertRes(tempArr)
-        setPosition(tempArr)
+        setPathTileArray(tempArr)
         console.log(tempArr,"TEMP ARR")
         console.log(verticalResources,"TEMP ARR 3")
     }
     
     useEffect(() => {
         tileArrConstr(dg_map);
-    },[positionX, positionY])
+    },[])
     // useEffect(() => {
         //     console.log(verticalResources, "TEMP ARR 4")
         //     console.log(horizontalResources, "map resssss4")
         //     console.log(position, resources, 'TEMP ARR 5')
         // }, [verticalResources, horizontalResources, resources]);
         
-        const tileArrConstr = (map:Array<number[]>) => {
-            const newVerticalArr:Array<Array<number>> = Array.from({ length: 8 }, () => []);
-            console.log('backtrack 3',map.length, verticalTileArr)
-            // let horizontalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) 
-            for(let i = 0; i < map.length; i++) {
-                let row: Array<number> = map[i]; // pass posY  as i value to be the row position
-                for(let j = 0; j < row.length; j++) {
-                    newVerticalArr[j].push(row[j])
-                }
+    const tileArrConstr = (map:Array<number[]>) => {
+        const newVerticalArr:Array<Array<number>> = Array.from({ length: 8 }, () => []);
+        console.log('backtrack 3',map.length, verticalTileArr)
+        // let horizontalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) 
+        for(let i = 0; i < map.length; i++) {
+            let row: Array<number> = map[i]; // pass posY  as i value to be the row position
+            for(let j = 0; j < row.length; j++) {
+                newVerticalArr[j].push(row[j])
             }
-            console.log('backtrack4', newVerticalArr)
-            setVerticalTileArr(newVerticalArr)
         }
+        console.log('backtrack4', newVerticalArr)
+        setVerticalTileArr(newVerticalArr)
+    }
+
+    useEffect(() => {
+        let currentArrayPositionVert = verticalTileArr[positionX][positionY];
+        let currentArrayPositionHorz = dg_map[positionY][positionX];
+        console.log(verticalTileArr[positionX], '+_+ vertical')
+        console.log(dg_map[positionY], '+_+  horizontal')
+        console.log(positionX, '+_+ positionX')
+        console.log(positionY, '+_+ positionY')
+        console.log(pathTileArr, '+_+ path Tiles array')
+        console.log( currentArrayPositionVert,':Vertical',currentArrayPositionHorz, ":Horizontal", '+_+ current map arraty position')
         
-        
-        useEffect(() => {
-            console.log(verticalTileArr, 'fodase')
-            generateMapResources();
-        },[verticalTileArr])
+    },[verticalTileArr, pathTileArr])
+
+    useEffect(() => {
+        generateMapResources('vertical');
+    },[verticalTileArr])
 
     let enemiesVal = Object.values(enemies)
     useEffect(() => {
@@ -128,11 +142,12 @@ export const Room = () => {
         enemiesVal = Object.values(enemies)
         console.log(resources,"MOVE")
         console.log("ENEMIES #### ROOM REFRESH", enemies, new Date().toLocaleTimeString(), enemiesVal[currentEnemy].health)
-    },[Object.values(enemies).length, enemies, dispatch, position])
+    },[Object.values(enemies).length, enemies, dispatch, pathTileArr])
 
     Object.values(enemies).map((val, index) => {
         console.log('ENEMIES OBJECT VALUES', val, index);
     });
+
     const startCombatAux = (index:number) => {
         if(!inCombat) {
             dispatch(setCurrentEnemy(index));
@@ -140,43 +155,81 @@ export const Room = () => {
         } 
     }
     
-    const mapPlacement = () => {
-        setBacktrack([...backtrack, position[0]]);
-        setPosition(position.slice(1));
-        console.log(backtrack,position,verticalTileArr,positionX, "backtrack")
+    const forward = () => {
+        setBacktrack([...backtrack, pathTileArr[0]]);
+        setPathTileArray(pathTileArr.slice(1));
+        let tempPosY; 
+        switch(currentDir) {
+            case 'N':
+                tempPosY = positionY - 1;
+            break;
+            case 'S ':
+                tempPosY = positionY + 1;
+            break;
+            case 'E': 
+                tempPosY = positionX + 1;
+            break;
+            default:
+                tempPosY = positionX - 1;
+
+        }
+        dispatch(setCurrentPos([positionX,tempPosY]))
+        console.log(backtrack,pathTileArr,verticalTileArr,positionX, "+_+ backtrack")
     }
-    const mapPlacement2 = () => {
-        // setBacktrack([...backtrack, position[0]]);
+
+    const reverse = () => {
+        // setBacktrack([...backtrack, pathTileArr[0]]);
         let backtrackRev = backtrack.reverse();
-        let positionTemp = position.reverse();
-        setPosition(backtrackRev);
+        let positionTemp = pathTileArr.reverse();
+        setPathTileArray(backtrackRev);
         setBacktrack(positionTemp);
-        // setPosition(position.slice(1));
-        console.log(backtrack,position,"backtrack")
+        // setPathTileArray(position.slice(1));
+        console.log(backtrack,pathTileArr,"backtrack")
     }
+    
     //in resources array + map array(one for loading tiles other for controling position and dictating what will happen)
-    const turn = (dir:string) => {
+    // if dir N and at first index in tile array = looking at the wall
+    // if dir S and at last index in tile array = looking at the wall
+    // if dir W and at fist index tile arr = looking at wall
+    // if dir E and at last index tile arr = looking at wall
+    // N types of placement/direction/tile rendering:
+     //  1. Pure index placement + current direction (N S L E)
+     //  2. Index placement + current tile type(1,2,3...) + current direction.
+
+    // Scenario: 
+    // character is in "vertical lane"(N-S tile array),
+    // last index and facing north(N-S tile array),
+    // char moves forward (N) and reaches a tile type 2(turn),
+    // character turns left or right -> change tile array to horizontal (W-E tile array)
+    // check type of lane cardinal direction and current facing position to determine what to render.
+    // Todo: 
+    //      - track/change position when moving
+    //      - correlate movement to placement in map array
+
+    const turn = (turnDir:string) => {
         switch(currentDir){
             case 'N':
-                if(dir === 'R') dispatch(changeDir('E'));
-                if(dir === 'L') dispatch(changeDir('W'));
-                setPosition(resources2)
+                if(turnDir === 'R') dispatch(changeDir('E'));
+                if(turnDir === 'L') dispatch(changeDir('W'));
+                setPathTileArray(resources2)
+                generateMapResources('horizontal')
                 setBacktrack([])
             break;
             
             case 'S':
-                if(dir === 'R') dispatch(changeDir('W'));
-                if(dir === 'L') dispatch(changeDir('E'));
+                if(turnDir === 'R') dispatch(changeDir('W'));
+                if(turnDir === 'L') dispatch(changeDir('E'));
             break;
 
             case 'W':
-                if(dir === 'R') dispatch(changeDir('N'));
-                if(dir === 'L') dispatch(changeDir('S'));
+                if(turnDir === 'R') dispatch(changeDir('N'));
+                if(turnDir === 'L') dispatch(changeDir('S'));
             break;
             
             case 'E':
-                if(dir === 'R') dispatch(changeDir('S'));
-                if(dir === 'L') dispatch(changeDir('N'));
+                if(turnDir === 'R') dispatch(changeDir('S'));
+                if(turnDir === 'L') dispatch(changeDir('N'));
+                generateMapResources('vertical')
             break;
 
             default:
@@ -191,12 +244,12 @@ export const Room = () => {
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
-            onPress={ () => mapPlacement() }>
+            onPress={ () => forward() }>
                <Text>Move ↑</Text> 
             </TouchableOpacity>
             <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
-            onPress={ () => mapPlacement2() }>
+            onPress={ () => reverse() }>
                <Text>Move ↓</Text> 
             </TouchableOpacity>
             <TouchableOpacity 
@@ -213,10 +266,10 @@ export const Room = () => {
             <ImageBackground
             source={resources[0] as ImageSourcePropType} 
             style={styles.backgroundImage}>
-            {position.map((val, index) => {
-                console.log(position, 'position')
+            {pathTileArr.map((val, index) => {
+                console.log(pathTileArr, 'pathTileArray')
                     return <ImageBackground 
-                    source={position[index] as ImageSourcePropType} 
+                    source={pathTileArr[index] as ImageSourcePropType} 
                     style={[
                         styles.backgroundImage,
                         {

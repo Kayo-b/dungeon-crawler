@@ -16,8 +16,8 @@ export const useRoom = () => {
             let z = Math.floor(Math.random() * 2)
             dispatch(addEnemy({ index:x, id:z }));
         }
-        
     } 
+    
     const changeLvl = () => {
         dispatch(clearEnemies());
         addRandomEnemies(n)

@@ -45,13 +45,12 @@ const roomSlice = createSlice ({
         setHorzRes(state, action: PayloadAction<NodeRequire[]>) {
             state.horizontalRes = action.payload;
         },
-        currentLocation(state, action: PayloadAction<number[]>) {
+        setCurrentPos(state, action: PayloadAction<number[]>) {
             state.posX = action.payload[0];
             state.posY = action.payload[1];
         }
-        
     }
 })
 
-export const { changeRoom, changeDir, changeX, changeY, currentLocation, setHorzRes, setVertRes} = roomSlice.actions;
+export const { changeRoom, changeDir, changeX, changeY, setCurrentPos, setHorzRes, setVertRes} = roomSlice.actions;
 export default roomSlice.reducer;

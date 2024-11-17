@@ -7,6 +7,7 @@ import { Room } from '../room/Room'
 import { Player } from '../player/Player'
 import { Counter } from '../counter/Counter'
 import { fetchEnemies, addEnemy } from '../enemy/enemySlice';
+import { setCurrentPos } from '../room/roomSlice';
 
 export const MainScreen = () => {
 
@@ -15,6 +16,7 @@ export const MainScreen = () => {
     // const count = useAppSelector(state => state.counter.value); // Select the current count
         dispatch(fetchEnemies())
         dispatch(addEnemy({index:0, id:0}))
+        dispatch(setCurrentPos([2,6]))
     return (
         <View style={styles.mainScreen}>
             <Room/>
