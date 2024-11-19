@@ -48,12 +48,12 @@ export const Room = () => {
     const dg_map = [
         [0, 0, 2, 1, 1, 2, 0, 0],
         [0, 0, 1, 0, 0, 1, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0, 2],
-        [1, 0, 1, 0, 0, 1, 0, 1],
-        [3, 1, 1, 0, 0, 1, 1, 2],
-        [1, 0, 1, 0, 0, 1, 0, 0],
-        [1, 0, 2, 1, 1, 2, 0, 0],
-        [0, 0, 0, 2, 1, 1, 1, 0]
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0, 1, 0, 0],
+        [0, 0, 2, 1, 1, 2, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
     ]
 
     const generateMapResources = (arrayDir:String) => {
@@ -63,7 +63,7 @@ export const Room = () => {
         } else {
             mapArr = dg_map[positionY]
         }
-        console.log(mapArr,"TEMP ARR 1")
+        console.log(mapArr,"TEMP ARR 1 +_+")
         let tempArr = [];
         for(let i = 0; i < mapArr.length; i++) {
             console.log(mapArr,mapArr[i],resources,'resourcesxx')
@@ -158,23 +158,24 @@ export const Room = () => {
     const forward = () => {
         setBacktrack([...backtrack, pathTileArr[0]]);
         setPathTileArray(pathTileArr.slice(1));
-        let tempPosY; 
+        let tempPosY = positionY; 
+        let tempPosX = positionX;
         switch(currentDir) {
             case 'N':
                 tempPosY = positionY - 1;
             break;
-            case 'S ':
+            case 'S':
                 tempPosY = positionY + 1;
             break;
             case 'E': 
-                tempPosY = positionX + 1;
+                tempPosX = positionX + 1;
             break;
             default:
-                tempPosY = positionX - 1;
+                tempPosX = positionX - 1;
 
         }
-        dispatch(setCurrentPos([positionX,tempPosY]))
-        console.log(backtrack,pathTileArr,verticalTileArr,positionX, "+_+ backtrack")
+        dispatch(setCurrentPos([tempPosX,tempPosY]))
+        console.log(backtrack,pathTileArr, currentDir, "+_+ backtrack")
     }
 
     const reverse = () => {
@@ -184,7 +185,29 @@ export const Room = () => {
         setPathTileArray(backtrackRev);
         setBacktrack(positionTemp);
         // setPathTileArray(position.slice(1));
-        console.log(backtrack,pathTileArr,"backtrack")
+        // setBacktrack([])
+        switch(currentDir){
+            case 'N':
+                dispatch(changeDir('S'));
+            break;
+            
+            case 'S':
+                dispatch(changeDir('N'));
+            break;
+
+            case 'W':
+                dispatch(changeDir('E'));
+            break;
+            
+            case 'E':
+                dispatch(changeDir('W'));
+            break;
+
+            default:
+                console.log(
+                    "DEFAULT"
+                )
+       }        console.log(backtrack,pathTileArr,"backtrack")
     }
     
     //in resources array + map array(one for loading tiles other for controling position and dictating what will happen)
@@ -211,7 +234,7 @@ export const Room = () => {
             case 'N':
                 if(turnDir === 'R') dispatch(changeDir('E'));
                 if(turnDir === 'L') dispatch(changeDir('W'));
-                setPathTileArray(resources2)
+                // setPathTileArray(resources2)
                 generateMapResources('horizontal')
                 setBacktrack([])
             break;
@@ -219,17 +242,22 @@ export const Room = () => {
             case 'S':
                 if(turnDir === 'R') dispatch(changeDir('W'));
                 if(turnDir === 'L') dispatch(changeDir('E'));
+                generateMapResources('horizontal');
+                setBacktrack([])
             break;
 
             case 'W':
                 if(turnDir === 'R') dispatch(changeDir('N'));
                 if(turnDir === 'L') dispatch(changeDir('S'));
+                generateMapResources('vertical');
+                setBacktrack([])
             break;
             
             case 'E':
                 if(turnDir === 'R') dispatch(changeDir('S'));
                 if(turnDir === 'L') dispatch(changeDir('N'));
-                generateMapResources('vertical')
+                generateMapResources('vertical');
+                setBacktrack([])
             break;
 
             default:
