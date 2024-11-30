@@ -42,9 +42,11 @@ export const Room = () => {
     const [backtrack, setBacktrack] = useState(backtrackArr)
     const [verticalTileArr, setVerticalTileArr] = useState<Array<Array<number>>>(Array.from({ length: 8 }, () => []));
     
-    const turnTile = require('../../resources/dung-turn.png');
+    const turnTileRight = require('../../resources/dung-turn.png');
+    const turnTileLeft = require('../../resources/dung-turn-left.png');
     const corridorTile = require('../../resources/dung-corridor.png');
-
+    // Need to find a way to identify if the turn tile is left or right
+    // vertical check: posX tiles will depend on the positionY[posX]
     const dg_map = [
         [0, 0, 2, 1, 1, 2, 0, 0],
         [0, 0, 1, 0, 0, 1, 0, 0],
@@ -56,12 +58,19 @@ export const Room = () => {
         [0, 0, 0, 0, 0, 0, 0, 0]
     ]
 
-    const generateMapResources = (arrayDir:String) => {
+    const generateMapResources = (arrayDir:String, arrayReverse:Boolean) => {
+        console.log(arrayReverse,'()_+ array reverse')
         let mapArr = [];
         if(arrayDir === 'vertical') {
             mapArr = verticalTileArr[positionX];
+            // if(arrayReverse) {
+            //     mapArr = mapArr.reverse();
+            // }
         } else {
             mapArr = dg_map[positionY]
+            // if(arrayReverse) {
+            //     mapArr = mapArr.reverse();
+            // }
         }
         console.log(mapArr,"TEMP ARR 1 +_+")
         let tempArr = [];
@@ -73,8 +82,53 @@ export const Room = () => {
                     tempArr.push(corridorTile);
                 break;
                 case 2:
+                    console.log(verticalTileArr[positionX], dg_map[positionY][positionX], positionX, positionY,'()_+')
                     // setRes1([turnTile, ...resources]);
-                    tempArr.push(turnTile)
+                    let nextTileOfPerpAxis;
+                    console.log('()_+ IIIII', i)
+                    if(arrayDir === 'horizontal') {
+                        if(arrayReverse) {
+                            nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
+                            console.log(nextTileOfPerpAxis, verticalTileArr[i], positionY, '()_+vertical reverse')
+                        } else {
+                            nextTileOfPerpAxis = verticalTileArr[i][positionY-1];
+                            console.log(nextTileOfPerpAxis, verticalTileArr[i], positionY, '()_+vertical')
+                        }
+                        if(nextTileOfPerpAxis === 1) {
+                            //turn right
+                            console.log('()_+horizontal RIGHT')
+                            tempArr.push(turnTileRight)
+                        } else {
+                            //turn left
+                            tempArr.push(turnTileLeft)
+                            console.log('()_+horizontal LEFT')
+                        }
+                    }
+                    // go through vertical array
+                    // if value === 2
+                    // mark horizontal array index
+                    // horizontalArray[index][]
+                    else {
+                        if(arrayReverse) {
+                            nextTileOfPerpAxis = dg_map[i][positionX-1]
+                            console.log(nextTileOfPerpAxis, dg_map[i][positionX-1], i, '()_+horizontal reverse')
+                            console.log(dg_map[i], positionY, '()_+horizontal reverse array')
+                        } else {
+                            nextTileOfPerpAxis = dg_map[i][positionX+1]
+                            console.log(nextTileOfPerpAxis, dg_map[i][positionX + 1], i,'()_+horizontal')
+                            console.log(dg_map[i], positionY,'()_+horizontal array')
+                        }
+                        if(nextTileOfPerpAxis === 1) {
+                            //turn left
+                            tempArr.push(turnTileLeft)
+                            console.log('()_+vetical LEFT')
+                        } else {
+                            //turn right
+                            tempArr.push(turnTileRight)
+                            console.log('()_+vertical RIGHT')
+                        }
+                    }
+                    // console.log(nextTileOfPerpAxis, '()_+')
                 break;
                 default:
                     // setVertRes('0')
@@ -129,7 +183,7 @@ export const Room = () => {
     },[verticalTileArr, pathTileArr])
 
     useEffect(() => {
-        generateMapResources('vertical');
+        generateMapResources('vertical', true);
     },[verticalTileArr])
 
     let enemiesVal = Object.values(enemies)
@@ -235,28 +289,45 @@ export const Room = () => {
                 if(turnDir === 'R') dispatch(changeDir('E'));
                 if(turnDir === 'L') dispatch(changeDir('W'));
                 // setPathTileArray(resources2)
-                generateMapResources('horizontal')
+                generateMapResources('horizontal', false)
                 setBacktrack([])
             break;
             
             case 'S':
-                if(turnDir === 'R') dispatch(changeDir('W'));
-                if(turnDir === 'L') dispatch(changeDir('E'));
-                generateMapResources('horizontal');
+                if(turnDir === 'R') {
+                    dispatch(changeDir('W'));
+                    generateMapResources('horizontal', true);
+                }
+                if(turnDir === 'L') {
+                    dispatch(changeDir('E'));
+                    generateMapResources('horizontal', false);
+                } 
                 setBacktrack([])
             break;
 
             case 'W':
-                if(turnDir === 'R') dispatch(changeDir('N'));
-                if(turnDir === 'L') dispatch(changeDir('S'));
-                generateMapResources('vertical');
+                if(turnDir === 'R') {
+                    dispatch(changeDir('N'));
+                    //Vetical regular
+                    generateMapResources('vertical', true);
+                } 
+                if(turnDir === 'L'){ 
+                    dispatch(changeDir('S'));
+                    //vertical inverted
+                    generateMapResources('vertical', false);
+                }
                 setBacktrack([])
             break;
             
             case 'E':
-                if(turnDir === 'R') dispatch(changeDir('S'));
-                if(turnDir === 'L') dispatch(changeDir('N'));
-                generateMapResources('vertical');
+                if(turnDir === 'R') {
+                    dispatch(changeDir('S'));
+                    generateMapResources('vertical', true);
+                } 
+                if(turnDir === 'L') {
+                    dispatch(changeDir('N'));
+                    generateMapResources('vertical', false);
+                }
                 setBacktrack([])
             break;
 
