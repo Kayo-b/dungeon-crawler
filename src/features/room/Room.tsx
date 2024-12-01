@@ -47,6 +47,12 @@ export const Room = () => {
     const corridorTile = require('../../resources/dung-corridor.png');
     // Need to find a way to identify if the turn tile is left or right
     // vertical check: posX tiles will depend on the positionY[posX]
+    // direction N && perpendicular axis index + 1 === 1 -> RIGHT TURN -ELSE- LEFT
+    // direction S && perpendicular axis index + 1 === 1 -> LEFT TURN -ELSE- RIGHT
+    // direction W && perpendicular axis index + 1 === 1 -> LEFT TURN -ELSE RIGHT
+    // direction E && perpendicular axis index + 1 === 1 -> Right TURN -ELSE- LEFT
+    // AT horizontal array[5,0 W] -> passes through tile type 2 -> needs to read vertical array 2(i) positionY 
+    // At vertical array[2,0 S] -> passes thrrough tile type 2 -> needs to read horizontal array 0(i) positionX
     const dg_map = [
         [0, 0, 2, 1, 1, 2, 0, 0],
         [0, 0, 1, 0, 0, 1, 0, 0],
@@ -58,16 +64,19 @@ export const Room = () => {
         [0, 0, 0, 0, 0, 0, 0, 0]
     ]
 
-    const generateMapResources = (arrayDir:String, arrayReverse:Boolean) => {
-        console.log(arrayReverse,'()_+ array reverse')
+    const generateMapResources = (currentDirLocal:String) => {
+        // console.log(arrayReverse,'()_+ array reverse')
         let mapArr = [];
-        if(arrayDir === 'vertical') {
+        if(currentDirLocal === "N" || currentDirLocal === "S") {
             mapArr = verticalTileArr[positionX];
+            console.log(currentDirLocal,'()_+ verticallllllllll')
             // if(arrayReverse) {
             //     mapArr = mapArr.reverse();
             // }
         } else {
             mapArr = dg_map[positionY]
+
+            console.log(currentDirLocal,'()_+ horizontalllllllllll')
             // if(arrayReverse) {
             //     mapArr = mapArr.reverse();
             // }
@@ -86,61 +95,62 @@ export const Room = () => {
                     // setRes1([turnTile, ...resources]);
                     let nextTileOfPerpAxis;
                     console.log('()_+ IIIII', i)
-                    if(arrayDir === 'horizontal') {
-                        if(arrayReverse) {
+                    switch(currentDirLocal) {
+                        case 'N':
+                            //
+                            nextTileOfPerpAxis = dg_map[i][positionX+1];
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
+                            if(nextTileOfPerpAxis === 1) {
+                                console.log('()_+ RIGHT')
+                                tempArr.push(turnTileRight)
+                            } else {
+                                console.log('()_+ LEFT')
+                                tempArr.push(turnTileLeft)
+                            }
+                        break;
+                        case 'S':
+                            //
+                            nextTileOfPerpAxis = dg_map[i][positionX+1];
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
+                            if(nextTileOfPerpAxis === 1) {
+                                console.log('()_+ LEFT')
+                                tempArr.push(turnTileLeft)
+                            } else {
+                                console.log('()_+  RIGHT')
+                                tempArr.push(turnTileRight)
+                            }
+                        break;
+                        case 'W':
+                            //
                             nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            console.log(nextTileOfPerpAxis, verticalTileArr[i], positionY, '()_+vertical reverse')
-                        } else {
-                            nextTileOfPerpAxis = verticalTileArr[i][positionY-1];
-                            console.log(nextTileOfPerpAxis, verticalTileArr[i], positionY, '()_+vertical')
-                        }
-                        if(nextTileOfPerpAxis === 1) {
-                            //turn right
-                            console.log('()_+horizontal RIGHT')
-                            tempArr.push(turnTileRight)
-                        } else {
-                            //turn left
-                            tempArr.push(turnTileLeft)
-                            console.log('()_+horizontal LEFT')
-                        }
+                            console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse')
+                            if(nextTileOfPerpAxis === 1) {
+                                console.log('()_+ LEFT')
+                                tempArr.push(turnTileLeft)
+                            } else {
+                                console.log('()_+  RIGHT')
+                                tempArr.push(turnTileRight)
+                            }
+                        break;
+                        case 'E':
+                            //
+                            nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
+                            if(nextTileOfPerpAxis === 1) {
+                                console.log('()_+  RIGHT')
+                                tempArr.push(turnTileRight)
+                            } else {
+                                console.log('()_+  LEFT')
+                                tempArr.push(turnTileLeft)
+                            }
+                        break;
+                        default:
+                            
                     }
-                    // go through vertical array
-                    // if value === 2
-                    // mark horizontal array index
-                    // horizontalArray[index][]
-                    else {
-                        if(arrayReverse) {
-                            nextTileOfPerpAxis = dg_map[i][positionX-1]
-                            console.log(nextTileOfPerpAxis, dg_map[i][positionX-1], i, '()_+horizontal reverse')
-                            console.log(dg_map[i], positionY, '()_+horizontal reverse array')
-                        } else {
-                            nextTileOfPerpAxis = dg_map[i][positionX+1]
-                            console.log(nextTileOfPerpAxis, dg_map[i][positionX + 1], i,'()_+horizontal')
-                            console.log(dg_map[i], positionY,'()_+horizontal array')
-                        }
-                        if(nextTileOfPerpAxis === 1) {
-                            //turn left
-                            tempArr.push(turnTileLeft)
-                            console.log('()_+vetical LEFT')
-                        } else {
-                            //turn right
-                            tempArr.push(turnTileRight)
-                            console.log('()_+vertical RIGHT')
-                        }
-                    }
-                    // console.log(nextTileOfPerpAxis, '()_+')
-                break;
+               break;
                 default:
-                    // setVertRes('0')
             }
         }
-        // setPathTileArray(resources)
-        // dispatch(setVertRes(verticalTileArr[positionX]))
-        // dispatch(setHorzRes(dg_map[positionY]))
-        // console.log(verticalTileArr[positionX], "map resssss1")
-        // console.log(resources,'resources1')
-        // console.log(verticalResources, "map resssss1")
-        // console.log(store.getState().room.verticalRes, "map resssss2")
         setVertRes(tempArr)
         setPathTileArray(tempArr)
         console.log(tempArr,"TEMP ARR")
@@ -183,7 +193,7 @@ export const Room = () => {
     },[verticalTileArr, pathTileArr])
 
     useEffect(() => {
-        generateMapResources('vertical', true);
+        generateMapResources(currentDir);
     },[verticalTileArr])
 
     let enemiesVal = Object.values(enemies)
@@ -286,21 +296,26 @@ export const Room = () => {
     const turn = (turnDir:string) => {
         switch(currentDir){
             case 'N':
-                if(turnDir === 'R') dispatch(changeDir('E'));
-                if(turnDir === 'L') dispatch(changeDir('W'));
+                if(turnDir === 'R'){
+                    dispatch(changeDir('E'));
+                    generateMapResources('E'); 
+                }
+                if(turnDir === 'L'){
+                    dispatch(changeDir('W'));
+                    generateMapResources('W'); 
+                } 
                 // setPathTileArray(resources2)
-                generateMapResources('horizontal', false)
                 setBacktrack([])
             break;
             
             case 'S':
                 if(turnDir === 'R') {
                     dispatch(changeDir('W'));
-                    generateMapResources('horizontal', true);
+                    generateMapResources('W');
                 }
                 if(turnDir === 'L') {
                     dispatch(changeDir('E'));
-                    generateMapResources('horizontal', false);
+                    generateMapResources('E');
                 } 
                 setBacktrack([])
             break;
@@ -309,12 +324,12 @@ export const Room = () => {
                 if(turnDir === 'R') {
                     dispatch(changeDir('N'));
                     //Vetical regular
-                    generateMapResources('vertical', true);
+                    generateMapResources('N');
                 } 
                 if(turnDir === 'L'){ 
                     dispatch(changeDir('S'));
                     //vertical inverted
-                    generateMapResources('vertical', false);
+                    generateMapResources('S');
                 }
                 setBacktrack([])
             break;
@@ -322,11 +337,11 @@ export const Room = () => {
             case 'E':
                 if(turnDir === 'R') {
                     dispatch(changeDir('S'));
-                    generateMapResources('vertical', true);
+                    generateMapResources('S');
                 } 
                 if(turnDir === 'L') {
                     dispatch(changeDir('N'));
-                    generateMapResources('vertical', false);
+                    generateMapResources('N');
                 }
                 setBacktrack([])
             break;
