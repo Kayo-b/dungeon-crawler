@@ -4,7 +4,7 @@ import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
-import { changeDir, setHorzRes, setVertRes , setCurrentPos } from '../../features/room/roomSlice';
+import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos } from '../../features/room/roomSlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
 import { useEffect, useState } from 'react';
@@ -25,6 +25,7 @@ export const Room = () => {
     const horizontalResources = useAppSelector(state => state.room.horizontalRes);
     const positionY = useAppSelector(state => state.room.posY);
     const positionX = useAppSelector(state => state.room.posX);
+    const currentArrPos = useAppSelector(state => state.room.currentArrPos)
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
     // dispatch(setCurrentPos([2,6]))
@@ -56,13 +57,13 @@ export const Room = () => {
     // At vertical array[2,0 S] -> passes thrrough tile type 2 -> needs to read horizontal array 0(i) positionX
     const dg_map = [
 
-        [0, 0, 2, 1, 1, 2, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0, 0],
-        [0, 0, 1, 0, 0, 1, 0, 0],
-        [0, 0, 2, 1, 1, 2, 0, 0],
+        [0, 0, 2, 1, 1, 1, 1, 2],
+        [0, 0, 1, 0, 0, 0, 0, 1],
+        [0, 0, 1, 0, 0, 0, 0, 1],
+        [0, 0, 1, 0, 0, 0, 0, 1],
+        [0, 0, 1, 0, 0, 0, 0, 1],
+        [0, 0, 1, 0, 0, 0, 0, 1],
+        [0, 0, 2, 1, 1, 1, 1, 2],
         [0, 0, 0, 0, 0, 0, 0, 0]
     ]
 
@@ -79,31 +80,25 @@ export const Room = () => {
             arrayPosition = newPosition !== undefined ? newPosition : positionY
             console.log(currentDirLocal,'()_+ verticallllllllll !!!!!')
             console.log("WALL CHECK VERTICAL",verticalTileArr[positionX][positionY+1],positionX, positionY,currentDirLocal)
-            if(reverse) {
-                arrayPosition = (mapArr.length -1) - positionY
-                dispatch(setCurrentPos([positionX, arrayPosition]))
-                console.log("REVERSE TRUE",currentDir, arrayPosition, positionY, mapArr.length, arrayPosition)
-            } else {
-                dispatch(setCurrentPos([positionX, arrayPosition]))
-                console.log("REVERSE FALSE Y",currentDir, arrayPosition)
-            }
+                    if(reverse) {
+                                    console.log("REVERSE TRUE")
+            arrayPosition = mapArr.length - positionY
+        }
         } else {
             mapArr = dg_map[positionY]
             arrayPosition = newPosition !== undefined ? newPosition : positionX
             console.log("WALL CHECK HORIZONTAL",dg_map[positionY][positionX+1], positionX,positionY, currentDirLocal)
             console.log(currentDirLocal,'()_+ horizontalllllllllll')
                                 if(reverse) {
-                                    console.log("REVERSE TRUE", positionX)
-                                    arrayPosition = (mapArr.length -1) - positionX
-                                    dispatch(setCurrentPos([arrayPosition, positionY]))
-        } else {
-            dispatch(setCurrentPos([arrayPosition, positionY]))
-            console.log("REVERSE FALSE X",currentDir, arrayPosition)
+                                    console.log("REVERSE TRUE")
+            arrayPosition = mapArr.length - positionX
         }
         }
 
         console.log(mapArr, arrayPosition,"TEMP ARR 1 +_+")
 
+        console.log('()_+ IIIII currentArrPos', newPosition)
+        console.log('()_+ IIIII', currentDirLocal, mapArr, positionX, positionY, arrayPosition)
         for(let i = arrayPosition; i < mapArr.length; i++) {
             console.log(mapArr,mapArr[i],resources,'resourcesxx')
             switch(mapArr[i]) {
@@ -158,12 +153,11 @@ export const Room = () => {
                     console.log(verticalTileArr[positionX], dg_map[positionY][positionX], positionX, positionY,'()_+')
                     // setRes1([turnTile, ...resources]);
                     let nextTileOfPerpAxis;
-                    console.log('()_+ IIIII', i)
                     switch(currentDirLocal) {
                         case 'N':
                             //
                             nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            // console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+horizontal reverse')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse')
                             if(nextTileOfPerpAxis === 1) {
                                 console.log('()_+ RIGHT')
                                 tempArr.push(turnTileRight)
@@ -177,7 +171,7 @@ export const Room = () => {
                         case 'S':
                             //
                             nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            // console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
                             if(nextTileOfPerpAxis === 1) {
                                 console.log('()_+ LEFT')
                                 tempArr.push(turnTileLeft)
@@ -191,7 +185,7 @@ export const Room = () => {
                         case 'W':
                             //
                             nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            // console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse')
                             if(nextTileOfPerpAxis === 1) {
                                 console.log('()_+ LEFT')
                                 tempArr.push(turnTileLeft)
@@ -205,7 +199,7 @@ export const Room = () => {
                         case 'E':
                             //
                             nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            // console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
                             if(nextTileOfPerpAxis === 1) {
                                 console.log('()_+  RIGHT')
                                 tempArr.push(turnTileRight)
@@ -223,6 +217,7 @@ export const Room = () => {
                     tempArr.push('');
                     // tempArrTiles.push(facingWall)
             }
+            console.log('()_+ IIIII',tempArr)
         }
         setVertRes(tempArr)
         // if(currentDirLocal === 'N' || currentDirLocal === 'S') {
@@ -232,11 +227,28 @@ export const Room = () => {
         //     setPathTileArray(tempArr.slice(positionX))
         // }
         // setPathTileArray(tempArr.slice(positionY + (Math.floor(8/tempArrTiles.length + 1))))
-        if(facingWall) {
-            setPathTileArray([facingWallTile])   
-        } else {
-            setPathTileArray(tempArr.filter(val => val != ''))
-        }
+        // if(facingWall) {
+        //     // setPathTileArray([facingWallTile])   
+        // } else {
+        //     console.log(currentDirLocal, "CURRENT DIR")
+        //     if(currentDirLocal === 'W' || currentDirLocal === 'N') {
+        //         // tempArr = tempArr.reverse()
+        //         setPathTileArray(tempArr.filter(val => val != ''))
+        //     } else {
+        //         setPathTileArray(tempArr.filter(val => val != ''))
+
+        //     }
+        //     console.log('()_+ IIIII >>>>>>', pathTileArr)
+        // }
+        console.log(currentDirLocal, "CURRENT DIR")
+            if(currentDirLocal === 'W' || currentDirLocal === 'N') {
+                tempArr = tempArr.reverse()
+                setPathTileArray(tempArr.filter(val => val != ''))
+            } else {
+                setPathTileArray(tempArr.filter(val => val != ''))
+
+            }
+            console.log('()_+ IIIII >>>>>>', pathTileArr)
         // setPathTileArray(tempArr.filter(val => val != ''))
         // if(currentDir === 'N' || currentDir === 'S') {
         //     if(tempArr[positionX+1] === '' || tempArr[positionX-1] === '') {
@@ -314,27 +326,36 @@ export const Room = () => {
     }
     
     const forward = () => {
-        setBacktrack([...backtrack, pathTileArr[0]]);
-        setPathTileArray(pathTileArr.slice(1));
+        // setBacktrack([...backtrack, pathTileArr[0]]);
+        // setPathTileArray(pathTileArr.slice(1));
         let tempPosY = positionY; 
         let tempPosX = positionX;
+        let tempArrPos = currentArrPos;
         console.log(currentDir,"CURRENT DIR ")
         switch(currentDir) {
             case 'N':
-                tempPosY = positionY + 1;
-                generateMapResources('N', tempPosY);
+                tempPosY = positionY - 1;
+                tempArrPos += 1;
+                dispatch(setCurrentArrPos(tempArrPos))
+                generateMapResources('N', tempArrPos);
             break;
             case 'S':
                 tempPosY = positionY + 1;
-                generateMapResources('S', tempPosY);
+                tempArrPos += 1;
+                dispatch(setCurrentArrPos(tempArrPos))
+                generateMapResources('S', tempArrPos);
             break;
             case 'E': 
                 tempPosX = positionX + 1;
-                generateMapResources('E', tempPosX);
+                tempArrPos += 1;
+                dispatch(setCurrentArrPos(tempArrPos))
+                generateMapResources('E', tempArrPos);
             break;
             default:
-                tempPosX = positionX + 1;
-                generateMapResources('W', tempPosX);
+                tempPosX = positionX - 1;
+                tempArrPos += 1;
+                dispatch(setCurrentArrPos(tempArrPos))
+                generateMapResources('W', tempArrPos);
 
         }
         dispatch(setCurrentPos([tempPosX,tempPosY]))
@@ -402,11 +423,11 @@ export const Room = () => {
             case 'N':
                 if(turnDir === 'R'){
                     dispatch(changeDir('E'));
-                    generateMapResources('E', 1); 
+                    generateMapResources('E', 0); 
                 }
                 if(turnDir === 'L'){
                     dispatch(changeDir('W'));
-                    generateMapResources('W', 1); 
+                    generateMapResources('W', 0); 
                 } 
                 // setPathTileArray(resources2)
                 // setBacktrack([])
@@ -415,11 +436,11 @@ export const Room = () => {
             case 'S':
                 if(turnDir === 'R') {
                     dispatch(changeDir('W'));
-                    generateMapResources('W', 1);
+                    generateMapResources('W', 0);
                 }
                 if(turnDir === 'L') {
                     dispatch(changeDir('E'));
-                    generateMapResources('E', 1);
+                    generateMapResources('E', 0);
                 } 
                 setBacktrack([])
             break;
@@ -428,12 +449,12 @@ export const Room = () => {
                 if(turnDir === 'R') {
                     dispatch(changeDir('N'));
                     //Vetical regular
-                    generateMapResources('N', 1);
+                    generateMapResources('N', 0);
                 } 
                 if(turnDir === 'L'){ 
                     dispatch(changeDir('S'));
                     //vertical inverted
-                    generateMapResources('S', 1);
+                    generateMapResources('S', 0);
                 }
                 setBacktrack([])
             break;
@@ -441,11 +462,11 @@ export const Room = () => {
             case 'E':
                 if(turnDir === 'R') {
                     dispatch(changeDir('S'));
-                    generateMapResources('S', 1);
+                    generateMapResources('S', 0);
                 } 
                 if(turnDir === 'L') {
                     dispatch(changeDir('N'));
-                    generateMapResources('N', 1);
+                    generateMapResources('N', 0);
                 }
                 setBacktrack([])
             break;
@@ -455,6 +476,7 @@ export const Room = () => {
                     "DEFAULT"
                 )
        }
+        dispatch(setCurrentArrPos(0))
        // Align with horizontal tile array if there is a path to that direction(aka if section its 2 or 3)
        console.log(currentDir, "direction");
     }

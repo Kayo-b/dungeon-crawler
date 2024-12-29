@@ -10,6 +10,7 @@ interface RoomState {
     posY: number;
     verticalRes?: NodeRequire[];
     horizontalRes?: NodeRequire[];
+    currentArrPos: number;
 }
 
 const roomInitialState: RoomState = {
@@ -19,7 +20,8 @@ const roomInitialState: RoomState = {
     posX: 0,
     posY: 0,
     verticalRes: [],
-    horizontalRes: []
+    horizontalRes: [],
+    currentArrPos: 0,
 }
 // console.log(data.rooms[0].background, "Background");
 const roomSlice = createSlice ({
@@ -48,9 +50,12 @@ const roomSlice = createSlice ({
         setCurrentPos(state, action: PayloadAction<number[]>) {
             state.posX = action.payload[0];
             state.posY = action.payload[1];
+        },
+        setCurrentArrPos(state, action: PayloadAction<number>) {
+            state.currentArrPos = action.payload;
         }
     }
 })
 
-export const { changeRoom, changeDir, changeX, changeY, setCurrentPos, setHorzRes, setVertRes} = roomSlice.actions;
+export const { changeRoom, changeDir, changeX, changeY, setCurrentPos, setHorzRes, setVertRes, setCurrentArrPos} = roomSlice.actions;
 export default roomSlice.reducer;
