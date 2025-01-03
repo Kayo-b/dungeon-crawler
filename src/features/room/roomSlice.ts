@@ -57,11 +57,23 @@ const roomSlice = createSlice ({
             state.currentArrPos = action.payload;
         },
         setInitialDirection(state) {
-            state.initialDirection = 'S'
-            state.direction = 'S'
+            switch (state.initialDirection) {
+                case 'N':
+                    state.initialDirection = 'S';
+                    break;
+                case 'S':
+                    state.initialDirection = 'N';
+                    break;
+                case 'W':
+                    state.initialDirection = 'E';
+                    break;
+                case 'E':
+                    state.initialDirection = 'W';
+                    break;
+            }
         }
     }
 })
 
-export const { changeRoom, changeDir, changeX, changeY, setCurrentPos, setHorzRes, setVertRes, setCurrentArrPos} = roomSlice.actions;
+export const { changeRoom, changeDir, changeX, changeY, setCurrentPos, setHorzRes, setVertRes, setCurrentArrPos, setInitialDirection} = roomSlice.actions;
 export default roomSlice.reducer;

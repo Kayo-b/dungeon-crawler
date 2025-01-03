@@ -4,7 +4,7 @@ import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
-import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos } from '../../features/room/roomSlice';
+import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, setInitialDirection } from '../../features/room/roomSlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
 import { useEffect, useState } from 'react';
@@ -380,7 +380,7 @@ export const Room = () => {
 
         }
         dispatch(setCurrentPos([tempPosX,tempPosY]))
-        console.log(backtrack,pathTileArr, currentDir, "+_+ backtrack")
+        console.log(backtrack,pathTileArr, currentDir, tempArrPos, "+_+ backtrack")
     }
 
     const reverse = () => {
@@ -392,32 +392,43 @@ export const Room = () => {
         // setBacktrack(positionTemp);
         // setPathTileArray(position.slice(1));
         // setBacktrack([])
+        let newPosition 
         switch(currentDir){
             case 'N':
+                newPosition = positionY - currentArrPos;
                 dispatch(changeDir('S'));
-                generateMapResources('S', positionY - currentArrPos);
+                dispatch(setCurrentArrPos(newPosition-1))
+                generateMapResources('S', newPosition);
             break;
             
             case 'S':
+                newPosition = positionY - currentArrPos;
                 dispatch(changeDir('N'));
-                generateMapResources('N', positionY - currentArrPos);
+                dispatch(setCurrentArrPos(newPosition -1))
+                generateMapResources('N', newPosition);
             break;
 
             case 'W':
+                newPosition = positionY - currentArrPos;
                 dispatch(changeDir('E'));
-                generateMapResources('E', positionX - currentArrPos);
+                dispatch(setCurrentArrPos(newPosition -1))
+                generateMapResources('E', newPosition);
             break;
             
             case 'E':
+                newPosition = positionY - currentArrPos;
                 dispatch(changeDir('W'));
-                generateMapResources('W', positionX - currentArrPos);
+                dispatch(setCurrentArrPos(newPosition - 1))
+                generateMapResources('W', newPosition);
             break;
 
             default:
                 console.log(
                     "DEFAULT"
                 )
-       }        console.log(currentArrPos,"backtrack")
+       }       
+        dispatch(setInitialDirection());
+        console.log(currentArrPos,iniDir,"backtrack")
     }
     
     //in resources array + map array(one for loading tiles other for controling position and dictating what will happen)
