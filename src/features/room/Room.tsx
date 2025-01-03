@@ -26,6 +26,7 @@ export const Room = () => {
     const positionY = useAppSelector(state => state.room.posY);
     const positionX = useAppSelector(state => state.room.posX);
     const currentArrPos = useAppSelector(state => state.room.currentArrPos)
+    const iniDir = useAppSelector(state => state.room.initialDirection)
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
     // dispatch(setCurrentPos([2,6]))
@@ -96,12 +97,12 @@ export const Room = () => {
         }
 
         console.log(mapArr, arrayPosition,"TEMP ARR 1 +_+")
-
+        let test = mapArr.filter(val => val !== 0)
         console.log('()_+ IIIII currentArrPos', newPosition)
         console.log('()_+ IIIII', currentDirLocal, mapArr, positionX, positionY, arrayPosition)
         for(let i = arrayPosition; i < mapArr.length; i++) {
             console.log(mapArr,mapArr[i],resources,'resourcesxx')
-            switch(mapArr[i]) {
+            switch(test[i]) {
                 case 1:
                     // setRes1([corridorTile, ...resources]);
                     // tempArr.push(corridorTile);
@@ -157,57 +158,77 @@ export const Room = () => {
                         case 'N':
                             //
                             nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse', iniDir)
                             if(nextTileOfPerpAxis === 1) {
                                 console.log('()_+ RIGHT')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
                             } else {
-                                console.log('()_+ LEFT')
-                                tempArr.push(turnTileLeft)
-                                tempArrTiles.push(turnTileLeft)
+                                if(iniDir === 'W') {
+                                    tempArr.push(turnTileRight)
+                                    tempArrTiles.push(turnTileRight)
+                                } else {
+                                    console.log('()_+ LEFT')
+                                    tempArr.push(turnTileLeft)
+                                    tempArrTiles.push(turnTileLeft)
+                                }
                             }
                         break;
                         case 'S':
                             //
                             nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse', iniDir)
                             if(nextTileOfPerpAxis === 1) {
                                 console.log('()_+ LEFT')
                                 tempArr.push(turnTileLeft)
                                 tempArrTiles.push(turnTileLeft)
                             } else {
-                                console.log('()_+  RIGHT')
-                                tempArr.push(turnTileRight)
-                                tempArrTiles.push(turnTileRight)
+                                if(iniDir === 'E') {
+                                    tempArr.push(turnTileLeft)
+                                    tempArrTiles.push(turnTileLeft)
+                                } else {
+                                    console.log('()_+ RIGHT')
+                                    tempArr.push(turnTileRight)
+                                    tempArrTiles.push(turnTileRight)
+                                }
                             }
                         break;
                         case 'W':
                             //
                             nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse', iniDir)
                             if(nextTileOfPerpAxis === 1) {
                                 console.log('()_+ LEFT')
                                 tempArr.push(turnTileLeft)
                                 tempArrTiles.push(turnTileLeft)
                             } else {
-                                console.log('()_+  RIGHT')
-                                tempArr.push(turnTileRight)
-                                tempArrTiles.push(turnTileRight)
+                                if(iniDir === 'N' || iniDir === 'E') {
+                                    tempArr.push(turnTileLeft)
+                                    tempArrTiles.push(turnTileLeft)
+                                } else {
+                                    console.log('()_+ RIGHT')
+                                    tempArr.push(turnTileRight)
+                                    tempArrTiles.push(turnTileRight)
+                                }
                             }
                         break;
                         case 'E':
                             //
                             nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse', iniDir)
                             if(nextTileOfPerpAxis === 1) {
                                 console.log('()_+  RIGHT')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
                             } else {
-                                console.log('()_+  LEFT')
-                                tempArr.push(turnTileLeft)
-                                tempArrTiles.push(turnTileRight)
+                                if(iniDir === 'S' || iniDir === 'W') {
+                                    tempArr.push(turnTileRight)
+                                    tempArrTiles.push(turnTileRight)
+                                } else {
+                                    console.log('()_+  LEFT')
+                                    tempArr.push(turnTileLeft)
+                                    tempArrTiles.push(turnTileRight)
+                                } 
                             }
                         break;
                         default:
@@ -242,7 +263,7 @@ export const Room = () => {
         // }
         console.log(currentDirLocal, "CURRENT DIR")
             if(currentDirLocal === 'W' || currentDirLocal === 'N') {
-                tempArr = tempArr.reverse()
+                // tempArr = tempArr.reverse()
                 setPathTileArray(tempArr.filter(val => val != ''))
             } else {
                 setPathTileArray(tempArr.filter(val => val != ''))
@@ -374,29 +395,29 @@ export const Room = () => {
         switch(currentDir){
             case 'N':
                 dispatch(changeDir('S'));
-                generateMapResources('S', undefined, true);
+                generateMapResources('S', positionY - currentArrPos);
             break;
             
             case 'S':
                 dispatch(changeDir('N'));
-                generateMapResources('N', undefined, true);
+                generateMapResources('N', positionY - currentArrPos);
             break;
 
             case 'W':
                 dispatch(changeDir('E'));
-                generateMapResources('E', undefined, true);
+                generateMapResources('E', positionX - currentArrPos);
             break;
             
             case 'E':
                 dispatch(changeDir('W'));
-                generateMapResources('W', undefined, true);
+                generateMapResources('W', positionX - currentArrPos);
             break;
 
             default:
                 console.log(
                     "DEFAULT"
                 )
-       }        console.log(backtrack,pathTileArr,"backtrack")
+       }        console.log(currentArrPos,"backtrack")
     }
     
     //in resources array + map array(one for loading tiles other for controling position and dictating what will happen)

@@ -5,6 +5,7 @@ import data from '../../data/rooms.json';
 interface RoomState {
     currentLvlIndex: number;
     currentLvl: number;
+    initialDirection: string;
     direction: string;
     posX: number;
     posY: number;
@@ -16,7 +17,8 @@ interface RoomState {
 const roomInitialState: RoomState = {
     currentLvlIndex: 0,
     currentLvl: data.rooms[0].id,
-    direction: 'S', // N S W E
+    initialDirection: 'E',
+    direction: 'E', // N S W E
     posX: 0,
     posY: 0,
     verticalRes: [],
@@ -53,6 +55,10 @@ const roomSlice = createSlice ({
         },
         setCurrentArrPos(state, action: PayloadAction<number>) {
             state.currentArrPos = action.payload;
+        },
+        setInitialDirection(state) {
+            state.initialDirection = 'S'
+            state.direction = 'S'
         }
     }
 })
