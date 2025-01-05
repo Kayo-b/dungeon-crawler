@@ -36,12 +36,13 @@ export const Room = () => {
     // 2- take current position of player
     // 3- based on position generate tiles with resources.
     
-    const [resources, setRes1] = useState([])
-    const [resources2, setRes2] = useState([])
+    const [resources, setRes1] = useState([]);
+    const [resources2, setRes2] = useState([]);
+    const [mapArray, setMapArray] = useState<Array<number>>();
     // generateMapResources()
     const backtrackArr: Array<NodeRequire> = [];
     const [pathTileArr, setPathTileArray] = useState<NodeRequire[]>(resources);
-    const [backtrack, setBacktrack] = useState(backtrackArr)
+    const [backtrack, setBacktrack] = useState(backtrackArr);
     const [verticalTileArr, setVerticalTileArr] = useState<Array<Array<number>>>(Array.from({ length: 8 }, () => []));
     
     const turnTileRight = require('../../resources/dung-turn.png');
@@ -98,6 +99,7 @@ export const Room = () => {
 
         console.log(mapArr, arrayPosition,"TEMP ARR 1 +_+")
         let test = mapArr.filter(val => val !== 0)
+        setMapArray(test)
         console.log('()_+ IIIII currentArrPos', newPosition)
         console.log('()_+ IIIII', currentDirLocal, mapArr, positionX, positionY, arrayPosition)
         for(let i = arrayPosition; i < mapArr.length; i++) {
@@ -312,8 +314,8 @@ export const Room = () => {
         let currentArrayPositionHorz = dg_map[positionY][positionX];
         console.log(verticalTileArr[positionX], '+_+ vertical')
         console.log(dg_map[positionY], '+_+  horizontal')
-        console.log(positionX, '+_+ positionX')
-        console.log(positionY, '+_+ positionY')
+        console.log(positionX, currentArrPos, '+_+ positionX')
+        console.log(positionY, currentArrPos,'+_+ positionY')
         console.log(currentDir, pathTileArr, '+_+ path Tiles array', resources)
         console.log( currentArrayPositionVert,':Vertical',currentArrayPositionHorz, ":Horizontal", '+_+ current map arraty position')
         
@@ -393,30 +395,31 @@ export const Room = () => {
         // setPathTileArray(position.slice(1));
         // setBacktrack([])
         let newPosition 
+        console.log(mapArray.length, currentArrPos, "CUR PATH TILE")
         switch(currentDir){
             case 'N':
-                newPosition = positionY - currentArrPos;
+                newPosition = mapArray?.length - currentArrPos;
                 dispatch(changeDir('S'));
-                dispatch(setCurrentArrPos(newPosition-1))
+                dispatch(setCurrentArrPos(newPosition - 1))
                 generateMapResources('S', newPosition);
             break;
             
             case 'S':
-                newPosition = positionY - currentArrPos;
+                newPosition = mapArray?.length - currentArrPos;
                 dispatch(changeDir('N'));
-                dispatch(setCurrentArrPos(newPosition -1))
+                dispatch(setCurrentArrPos(newPosition - 1))
                 generateMapResources('N', newPosition);
             break;
 
             case 'W':
-                newPosition = positionY - currentArrPos;
+                newPosition = mapArray?.length - currentArrPos;
                 dispatch(changeDir('E'));
-                dispatch(setCurrentArrPos(newPosition -1))
+                dispatch(setCurrentArrPos(newPosition - 1))
                 generateMapResources('E', newPosition);
             break;
             
             case 'E':
-                newPosition = positionY - currentArrPos;
+                newPosition = mapArray?.length- currentArrPos;
                 dispatch(changeDir('W'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 generateMapResources('W', newPosition);
