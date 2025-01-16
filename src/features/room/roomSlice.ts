@@ -17,8 +17,8 @@ interface RoomState {
 const roomInitialState: RoomState = {
     currentLvlIndex: 0,
     currentLvl: data.rooms[0].id,
-    initialDirection: 'E',
-    direction: 'E', // N S W E
+    initialDirection: 'N',
+    direction: 'N', // N S W E
     posX: 0,
     posY: 0,
     verticalRes: [],
@@ -56,21 +56,8 @@ const roomSlice = createSlice ({
         setCurrentArrPos(state, action: PayloadAction<number>) {
             state.currentArrPos = action.payload;
         },
-        setInitialDirection(state) {
-            switch (state.initialDirection) {
-                case 'N':
-                    state.initialDirection = 'S';
-                    break;
-                case 'S':
-                    state.initialDirection = 'N';
-                    break;
-                case 'W':
-                    state.initialDirection = 'E';
-                    break;
-                case 'E':
-                    state.initialDirection = 'W';
-                    break;
-            }
+        setInitialDirection(state, action: PayloadAction<string>) {
+            state.initialDirection = state.initialDirection === 'E' ? 'W' : 'E';
         }
     }
 })
