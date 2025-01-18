@@ -30,7 +30,6 @@ export const Room = () => {
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
     // dispatch(setCurrentPos([2,6]))
-    
     // generate resources array based on dg_map layout
     // 1- take verticalTileArr for vertical tiles array and  dg_map for horizontal
     // 2- take current position of player
@@ -69,18 +68,20 @@ export const Room = () => {
         [0, 0, 0, 0, 0, 0, 0, 0]
     ]
 
-    const generateMapResources = (currentDirLocal:String, newPosition: number, newDir: string) => {
+    let mapArr = [];
+    const generateMapResources = (currentDirLocal:String, newPosition: number, newDir: boolean) => {
 
         // console.log(arrayReverse,'()_+ array reverse')
         let tempArr = [];
         let tempArrTiles = []
-        let mapArr = [];
         let facingWall = false;
         let arrayPosition;
-        newDir = newDir !== undefined ? newDir : iniDir; 
         console.log(newDir,'NEWDIR 2', iniDir)
+        newDir = newDir !== undefined ? newDir : iniDir; 
+
         if(currentDirLocal === "N" || currentDirLocal === "S") {
             mapArr = verticalTileArr[positionX];
+            console.log(verticalTileArr, positionX, 'TEMP ARR 1 +_+')
             arrayPosition = newPosition !== undefined ? newPosition : positionY
             console.log(currentDirLocal,'()_+ verticallllllllll !!!!!')
             console.log("WALL CHECK VERTICAL",verticalTileArr[positionX][positionY+1],positionX, positionY,currentDirLocal)
@@ -105,8 +106,9 @@ export const Room = () => {
         console.log('()_+ IIIII currentArrPos', newPosition)
         console.log('()_+ IIIII', currentDirLocal, mapArr, positionX, positionY, arrayPosition)
 
-        for(let i = arrayPosition; i < mapArr.length; i++) {
+        for(let i = arrayPosition; i < test.length; i++) {
             console.log(mapArr,mapArr[i],resources,'resourcesxx')
+            console.log(verticalTileArr[positionX][positionY-1], 'limit wall position')
             switch(test[i]) {
                 case 1:
                     // setRes1([corridorTile, ...resources]);
@@ -114,10 +116,11 @@ export const Room = () => {
                     // tempArrTiles.push(corridorTile);
                     switch(currentDirLocal) {
                         case 'N':
-                            if(verticalTileArr[positionX][positionY-1] === 0) {
+                            if(verticalTileArr[positionX][positionY-1] === 0 ||
+                                verticalTileArr[positionX][positionY-1] === undefined) {
                                 facingWall = true;
-                                tempArr.push(facingWallTile);
-                                tempArrTiles.push(facingWallTile);
+                                tempArr.push(turnTileRight);
+                                tempArrTiles.push(turnTileLeft); 
                             } else {
                                 tempArr.push(corridorTile);
                                 tempArrTiles.push(corridorTile);
@@ -165,16 +168,17 @@ export const Room = () => {
                             nextTileOfPerpAxis = dg_map[i][positionX+1];
                             console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse', iniDir)
                             if(nextTileOfPerpAxis === 1) {
+                                    console.log(newDir,"NEWDIR RRRRR 1")
                                 console.log('()_+ RIGHT')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
                             } else {
-                                console.log(newDir,"NEWDIR")
-                                if(newDir === 'W' || newDir === 'S') {
+                                if(newDir) {
+                                    console.log(newDir,"NEWDIR RRRR")
                                     tempArr.push(turnTileRight)
                                     tempArrTiles.push(turnTileRight)
                                 } else {
-                                    console.log('()_+ LEFT')
+                                    console.log(newDir,"NEWDIR LLLL")
                                     tempArr.push(turnTileLeft)
                                     tempArrTiles.push(turnTileLeft)
                                 }
@@ -190,13 +194,13 @@ export const Room = () => {
                                 tempArrTiles.push(turnTileLeft)
                             } else {
                                 console.log(newDir,"NEWDIR")
-                                if(newDir === 'E' || newDir === 'N') {
-                                    tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileLeft)
-                                } else {
-                                    console.log('()_+ RIGHT')
+                                if(newDir) {
                                     tempArr.push(turnTileRight)
                                     tempArrTiles.push(turnTileRight)
+                                } else {
+                                    console.log('()_+ RIGHT')
+                                    tempArr.push(turnTileLeft)
+                                    tempArrTiles.push(turnTileLeft)
                                 }
                             }
                         break;
@@ -210,13 +214,13 @@ export const Room = () => {
                                 tempArrTiles.push(turnTileLeft)
                             } else {
                                 console.log(newDir,"NEWDIR")
-                                if(newDir === 'E' || newDir === 'N') {
-                                    tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileLeft)
-                                } else {
-                                    console.log('()_+ RIGHT')
+                                if(newDir) {
                                     tempArr.push(turnTileRight)
                                     tempArrTiles.push(turnTileRight)
+                                } else {
+                                    console.log('()_+ RIGHT')
+                                    tempArr.push(turnTileLeft)
+                                    tempArrTiles.push(turnTileLeft)
                                 }
                             }
                         break;
@@ -225,18 +229,21 @@ export const Room = () => {
                             nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
                             console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse', newDir)
                             if(nextTileOfPerpAxis === 1) {
+                                console.log(newDir,"NEWDIR RRRRR 1")
                                 console.log('()_+  RIGHT')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
                             } else {
-                                console.log(newDir,"NEWDIR")
-                                if(newDir === 'W' || newDir === 'S') {
+                                console.log(newDir,"NEWDIR <><>")
+                                if(newDir) {
                                     tempArr.push(turnTileRight)
+                                    console.log(newDir,"NEWDIR RRRR")
                                     tempArrTiles.push(turnTileRight)
                                 } else {
                                     console.log('()_+  LEFT')
+                                    console.log(newDir,"NEWDIR LLLL")
                                     tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileRight)
+                                    tempArrTiles.push(turnTileLeft)
                                 } 
                             }
                         break;
@@ -250,45 +257,8 @@ export const Room = () => {
             console.log('()_+ IIIII',tempArr)
         }
         setVertRes(tempArr)
-        // if(currentDirLocal === 'N' || currentDirLocal === 'S') {
-        //     setPathTileArray(tempArr.slice(positionY))
-        // } else {
-        //     console.log(tempArr, "TEMP!@")
-        //     setPathTileArray(tempArr.slice(positionX))
-        // }
-        // setPathTileArray(tempArr.slice(positionY + (Math.floor(8/tempArrTiles.length + 1))))
-        // if(facingWall) {
-        //     // setPathTileArray([facingWallTile])   
-        // } else {
-        //     console.log(currentDirLocal, "CURRENT DIR")
-        //     if(currentDirLocal === 'W' || currentDirLocal === 'N') {
-        //         // tempArr = tempArr.reverse()
-        //         setPathTileArray(tempArr.filter(val => val != ''))
-        //     } else {
-        //         setPathTileArray(tempArr.filter(val => val != ''))
-
-        //     }
-        //     console.log('()_+ IIIII >>>>>>', pathTileArr)
-        // }
-        // console.log(currentDirLocal, "CURRENT DIR")
-        //     if(currentDirLocal === 'W' || currentDirLocal === 'N') {
-        //         // tempArr = tempArr.reverse()
-        //         setPathTileArray(tempArr.filter(val => val != ''))
-        //     } else {
-        //         setPathTileArray(tempArr.filter(val => val != ''))
-
-        //     }
-                setPathTileArray(tempArr.filter(val => val != ''))
-            console.log('()_+ IIIII >>>>>>', pathTileArr)
-        // setPathTileArray(tempArr.filter(val => val != ''))
-        // if(currentDir === 'N' || currentDir === 'S') {
-        //     if(tempArr[positionX+1] === '' || tempArr[positionX-1] === '') {
-        //         setPathTileArray([facingWallTile])
-        //     } else {
-        //         setPathTileArray(tempArr)
-        //     }
-        // }
-       
+        setPathTileArray(tempArr.filter(val => val != ''))
+        console.log('()_+ IIIII >>>>>>', pathTileArr)
         console.log(tempArr, tempArr.filter(val => val != ''), tempArrTiles.length, "TEMP!@")
         console.log(tempArr.length, tempArrTiles.length,"TEMP ARR")
         console.log(verticalResources,"TEMP ARR 3")
@@ -297,12 +267,6 @@ export const Room = () => {
     useEffect(() => {
         tileArrConstr(dg_map);
     },[])
-    // useEffect(() => {
-        //     console.log(verticalResources, "TEMP ARR 4")
-        //     console.log(horizontalResources, "map resssss4")
-        //     console.log(position, resources, 'TEMP ARR 5')
-        // }, [verticalResources, horizontalResources, resources]);
-        
     const tileArrConstr = (map:Array<number[]>) => {
         const newVerticalArr:Array<Array<number>> = Array.from({ length: 8 }, () => []);
         console.log('backtrack 3',map.length, verticalTileArr)
@@ -330,8 +294,8 @@ export const Room = () => {
     },[verticalTileArr, pathTileArr])
 
     useEffect(() => {
-        generateMapResources(iniDir, 0);
-    },[])
+        generateMapResources(currentDir, 0);
+    },[verticalTileArr])
 
     let enemiesVal = Object.values(enemies)
     useEffect(() => {
@@ -404,24 +368,11 @@ export const Room = () => {
         // setPathTileArray(position.slice(1));
         // setBacktrack([])
         let newPosition
-        let newDir: string;
-        let setInitialDirectionLocal = () => {
-            switch (iniDir) {
-                case 'N':
-                    newDir = 'S';
-                    break;
-                case 'S':
-                    newDir = 'N';
-                    break;
-                case 'W':
-                    newDir = 'E';
-                    break;
-                case 'E':
-                    newDir = 'W';
-                    break;
-            }
-        } 
-        setInitialDirectionLocal();
+        let newDir: boolean;
+        // let setInitialDirectionLocal = () => {
+        //     newDir = !iniDir
+        // } 
+        // setInitialDirectionLocal();
         console.log('NEWDIR 3', newDir)
         console.log(mapArray.length, currentArrPos, "CUR PATH TILE")
         switch(currentDir){
@@ -429,32 +380,32 @@ export const Room = () => {
                 newPosition = mapArray?.length - currentArrPos;
                 dispatch(changeDir('S'));
                 dispatch(setCurrentArrPos(newPosition - 1))
-                dispatch(setInitialDirection(newDir))
-                generateMapResources('S', newPosition, newDir);
+                dispatch(setInitialDirection())
+                generateMapResources('S', newPosition-1, !iniDir);
             break;
             
             case 'S':
                 newPosition = mapArray?.length - currentArrPos;
                 dispatch(changeDir('N'));
                 dispatch(setCurrentArrPos(newPosition - 1))
-                dispatch(setInitialDirection(newDir))
-                generateMapResources('N', newPosition, newDir);
+                dispatch(setInitialDirection())
+                generateMapResources('N', newPosition - 1, !iniDir);
             break;
 
             case 'W':
                 newPosition = mapArray?.length - currentArrPos;
                 dispatch(changeDir('E'));
                 dispatch(setCurrentArrPos(newPosition - 1))
-                dispatch(setInitialDirection(newDir))
-                generateMapResources('E', newPosition, newDir);
+                dispatch(setInitialDirection())
+                generateMapResources('E', newPosition - 1, !iniDir);
             break;
             
             case 'E':
                 newPosition = mapArray?.length- currentArrPos;
                 dispatch(changeDir('W'));
                 dispatch(setCurrentArrPos(newPosition - 1))
-                dispatch(setInitialDirection(newDir))
-                generateMapResources('W', newPosition, newDir);
+                dispatch(setInitialDirection())
+                generateMapResources('W', newPosition - 1, !iniDir);
             break;
 
             default:
@@ -486,48 +437,42 @@ export const Room = () => {
     //      - correlate movement to placement in map array
 
     const turn = (turnDir:string) => {
-        let newDir: string
-        let setInitialDirectionLocal = () => {
-         switch (currentDir) {
-                case 'N':
-                    newDir = 'S';
-                    break;
-                case 'S':
-                    newDir = 'N';
-                    break;
-                case 'W':
-                    newDir = 'E';
-                    break;
-                case 'E':
-                    newDir = 'W';
-                    break;
-            }    
-            return newDir;
-        } 
-        setInitialDirectionLocal();            
-        setInitialDirection(iniDir);
+        // let newDir: boolean 
+        // let setInitialDirectionLocal = () => {
+        //         newDir = !iniDir
+        //         console.log(newDir,"NEWDIR BOOL")
+        //     } 
+        // setInitialDirectionLocal();            
+        let newMapArr = mapArr.filter(val => val !== 0)
+    console.log(iniDir, newMapArr, mapArr, "INITIAL INIDIR 1", pathTileArr) 
         console.log(pathTileArr[0],pathTileArr[0], '+_+ temp arr 2')
         switch(currentDir){
             case 'N':
-                if(turnDir === 'R'){
+                if(turnDir === 'R') {
+                    console.log(newMapArr, 'new map arr N R')
                     dispatch(changeDir('E'));
-                    if(pathTileArr[0] === 2 || pathTileArr[0] === 1) {
+                    if(pathTileArr[0] !== 3) {
                         if(currentArrPos === 0) {
-                            generateMapResources('E', 0); 
+                console.log(iniDir, "INITIAL INIDIR 2") 
+                            generateMapResources('E', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
                             generateMapResources('E', 0); 
+                console.log(iniDir, "INITIAL INIDIR #") 
                         }
+                        console.log('set current arr pos zero')
                         dispatch(setCurrentArrPos(0))
                     } else {
+                        console.log('set current arr pos zero 2')
                         generateMapResources('E'); 
+    console.log(iniDir, "INITIAL INIDIR 4", pathTileArr) 
                     }
                 }
                 if(turnDir === 'L'){
                     dispatch(changeDir('W'));
-                    if(pathTileArr[0] === 2 || pathTileArr[0] === 1) {
+                    if(pathTileArr[0] !== 3) {
                         if(currentArrPos === 0) {
-                            generateMapResources('W', 0); 
+                            generateMapResources('W', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
                             generateMapResources('W', 0); 
@@ -544,9 +489,9 @@ export const Room = () => {
             case 'S':
                 if(turnDir === 'R') {
                     dispatch(changeDir('W'));
-                    if(pathTileArr[0] === 2 || pathTileArr[0] === 1) {
+                    if(pathTileArr[0] !== 3) {
                         if(currentArrPos === 0) {
-                            generateMapResources('W', 0); 
+                            generateMapResources('W', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
                             generateMapResources('W', 0); 
@@ -558,9 +503,9 @@ export const Room = () => {
                 }
                 if(turnDir === 'L') {
                     dispatch(changeDir('E'));
-                    if(pathTileArr[0] === 2 || pathTileArr[0] === 1) {
+                    if(pathTileArr[0] !== 3) {
                         if(currentArrPos === 0) {
-                            generateMapResources('E', 0); 
+                            generateMapResources('E', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
                             generateMapResources('E', 0); 
@@ -577,9 +522,9 @@ export const Room = () => {
                 if(turnDir === 'R') {
                     dispatch(changeDir('N'));
                     //Vetical regular
-                     if(pathTileArr[0] === 2 || pathTileArr[0] === 1) {
+                     if(pathTileArr[0] !== 3) {
                         if(currentArrPos === 0) {
-                            generateMapResources('N', 0); 
+                            generateMapResources('N', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
                             generateMapResources('N', 0); 
@@ -592,9 +537,9 @@ export const Room = () => {
                 if(turnDir === 'L'){ 
                     dispatch(changeDir('S'));
                     //vertical inverted
-                    if(pathTileArr[0] === 2 || pathTileArr[0] === 1) {
+                    if(pathTileArr[0] !== 3) {
                         if(currentArrPos === 0) {
-                            generateMapResources('S', 0); 
+                            generateMapResources('S', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
                             generateMapResources('S', 0); 
@@ -610,9 +555,9 @@ export const Room = () => {
             case 'E':
                 if(turnDir === 'R') {
                     dispatch(changeDir('S'));
-                    if(pathTileArr[0] === 2 || pathTileArr[0] === 1) {
+                    if(pathTileArr[0] !== 3) {
                         if(currentArrPos === 0) {
-                            generateMapResources('S', 0); 
+                            generateMapResources('S', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
                             generateMapResources('S', 0); 
@@ -624,9 +569,9 @@ export const Room = () => {
                 } 
                 if(turnDir === 'L') {
                     dispatch(changeDir('N'));
-                    if(pathTileArr[0] === 2 || pathTileArr[0] === 1) {
+                    if(pathTileArr[0] !== 3) {
                         if(currentArrPos === 0) {
-                            generateMapResources('N', 0, 'W');
+                            generateMapResources('N', 0, !iniDir);
                             dispatch(setInitialDirection());
                             console.log("NEWDIR OI")
                         } else {
