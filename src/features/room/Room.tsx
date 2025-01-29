@@ -58,13 +58,13 @@ export const Room = () => {
     // At vertical array[2,0 S] -> passes thrrough tile type 2 -> needs to read horizontal array 0(i) positionX
     const dg_map = [
 
-        [0, 0, 2, 1, 1, 1, 1, 2],
-        [0, 0, 1, 0, 0, 0, 0, 1],
-        [0, 0, 1, 0, 0, 0, 0, 1],
-        [0, 0, 1, 0, 0, 0, 0, 1],
-        [0, 0, 1, 0, 0, 0, 0, 1],
-        [0, 0, 1, 0, 0, 0, 0, 1],
-        [0, 0, 2, 1, 1, 1, 1, 2],
+        [0, 0, 2, 1, 1, 1, 2, 0],
+        [0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 2, 1, 1, 1, 2, 0],
         [0, 0, 0, 0, 0, 0, 0, 0]
     ]
 
@@ -445,9 +445,13 @@ export const Room = () => {
         //         console.log(newDir,"NEWDIR BOOL")
         //     } 
         // setInitialDirectionLocal();            
-        let newMapArr = mapArr.filter(val => val !== 0)
-    console.log("PATH TILE 123", pathTileArr[0], currentArrPos) 
-        console.log(pathTileArr[0] === 3, '+_+ temp arr 2')
+        //                     let trueFalseVar = iniDir ?
+        //             pathTileArr[0] !== 3 :
+        //             typeof pathTileArr[0] !== 'undefined';
+        //             console.log(trueFalseVar, 'TRUE FALSE VAR', iniDir, typeof pathTileArr[0])
+        // let newMapArr = mapArr.filter(val => val !== 0)
+    // console.log("PATH TILE 123", pathTileArr[0], currentArrPos) 
+        // console.log(pathTileArr[0] === 3, '+_+ temp arr 2')
         switch(currentDir){
             case 'N':
                 if(turnDir === 'R') {
@@ -462,7 +466,8 @@ export const Room = () => {
                             generateMapResources('E', 0 , !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
-                            if(typeof pathTileArr[0] !== 'undefined') {
+                                // generateMapResources('E', currentArrPos);
+                            if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                 console.log("PATH TILE 123 NR 3", pathTileArr[0], currentArrPos) 
                                 generateMapResources('E', 0); 
                             } else {
@@ -490,7 +495,7 @@ export const Room = () => {
                             generateMapResources('W', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
-                            if(typeof pathTileArr[0] !== 'undefined') {
+                            if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                 console.log("PATH TILE 123 NL 3", pathTileArr[0], currentArrPos) 
                                 generateMapResources('W', 0); 
                             } else {
@@ -522,7 +527,7 @@ export const Room = () => {
                             generateMapResources('W', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
-                            if(typeof pathTileArr[0] !== 'undefined') {
+                            if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                 console.log("PATH TILE 123SR 3", pathTileArr[0]) 
                                 generateMapResources('W', 0); 
                             } else {
@@ -540,18 +545,19 @@ export const Room = () => {
                     }
                 }
                 if(turnDir === 'L') {
-                console.log("PATH TILE 123SL", pathTileArr[0]) 
+                console.log("PATH TILE 123SL", pathTileArr[0], iniDir, typeof pathTileArr[0]) 
                     let trueFalseVar = iniDir ?
                     pathTileArr[0] !== 3 :
                     typeof pathTileArr[0] !== 'undefined';
                     dispatch(changeDir('E'));
                     if(trueFalseVar) {
+                console.log("PATH TILE 123SL001", pathTileArr[0], iniDir, typeof pathTileArr[0]) 
                         if(currentArrPos === 0) {
                             console.log("PATH TILE 123SL 1", pathTileArr[0]) 
                             generateMapResources('E', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
-                            if(typeof pathTileArr[0] !== 'undefined') {
+                            if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                             console.log("PATH TILE 123SL 2", pathTileArr[0], currentArrPos) 
                                 generateMapResources('E', 0); 
                             } else {
@@ -563,7 +569,7 @@ export const Room = () => {
                             dispatch(setCurrentArrPos(0))
                             console.log("PATH TILE 123SL 4", pathTileArr[0]) 
                         }                       
-                    } else if(pathTileArr[0] === 4) {
+                    } else {
                             console.log("PATH TILE 123SL 5", pathTileArr[0]) 
                         generateMapResources('E', currentArrPos); 
                     }
@@ -586,7 +592,7 @@ export const Room = () => {
                             generateMapResources('N', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
-                            if(typeof pathTileArr[0] !== 'undefined') {
+                            if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                 console.log("PATH TILE 123 WR 3", pathTileArr[0], currentArrPos) 
                                 generateMapResources('N', 0); 
                             } else {
@@ -616,7 +622,7 @@ export const Room = () => {
                             generateMapResources('S', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
-                            if(typeof pathTileArr[0] !== 'undefined') {
+                            if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                 console.log("PATH TILE 123 WL 3", pathTileArr[0], currentArrPos) 
                                 generateMapResources('S', 0); 
                             } else {
@@ -638,22 +644,23 @@ export const Room = () => {
             
             case 'E':
                 if(turnDir === 'R') {
-                console.log("PATH TILE 123ER", pathTileArr[0]) 
+                console.log("PATH TILE 123ER", pathTileArr[0], iniDir, typeof pathTileArr[0]) 
                     dispatch(changeDir('S'));
                     let trueFalseVar = iniDir ?
                     pathTileArr[0] !== 3 :
                     typeof pathTileArr[0] !== 'undefined';
 
                     if(trueFalseVar) {
+                            console.log('PATH TILE 123ER 01')
                         if(currentArrPos === 0) {
                             console.log('PATH TILE 123ER 1')
                             generateMapResources('S', 0, !iniDir); 
                             dispatch(setInitialDirection());
                         } else {
-                            if(typeof pathTileArr[0] !== 'undefined') {
+                            if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                             console.log('PATH TILE 123ER 2')
                                 generateMapResources('S', 0); 
-                            } else if(pathTileArr[0] === 4 || pathTileArr[0] === 3) {
+                            } else {
                             console.log('PATH TILE 123ER 3')
                                 generateMapResources('S', currentArrPos);
                             }
@@ -677,7 +684,7 @@ export const Room = () => {
                             generateMapResources('N', 0, !iniDir);
                             dispatch(setInitialDirection());
                         } else {
-                            if(typeof pathTileArr[0] !== 'undefined') {
+                            if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('N', 0); 
                             } else {
                                 generateMapResources('N', currentArrPos);
