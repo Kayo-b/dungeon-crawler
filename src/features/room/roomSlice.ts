@@ -12,18 +12,20 @@ interface RoomState {
     verticalRes?: NodeRequire[];
     horizontalRes?: NodeRequire[];
     currentArrPos: number;
+    lastTurnDir: string;
 }
 
 const roomInitialState: RoomState = {
     currentLvlIndex: 0,
     currentLvl: data.rooms[0].id,
-    initialDirection: true,
+    initialDirection: true, // true = clockwise, false = counter-clockwise
     direction: 'N', // N S W E
     posX: 0,
     posY: 0,
     verticalRes: [],
     horizontalRes: [],
     currentArrPos: 0,
+    lastTurnDir: '',
 }
 // console.log(data.rooms[0].background, "Background");
 const roomSlice = createSlice ({
@@ -58,9 +60,12 @@ const roomSlice = createSlice ({
         },
         setInitialDirection(state) {
             state.initialDirection = !state.initialDirection;
-        }
+        },
+        setLastTurnDir(state, action: PayloadAction<string>) {
+            state.lastTurnDir = action.payload;
+        },
     }
 })
 
-export const { changeRoom, changeDir, changeX, changeY, setCurrentPos, setHorzRes, setVertRes, setCurrentArrPos, setInitialDirection} = roomSlice.actions;
+export const { changeRoom, changeDir, changeX, changeY, setCurrentPos, setHorzRes, setVertRes, setCurrentArrPos, setInitialDirection, setLastTurnDir } = roomSlice.actions;
 export default roomSlice.reducer;
