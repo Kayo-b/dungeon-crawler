@@ -36,9 +36,11 @@ export const Room = () => {
     // 2- take current position of player
     // 3- based on position generate tiles with resources.
     
+    const [localLastTurnDir, setLocalLastTurnDir] = useState<String>();
     const [resources, setRes1] = useState([]);
     const [resources2, setRes2] = useState([]);
     const [mapArray, setMapArray] = useState<Array<number>>();
+    const [currentDirTemp, setCurrentDirTemp] = useState(currentDir);
     // generateMapResources()
     const backtrackArr: Array<NodeRequire> = [];
     const [pathTileArr, setPathTileArray] = useState<NodeRequire[]>(resources);
@@ -58,14 +60,13 @@ export const Room = () => {
     // AT horizontal array[5,0 W] -> passes through tile type 2 -> needs to read vertical array 2(i) positionY 
     // At vertical array[2,0 S] -> passes thrrough tile type 2 -> needs to read horizontal array 0(i) positionX
     const dg_map = [
-
-        [0, 0, 2, 1, 1, 1, 2, 0],
-        [0, 0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 2, 1, 1, 1, 2, 0],
+        [0, 2, 1, 1, 1, 1, 1, 2],
+        [0, 1, 0, 0, 0, 0, 0, 1],
+        [0, 1, 0, 0, 0, 0, 0, 1],
+        [0, 1, 0, 0, 0, 0, 0, 1],
+        [0, 1, 0, 0, 0, 0, 0, 1],
+        [0, 1, 0, 0, 0, 0, 0, 1],
+        [0, 2, 1, 1, 1, 1, 1, 2],
         [0, 0, 0, 0, 0, 0, 0, 0]
     ]
 
@@ -99,15 +100,49 @@ export const Room = () => {
         }
 
         console.log(mapArr, arrayPosition,"TEMP ARR 1 +_+", newPosition, positionY)
-        let test = mapArr.filter(val => val !== 0)
-        setMapArray(test)
+        mapArr = mapArr.filter(val => val !== 0)
+        let mapArrCount = mapArr.filter(val => val !== 1).length;
+        console.log(mapArrCount, 'turndir maparrcount', mapArr)
+        if(mapArr.filter(val => val !== 1).length !== 0) {
+            setMapArray(mapArr);
+            console.log(currentDirLocal, currentDirTemp, 'turndir current dir local')
+            if(currentDirTemp !== currentDirLocal) {
+                switch(currentDirTemp) {
+                    case 'N':
+                        if(currentDirLocal === 'S') {
+                            dispatch(setInitialDirection());
+                        }
+                    break;
+                    case 'S':
+                        if (currentDirLocal === 'N') {
+                            dispatch(setInitialDirection());
+                        }
+                        break;
+                    case 'E':
+                        if (currentDirLocal === 'W') {
+                            dispatch(setInitialDirection());
+                        }
+                        break;
+                    case 'W':
+                        if (currentDirLocal === 'E') {
+                            dispatch(setInitialDirection());
+                        }
+                        break;
+                    default:
+                        break;
+            }
+        }
+            setCurrentDirTemp(currentDirLocal);
+
+            // dispatch(setLastTurnDir(''));
+        }
         console.log('()_+ IIIII currentArrPos', newPosition)
         console.log('()_+ IIIII', currentDirLocal, mapArr, positionX, positionY, arrayPosition)
 
-        for(let i = arrayPosition; i < test.length; i++) {
+        for(let i = arrayPosition; i < mapArr.length; i++) {
             console.log(mapArr,mapArr[i],resources,'resourcesxx')
             console.log(verticalTileArr[positionX][positionY-1], 'limit wall position')
-            switch(test[i]) {
+            switch(mapArr[i]) {
                 case 1:
                     // setRes1([corridorTile, ...resources]);
                     // tempArr.push(corridorTile);
@@ -263,7 +298,6 @@ export const Room = () => {
     }
     
     useEffect(() => {
-        console.log('111222')
         tileArrConstr(dg_map);
     },[])
     const tileArrConstr = (map:Array<number[]>) => {
@@ -296,7 +330,9 @@ export const Room = () => {
         console.log('111222')
         generateMapResources(currentDir, 0);
     },[verticalTileArr])
+    useEffect(() => {
 
+    },[lastTurnDir, localLastTurnDir, currentDir])
     let enemiesVal = Object.values(enemies)
     useEffect(() => {
         console.log('111222')
@@ -329,8 +365,8 @@ export const Room = () => {
         let tempPosX = positionX;
         let tempArrPos = currentArrPos;
         console.log(currentArrPos,"POS 123")
-        console.log("NEWDIR4",iniDir, currentDir)
-        dispatch(setLastTurnDir(''))
+        console.log("turndir inidir currentdir",iniDir, currentDir, mapArray, lastTurnDir)
+        // dispatch(setLastTurnDir(''))
         switch(currentDir) {
             case 'N':
                 tempPosY = positionY - 1;
@@ -440,12 +476,57 @@ export const Room = () => {
     // Todo: 
     //      - track/change position when moving
     //      - correlate movement to placement in map array
+    // const [lastTurnCounter, setLastTurnCounter] = useState<number>(0)
+    // const [currentTurnDir, setCurrentTurnDir] = useState<string>('');
+    // useEffect(() => {
+    //     if(currentTurnDir === lastTurnDir) {
+    //          setLastTurnCounter(prev => prev + 1)
+    //             // setLastTurnCounter(prev => prev + 1);
+    //             // if(lastTurnCounter === 2) {
+    //             //     dispatch(setInitialDirection())
+    //             //     setLastTurnCounter(0)
+    //             // }
+    //                 console.log('turndir use effect() =>', currentTurnDir, lastTurnDir, lastTurnCounter, lastTurnCounter)
+    //             if( lastTurnCounter >= 2) {
+    //                 dispatch(setInitialDirection())
+    //                 console.log('turndir use effect() =>', currentTurnDir, lastTurnDir, lastTurnCounter, lastTurnCounter)
+    //                 setLastTurnCounter(0)
+    //             }
+                
+    //         }
+    //     // const turnCounterFunc = () => {
+    //     //       if(currentTurnDir === lastTurnDir) {
+    //     //         setLastTurnCounter(prev => prev + 1);
+    //     //         if(lastTurnCounter === 2) {
+    //     //             dispatch(setInitialDirection())
+    //     //             setLastTurnCounter(0)
+    //     //         }
+    //     //         console.log('turndir use effect() =>', currentTurnDir, lastTurnDir, lastTurnCounter)
+    //     //     }
+    //     // }
+    //     // turnCounterFunc(); 
+    // }, [currentDir])
+    // useEffect(() => {
+    //     console.log('turndir useeffect() 2', lastTurnCounter)
+    // },[lastTurnCounter])
 
     const turn = (turnDir:string) => {
-        console.log('turndir 1', lastTurnDir)
+        console.log('turndir 1', lastTurnDir, mapArray)
+        // setCurrentTurnDir(turnDir);
         let newPosition
         let newDir: boolean;
-        switch(currentDir){
+        // const turnCounterFunc = () => {
+        //     if(currentTurnDir === lastTurnDir) {
+        //         setLastTurnCounter(prev => prev + 1);
+        //         if(lastTurnCounter === 2) {
+        //             dispatch(setInitialDirection())
+        //         }
+        //         console.log('turndir use effect() =>', currentTurnDir, lastTurnDir, lastTurnCounter)
+        //         lastTurnCounter >= 2 ? setLastTurnCounter(0) : null;
+        //     }
+        // }
+        // turnCounterFunc(); 
+        switch(currentDir) {
             case 'N':
                 if(turnDir === 'R') {
                     dispatch(changeDir('E'));
@@ -460,10 +541,12 @@ export const Room = () => {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('E', 0); 
                             } else {
-                                if(lastTurnDir === turnDir) { 
-                                    console.log('turndir', turnDir, lastTurnDir)
-                                    generateMapResources('E', currentArrPos, !iniDir);
-                                    dispatch(setInitialDirection())
+                                if(mapArray.length > 2) { 
+                                    console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL1")
+
+                                    newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                    generateMapResources('E', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('E', currentArrPos);
                                 }
@@ -489,9 +572,12 @@ export const Room = () => {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('W', 0); 
                             } else {
-                                if(lastTurnDir === turnDir) { console.log('turndir', turnDir, lastTurnDir)
-                                    generateMapResources('W', currentArrPos, !iniDir);
-                                    dispatch(setInitialDirection())
+                                if(mapArray.length > 2) { 
+                                    console.log('turndir NL', iniDir, turnDir, lastTurnDir, "LOL2")
+
+                                    newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                    generateMapResources('W', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('W', currentArrPos);
                                 }
@@ -520,9 +606,12 @@ export const Room = () => {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('W', 0); 
                             } else {
-                                if(lastTurnDir === turnDir) { console.log('turndir', turnDir, lastTurnDir)
-                                    generateMapResources('W', currentArrPos, !iniDir);
-                                    dispatch(setInitialDirection())
+                                if(mapArray.length > 2) { 
+                                    console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL3")
+
+                                    newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                    generateMapResources('W', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('W', currentArrPos);
                                 }
@@ -548,9 +637,12 @@ export const Room = () => {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('E', 0); 
                             } else {
-                                if(lastTurnDir === turnDir) { console.log('turndir', turnDir, lastTurnDir)
-                                    generateMapResources('E', currentArrPos, !iniDir);
-                                    dispatch(setInitialDirection())
+                                if(mapArray.length > 2) { 
+                                    console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL4")
+
+                                    newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                    generateMapResources('E', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('E', currentArrPos);
                                 }
@@ -580,9 +672,12 @@ export const Room = () => {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('N', 0); 
                             } else {
-                                if(lastTurnDir === turnDir) { console.log('turndir', turnDir, lastTurnDir)
-                                    generateMapResources('N', currentArrPos, !iniDir);
-                                    dispatch(setInitialDirection())
+                                if(mapArray.length > 2) { 
+                                    console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL5")
+
+                                    newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                    generateMapResources('N', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('N', currentArrPos);
                                 }
@@ -608,9 +703,12 @@ export const Room = () => {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('S', 0); 
                             } else {
-                                if(lastTurnDir === turnDir) { console.log('turndir', turnDir, lastTurnDir)
-                                    generateMapResources('S', currentArrPos, !iniDir);
-                                    dispatch(setInitialDirection())
+                                if(mapArray.length > 2) { 
+                                    console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL6")
+
+                                    newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                    generateMapResources('S', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('S', currentArrPos);
                                 }
@@ -641,9 +739,12 @@ export const Room = () => {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('S', 0); 
                             } else {
-                                if(lastTurnDir === turnDir) { console.log('turndir', turnDir, lastTurnDir)
-                                    generateMapResources('S', currentArrPos, !iniDir);
-                                    dispatch(setInitialDirection())
+                                if(mapArray.length > 2) { 
+                                    console.log('turndir', iniDir, turnDir, lastTurnDir, mapArray, currentArrPos, 'LOL7')
+
+                                    newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                    generateMapResources('S', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('S', currentArrPos);
                                 }
@@ -670,9 +771,12 @@ export const Room = () => {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('N', 0); 
                             } else {
-                                if(lastTurnDir === turnDir) { console.log('turndir', turnDir, lastTurnDir)
-                                    generateMapResources('N', currentArrPos, !iniDir);
-                                    dispatch(setInitialDirection())
+                                if(mapArray.length > 2) { 
+                                    console.log('turndir', iniDir, turnDir, lastTurnDir, mapArray, currentArrPos, 'LOL8')
+
+                                    newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                    generateMapResources('N', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('N', currentArrPos);
                                 }
@@ -694,7 +798,8 @@ export const Room = () => {
             }
             
         dispatch(setLastTurnDir(turnDir));
-       console.log(currentDir, "direction");
+        setLocalLastTurnDir(turnDir);
+       console.log(currentDir, "turndir", turnDir);
     }
     return (
         <View style={styles.backgroundImage}>
