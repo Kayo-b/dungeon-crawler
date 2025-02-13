@@ -1,5 +1,5 @@
 import { setStatusBarNetworkActivityIndicatorVisible, StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, ImageBackground, TouchableOpacity, Touchable } from 'react-native';
+import { StyleSheet, Text, View, Button, Platform, ImageBackground, TouchableOpacity, Touchable } from 'react-native';
 import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
@@ -7,7 +7,7 @@ import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
 import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, setInitialDirection, setLastTurnDir } from '../../features/room/roomSlice';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useDebugValue, useEffect, useState } from 'react';
 import { useCombat } from '../../events/combat'
 import { current } from '@reduxjs/toolkit';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
@@ -71,7 +71,7 @@ export const Room = () => {
     ]
 
     let mapArr = [];
-    const generateMapResources = (currentDirLocal:String, newPosition: number, newDir: boolean) => {
+    const generateMapResources = (currentDirLocal:String, newPosition: number, newDir: boolean, isReverse: boolean) => {
         console.log('WALL CHECK VERTICAL ! ', newPosition)
         // console.log(arrayReverse,'()_+ array reverse')
         let tempArr = [];
@@ -80,7 +80,6 @@ export const Room = () => {
         let arrayPosition;
         console.log(newDir,'NEWDIR 2', iniDir)
         newDir = newDir !== undefined ? newDir : iniDir; 
-
         if(currentDirLocal === "N" || currentDirLocal === "S") {
             mapArr = verticalTileArr[positionX];
             console.log(verticalTileArr, positionX, 'TEMP ARR 1 +_+')
@@ -106,26 +105,31 @@ export const Room = () => {
         if(mapArr.filter(val => val !== 1).length !== 0) {
             setMapArray(mapArr);
             console.log(currentDirLocal, currentDirTemp, 'turndir current dir local')
-            if(currentDirTemp !== currentDirLocal) {
+            if(currentDirTemp !== currentDirLocal && isReverse === undefined) {
+                console.log("LOL GENERATE")
                 switch(currentDirTemp) {
                     case 'N':
                         if(currentDirLocal === 'S') {
                             dispatch(setInitialDirection());
+                            newDir = !iniDir;
                         }
                     break;
                     case 'S':
                         if (currentDirLocal === 'N') {
                             dispatch(setInitialDirection());
+                            newDir = !iniDir;
                         }
                         break;
                     case 'E':
                         if (currentDirLocal === 'W') {
                             dispatch(setInitialDirection());
+                            newDir = !iniDir;
                         }
                         break;
                     case 'W':
                         if (currentDirLocal === 'E') {
                             dispatch(setInitialDirection());
+                            newDir = !iniDir;
                         }
                         break;
                     default:
@@ -361,6 +365,7 @@ export const Room = () => {
     const forward = () => {
         // setBacktrack([...backtrack, pathTileArr[0]]);
         // setPathTileArray(pathTileArr.slice(1));
+        console.log('TIMEOUT2')
         let tempPosY = positionY; 
         let tempPosX = positionX;
         let tempArrPos = currentArrPos;
@@ -398,6 +403,7 @@ export const Room = () => {
     }
 
     const reverse = () => {
+        console.log('turndir 1 reverse', mapArray?.length, currentArrPos)
         // setBacktrack([...backtrack, pathTileArr[0]]);
         // let backtrackRev = backtrack.reverse();
         // console.log(backtrack,"BACKTRACK <<<<<<<<<< ")
@@ -412,17 +418,17 @@ export const Room = () => {
         //     newDir = !iniDir
         // } 
         // setInitialDirectionLocal();
-        console.log('NEWDIR 3', newDir)
-        console.log('POS 123 4', currentArrPos)
-        console.log(mapArray.length, currentArrPos, "CUR PATH TILE")
-        dispatch(setLastTurnDir(''))
+        // console.log('NEWDIR 3', newDir)
+        // console.log('POS 123 4', currentArrPos)
+        // console.log(mapArray.length, currentArrPos, "CUR PATH TILE")
+        // dispatch(setLastTurnDir(''))
         switch(currentDir){
             case 'N':
                 newPosition = mapArray?.length - currentArrPos;
                 dispatch(changeDir('S'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 dispatch(setInitialDirection())
-                generateMapResources('S', newPosition-1, !iniDir);
+                generateMapResources('S', newPosition-1, !iniDir, true);
             break;
             
             case 'S':
@@ -430,7 +436,7 @@ export const Room = () => {
                 dispatch(changeDir('N'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 dispatch(setInitialDirection())
-                generateMapResources('N', newPosition - 1, !iniDir);
+                generateMapResources('N', newPosition - 1, !iniDir, true);
             break;
 
             case 'W':
@@ -438,15 +444,15 @@ export const Room = () => {
                 dispatch(changeDir('E'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 dispatch(setInitialDirection())
-                generateMapResources('E', newPosition - 1, !iniDir);
+                generateMapResources('E', newPosition - 1, !iniDir, true);
             break;
             
             case 'E':
-                newPosition = mapArray?.length- currentArrPos;
+                newPosition = mapArray?.length - currentArrPos;
                 dispatch(changeDir('W'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 dispatch(setInitialDirection())
-                generateMapResources('W', newPosition - 1, !iniDir);
+                generateMapResources('W', newPosition - 1, !iniDir, true);
             break;
 
             default:
@@ -511,7 +517,9 @@ export const Room = () => {
     // },[lastTurnCounter])
 
     const turn = (turnDir:string) => {
-        console.log('turndir 1', lastTurnDir, mapArray)
+        console.log('turndir 1 reverse 2', mapArray?.length, currentArrPos)
+        console.log('LOL BASE', currentDir, turnDir)
+        // console.log('turndir 1', lastTurnDir, mapArray, mapArray?.length, currentArrPos)
         // setCurrentTurnDir(turnDir);
         let newPosition
         let newDir: boolean;
@@ -543,7 +551,7 @@ export const Room = () => {
                             } else {
                                 if(mapArray.length > 2) { 
                                     console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL1")
-
+                                     //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
                                     newPosition = mapArray.length - currentArrPos;
                                     dispatch(setCurrentArrPos(newPosition - 1))
                                     generateMapResources('E', newPosition - 1, !iniDir);
@@ -556,7 +564,15 @@ export const Room = () => {
                             dispatch(setCurrentArrPos(0))
                         }                    
                     } else {
-                        generateMapResources('E', currentArrPos); 
+                        if(mapArray.length > 100) { 
+                            console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL1.1")
+                             //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                            newPosition = mapArray.length - currentArrPos;
+                            dispatch(setCurrentArrPos(newPosition - 1))
+                            generateMapResources('E', newPosition - 1, !iniDir);
+                        } else {
+                            generateMapResources('E', currentArrPos);
+                        }; 
                     }
                 }
                 if(turnDir === 'L'){
@@ -575,7 +591,8 @@ export const Room = () => {
                                 if(mapArray.length > 2) { 
                                     console.log('turndir NL', iniDir, turnDir, lastTurnDir, "LOL2")
 
-                                    newPosition = mapArray.length - currentArrPos;
+                                     //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                                   newPosition = mapArray.length - currentArrPos;
                                     dispatch(setCurrentArrPos(newPosition - 1))
                                     generateMapResources('W', newPosition - 1, !iniDir);
                                 } else {
@@ -587,17 +604,26 @@ export const Room = () => {
                             dispatch(setCurrentArrPos(0))
                         }
                     } else {
-                        generateMapResources('W', currentArrPos); 
+                        if(mapArray.length > 100) { 
+                            console.log('turndir NL', iniDir, turnDir, lastTurnDir, "LOL2.2")
+
+                             //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                           newPosition = mapArray.length - currentArrPos;
+                            dispatch(setCurrentArrPos(newPosition - 1))
+                            generateMapResources('W', newPosition - 1, !iniDir);
+                        } else {
+                            generateMapResources('W', currentArrPos);
+                        }
                     }
                 } 
             break;
             
             case 'S':
                 if(turnDir === 'R') {
+                    dispatch(changeDir('W'));
                     let trueFalseVar = iniDir ?
                     pathTileArr[0] !== 3 :
                     typeof pathTileArr[0] !== 'undefined';
-                    dispatch(changeDir('W'));
                     if(trueFalseVar) {  
                         if(currentArrPos === 0) {
                             generateMapResources('W', 0, !iniDir); 
@@ -609,7 +635,8 @@ export const Room = () => {
                                 if(mapArray.length > 2) { 
                                     console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL3")
 
-                                    newPosition = mapArray.length - currentArrPos;
+                                     //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                                   newPosition = mapArray.length - currentArrPos;
                                     dispatch(setCurrentArrPos(newPosition - 1))
                                     generateMapResources('W', newPosition - 1, !iniDir);
                                 } else {
@@ -621,14 +648,23 @@ export const Room = () => {
                             dispatch(setCurrentArrPos(0))
                         }
                     } else {
-                        generateMapResources('W', currentArrPos); 
+                        if(mapArray.length > 100) { 
+                            console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL3.3")
+
+                             //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                           newPosition = mapArray.length - currentArrPos;
+                            dispatch(setCurrentArrPos(newPosition - 1))
+                            generateMapResources('W', newPosition - 1, !iniDir);
+                        } else {
+                            generateMapResources('W', currentArrPos);
+                        }
                     }
                 }
                 if(turnDir === 'L') {
+                    dispatch(changeDir('E'));
                     let trueFalseVar = iniDir ?
                     pathTileArr[0] !== 3 :
                     typeof pathTileArr[0] !== 'undefined';
-                    dispatch(changeDir('E'));
                     if(trueFalseVar) {
                         if(currentArrPos === 0) {
                             generateMapResources('E', 0, !iniDir); 
@@ -640,9 +676,11 @@ export const Room = () => {
                                 if(mapArray.length > 2) { 
                                     console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL4")
 
-                                    newPosition = mapArray.length - currentArrPos;
-                                    dispatch(setCurrentArrPos(newPosition - 1))
-                                    generateMapResources('E', newPosition - 1, !iniDir);
+                                     //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                                   // newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos;
+                                   newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1)) 
+                                    generateMapResources('E', newPosition - 1);
                                 } else {
                                     generateMapResources('E', currentArrPos);
                                 }
@@ -652,7 +690,17 @@ export const Room = () => {
                             dispatch(setCurrentArrPos(0))
                         }                       
                     } else {
-                        generateMapResources('E', currentArrPos); 
+                        if(mapArray.length > 100) { 
+                            console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL4.4")
+
+                             //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                           // newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos;
+                           newPosition = mapArray.length - currentArrPos;
+                            dispatch(setCurrentArrPos(newPosition - 1)) 
+                            generateMapResources('E', newPosition - 1, !iniDir);
+                        } else {
+                            generateMapResources('E', currentArrPos);
+                        }
                     }
                 } 
                 setBacktrack([])
@@ -676,6 +724,8 @@ export const Room = () => {
                                     console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL5")
 
                                     newPosition = mapArray.length - currentArrPos;
+                                    //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+
                                     dispatch(setCurrentArrPos(newPosition - 1))
                                     generateMapResources('N', newPosition - 1, !iniDir);
                                 } else {
@@ -687,7 +737,17 @@ export const Room = () => {
                             dispatch(setCurrentArrPos(0))
                         }
                     } else {
-                        generateMapResources('N', currentArrPos); 
+                        if(mapArray.length > 100) { 
+                            console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL5.5")
+
+                            newPosition = mapArray.length - currentArrPos;
+                            //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+
+                            dispatch(setCurrentArrPos(newPosition - 1))
+                            generateMapResources('N', newPosition - 1, !iniDir);
+                        } else {
+                            generateMapResources('N', currentArrPos);
+                        } 
                     }               
                 } 
                 if(turnDir === 'L') { 
@@ -695,31 +755,66 @@ export const Room = () => {
                     let trueFalseVar = iniDir ?
                     pathTileArr[0] !== 3 :
                     typeof pathTileArr[0] !== 'undefined';
+                    // let trueFalseVar = true
+                    console.log(iniDir, pathTileArr[0] !== 3, typeof pathTileArr[0] !== 'undefined', 'LOLTEST')
                     if(trueFalseVar) {
                         if(currentArrPos === 0) {
                             generateMapResources('S', 0, !iniDir); 
                             dispatch(setInitialDirection());
+                                console.log('LOL6.2')
                         } else {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('S', 0); 
+                                console.log('LOL6.1')
                             } else {
                                 if(mapArray.length > 2) { 
                                     console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL6")
-
-                                    newPosition = mapArray.length - currentArrPos;
-                                    dispatch(setCurrentArrPos(newPosition - 1))
+                                     //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                                   newPosition = mapArray.length - currentArrPos;
+                                    dispatch(setCurrentArrPos(newPosition - 1));
                                     generateMapResources('S', newPosition - 1, !iniDir);
                                 } else {
+                                console.log('LOL6.3!', mapArray.length)
                                     generateMapResources('S', currentArrPos);
                                 }
                             } 
                         }
                         if(pathTileArr[0] === 1 || pathTileArr[0] === 2) {
-                            dispatch(setCurrentArrPos(0))
+                            dispatch(setCurrentArrPos(0));
+                                console.log('LOL6.4')
                         }                    
                     
                     } else {
-                        generateMapResources('S', currentArrPos); 
+                         generateMapResources('S', currentArrPos);
+                                                         console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL6.6?")
+
+                            // if(mapArray[currentArrPos + 2] === undefined || mapArray[currentArrPos - 2] === undefined) { 
+                            //     console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL6.6?")
+                            //     //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                            // newPosition = mapArray.length - currentArrPos;
+                            //     dispatch(setCurrentArrPos(newPosition - 1));
+                            //     generateMapResources('S', newPosition - 1, !iniDir);
+                            // } else {
+                            // console.log('LOL6.3?', currentArrPos)
+                            //     generateMapResources('S', currentArrPos);
+                            // }
+                        // if(currentArrPos === 5) {
+                        //     if(mapArray[currentArrPos + 2] === undefined || mapArray[currentArrPos - 2] === undefined) { 
+                        //         console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL6.6?")
+                        //         //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                        //     newPosition = mapArray.length - currentArrPos;
+                        //         dispatch(setCurrentArrPos(newPosition - 1));
+                        //         generateMapResources('S', newPosition - 1, !iniDir);
+                        //     } else {
+                        //     console.log('LOL6.3?', currentArrPos)
+                        //         generateMapResources('S', currentArrPos);
+                        //     }
+
+                        // } else {
+
+                        //     console.log('LOL NO')
+                        // }
+
                     }
                 }
                 setBacktrack([])
@@ -735,26 +830,41 @@ export const Room = () => {
                         if(currentArrPos === 0) {
                             generateMapResources('S', 0, !iniDir); 
                             dispatch(setInitialDirection());
+                                console.log('LOL7.2')
                         } else {
                             if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                                 generateMapResources('S', 0); 
+                                console.log('LOL7.1')
                             } else {
                                 if(mapArray.length > 2) { 
                                     console.log('turndir', iniDir, turnDir, lastTurnDir, mapArray, currentArrPos, 'LOL7')
 
-                                    newPosition = mapArray.length - currentArrPos;
+                                     //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                                   newPosition = mapArray.length - currentArrPos;
                                     dispatch(setCurrentArrPos(newPosition - 1))
                                     generateMapResources('S', newPosition - 1, !iniDir);
                                 } else {
                                     generateMapResources('S', currentArrPos);
+                                console.log('LOL7.3')
                                 }
                             }
                         }
                         if(pathTileArr[0] === 1 || pathTileArr[0] === 2) {
                             dispatch(setCurrentArrPos(0))
+                                console.log('LOL7.4')
                         }                    
                     } else {
-                        generateMapResources('S', currentArrPos); 
+                        if(mapArray.length > 100) { 
+                            console.log('turndir', iniDir, turnDir, lastTurnDir, mapArray, currentArrPos, 'LOL7.7')
+
+                             //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                           newPosition = mapArray.length - currentArrPos;
+                            dispatch(setCurrentArrPos(newPosition - 1))
+                            generateMapResources('S', newPosition - 1, !iniDir);
+                        } else {
+                            generateMapResources('S', currentArrPos);
+                        console.log('LOL7.3')
+                        }
                     }
                 } 
                 if(turnDir === 'L') {
@@ -774,7 +884,8 @@ export const Room = () => {
                                 if(mapArray.length > 2) { 
                                     console.log('turndir', iniDir, turnDir, lastTurnDir, mapArray, currentArrPos, 'LOL8')
 
-                                    newPosition = mapArray.length - currentArrPos;
+                                     //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                                   newPosition = mapArray.length - currentArrPos;
                                     dispatch(setCurrentArrPos(newPosition - 1))
                                     generateMapResources('N', newPosition - 1, !iniDir);
                                 } else {
@@ -786,31 +897,70 @@ export const Room = () => {
                             dispatch(setCurrentArrPos(0))
                         }
                        } else {
-                        generateMapResources('N', currentArrPos);
+                        if(mapArray.length > 100) { 
+                            console.log('turndir', iniDir, turnDir, lastTurnDir, mapArray, currentArrPos, 'LOL8.8')
+
+                             //newPosition = currentArrPos !== 1 ? mapArray.length - currentArrPos : currentArrPos + 1;
+                           newPosition = mapArray.length - currentArrPos;
+                            dispatch(setCurrentArrPos(newPosition - 1))
+                            generateMapResources('N', newPosition - 1, !iniDir);
+                        } else {
+                            generateMapResources('N', currentArrPos);
+                        }
                     }
                 }
                 setBacktrack([])
             break;
             default:
                 console.log(
-                    "DEFAULT"
+                    "LOL DEFAULT"
                 )
             }
             
         dispatch(setLastTurnDir(turnDir));
         setLocalLastTurnDir(turnDir);
        console.log(currentDir, "turndir", turnDir);
-    }
+    }  
+    
+    const handleKeyPress = useCallback((event: KeyboardEvent) => {
+        switch (event.key.toLowerCase()) {
+            case 'w':
+            case 'arrowup':
+            forward();
+            break;
+            case 's':
+            case 'arrowdown':
+            reverse();
+            break;
+            case 'a':
+            case 'arrowleft':
+            turn('L');
+            break;
+            case 'd':
+            case 'arrowright':
+            turn('R');
+            break;
+            default:
+            break;
+        }
+    }, [forward, reverse, turn]);
+
+    useEffect(() => {
+        if (Platform.OS === 'web') {
+            document.addEventListener('keydown', handleKeyPress);
+            return () => document.removeEventListener('keydown', handleKeyPress);
+        }
+    }, [handleKeyPress]); 
     return (
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
-            onPress={ () => forward() }>
+            onPress={forward}>
                <Text>Move ↑</Text> 
             </TouchableOpacity>
             <TouchableOpacity 
             style={{...styles.button, opacity: 1}} 
-            onPress={ () => reverse() }>
+            onPress={reverse}>
                <Text>Move ↓</Text> 
             </TouchableOpacity>
             <TouchableOpacity 
