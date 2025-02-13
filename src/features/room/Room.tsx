@@ -580,6 +580,7 @@ export const Room = () => {
                     let trueFalseVar = iniDir ?
                     pathTileArr[0] !== 3 :
                     typeof pathTileArr[0] !== 'undefined';
+                    console.log(iniDir, pathTileArr[0], typeof pathTileArr[0], 'LOL N L', trueFalseVar)
                     if(trueFalseVar) {
                         if(currentArrPos === 0) {
                             generateMapResources('W', 0, !iniDir); 
@@ -665,6 +666,7 @@ export const Room = () => {
                     let trueFalseVar = iniDir ?
                     pathTileArr[0] !== 3 :
                     typeof pathTileArr[0] !== 'undefined';
+                    console.log(iniDir, pathTileArr[0], typeof pathTileArr[0], 'LOL L', trueFalseVar)
                     if(trueFalseVar) {
                         if(currentArrPos === 0) {
                             generateMapResources('E', 0, !iniDir); 
@@ -786,7 +788,7 @@ export const Room = () => {
                     
                     } else {
                          generateMapResources('S', currentArrPos);
-                                                         console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL6.6?")
+                        console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL6.6?")
 
                             // if(mapArray[currentArrPos + 2] === undefined || mapArray[currentArrPos - 2] === undefined) { 
                             //     console.log('turndir', iniDir, turnDir, lastTurnDir, "LOL6.6?")
