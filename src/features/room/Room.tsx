@@ -502,7 +502,6 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
   let newPosition;
   
   switch(currentDir) {
-    // When facing North
     case 'N':
       if (turnDirection === 'R') {
         newDirection = 'E';
@@ -511,7 +510,6 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
       }
       break;
     
-    // When facing South
     case 'S':
       if (turnDirection === 'R') {
         newDirection = 'W';
@@ -520,7 +518,6 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
       }
       break;
     
-    // When facing East
     case 'E':
       if (turnDirection === 'R') {
         newDirection = 'S';
@@ -529,7 +526,6 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
       }
       break;
     
-    // When facing West
     case 'W':
       if (turnDirection === 'R') {
         newDirection = 'N';
@@ -562,10 +558,15 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
                 generateMapResources(newDirection, newPosition - 1);
                 console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 0 x') 
             } else {
-                generateMapResources(newDirection, currentArrPos);
-                console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 1 x') 
+                if(positionX === 1) {
+                    dispatch(changeDir(newDirection));
+                    dispatch(setCurrentArrPos(newPosition - 1));
+                    generateMapResources(newDirection, newPosition - 1);
+                } else {
+                    generateMapResources(newDirection, currentArrPos);
+                    console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 1 x') 
+                }
             }
-
         }
     } else {
         if(positionY !== 1) {
@@ -580,8 +581,14 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
                 generateMapResources(newDirection, newPosition - 1);
                 console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 0 y') 
             } else {
-                generateMapResources(newDirection, currentArrPos);
-                console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 1 y') 
+                if(positionY === 1) {
+                    dispatch(changeDir(newDirection));
+                    dispatch(setCurrentArrPos(newPosition - 1));
+                    generateMapResources(newDirection, newPosition - 1);
+                } else {
+                    generateMapResources(newDirection, currentArrPos);
+                    console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 1 y') 
+                }
             }
         }
     }
@@ -645,6 +652,7 @@ const turn = (turnDir:string) => {
                 } else {
                     console.log('LOL N R FINAL ELSE')
                     handleTurn(currentDir, lastTurnDir, turnDir)
+                    console.log('here!')
                 }
                 console.log('N R END')
             }
@@ -673,6 +681,7 @@ const turn = (turnDir:string) => {
                     }
                 } else {
                     handleTurn(currentDir, lastTurnDir, turnDir);
+                    console.log('here!')
                 }
             } 
         break;
