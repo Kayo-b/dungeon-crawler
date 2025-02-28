@@ -16,7 +16,7 @@ export const MainScreen = () => {
     // const count = useAppSelector(state => state.counter.value); // Select the current count
         dispatch(fetchEnemies())
         dispatch(addEnemy({index:0, id:0}))
-        dispatch(setCurrentPos([1,6]))
+        dispatch(setCurrentPos([7,7]))
     return (
         <View style={styles.mainScreen}>
             <Room/>

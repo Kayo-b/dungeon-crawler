@@ -18,7 +18,7 @@ interface RoomState {
 const roomInitialState: RoomState = {
     currentLvlIndex: 0,
     currentLvl: data.rooms[0].id,
-    initialDirection: true, // true = clockwise, false = counter-clockwise
+    initialDirection: false, // true = clockwise, false = counter-clockwise
     direction: 'N', // N S W E
     posX: 0,
     posY: 0,
