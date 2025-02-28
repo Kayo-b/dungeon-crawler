@@ -60,14 +60,14 @@ export const Room = () => {
     // AT horizontal array[5,0 W] -> passes through tile type 2 -> needs to read vertical array 2(i) positionY 
     // At vertical array[2,0 S] -> passes thrrough tile type 2 -> needs to read horizontal array 0(i) positionX
     const dg_map = [
-        [2, 1, 1, 1, 1, 1, 1, 2],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [2, 1, 1, 1, 1, 1, 1, 2]
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 2, 1, 1, 1, 1, 2, 0],
+        [0, 1, 0, 0, 0, 0, 1, 0],
+        [0, 1, 0, 0, 0, 0, 1, 0],
+        [0, 1, 0, 0, 0, 0, 1, 0],
+        [0, 1, 0, 0, 0, 0, 1, 0],
+        [0, 2, 1, 1, 1, 1, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
     ]
 
     let mapArr = [];
@@ -76,7 +76,7 @@ export const Room = () => {
         // console.log(arrayReverse,'()_+ array reverse')
         let tempArr = [];
         let tempArrTiles = []
-        let facingWall = false;
+        // let facingWall = false;
         let arrayPosition;
         console.log(newDir,'NEWDIR 2', iniDir)
         newDir = newDir !== undefined ? newDir : iniDir; 
@@ -94,10 +94,11 @@ export const Room = () => {
         }
 
         console.log(mapArr, arrayPosition,"TEMP ARR 1 +_+", newPosition, positionY)
+        let tempArray = [...mapArr]
         mapArr = mapArr.filter(val => val !== 0)
         let mapArrCount = mapArr.filter(val => val !== 1).length;
-        console.log(mapArrCount, 'turndir maparrcount', mapArr)
-        if(mapArr.filter(val => val !== 1).length !== 0) {
+        console.log(mapArrCount, 'turndir maparrcount', mapArr);
+        if(mapArr.filter(val => val !== 1).filter(val => val !== 0).length !== 0) {
             setMapArray(mapArr);
             console.log(currentDirLocal, currentDirTemp, 'turndir current dir local')
             if(currentDirTemp !== currentDirLocal && isReverse === undefined) {
@@ -136,53 +137,63 @@ export const Room = () => {
         }
         console.log('()_+ IIIII currentArrPos', newPosition)
         console.log('()_+ IIIII', currentDirLocal, mapArr, positionX, positionY, arrayPosition)
-
-        for(let i = arrayPosition; i < mapArr.length; i++) {
-            console.log(mapArr,mapArr[i],resources,'resourcesxx')
-            console.log(verticalTileArr[positionX][positionY-1], 'limit wall position')
+        let undefCount = 0;
+        console.log('wallcheck arrays', mapArr, tempArray, arrayPosition)
+        for(let i = arrayPosition; i < tempArray.length; i++) {
+            console.log(mapArr,mapArr[i],resources,'resourcesxx');
+            console.log('wallcheck trigger', mapArr[i], arrayPosition);
             switch(mapArr[i]) {
                 case 1:
                     switch(currentDirLocal) {
                         case 'N':
                             if(verticalTileArr[positionX][positionY-1] === 0 ||
                                 verticalTileArr[positionX][positionY-1] === undefined) {
-                                facingWall = true;
-                                tempArr.push(facingWallTile);
-                                tempArrTiles.push(facingWallTile); 
+                                // facingWall = true;
+                                // tempArr.push(facingWallTile);
+                                // tempArrTiles.push(facingWallTile); 
                             } else {
                                 tempArr.push(corridorTile);
                                 tempArrTiles.push(corridorTile);
                             } 
+                            console.log('wallcheck dir N', mapArr)
                         break;
                         case 'S':
-                            if(verticalTileArr[positionX][positionY+1] === 0) {
-                                facingWall = true;
-                                tempArr.push(facingWallTile);
-                                tempArrTiles.push(facingWallTile);
+                            if(verticalTileArr[positionX][positionY+1] === 0 ||
+                                verticalTileArr[positionX][positionY+1] === undefined) {
+                                // facingWall = true;
+                                // tempArr.push(facingWallTile);
+                                // tempArrTiles.push(facingWallTile);
                             } else {
                                 tempArr.push(corridorTile);
                                 tempArrTiles.push(corridorTile);
                             }
+                            console.log('wallcheck dir S', mapArr)
                         break;
                         case 'E':
-                            if(dg_map[positionY][positionX+1] === 0) {
-                                facingWall = true;
-                                tempArr.push(facingWallTile);
-                                tempArrTiles.push(facingWallTile);
+                            if(dg_map[positionY][positionX+1] === 0 ||
+                                dg_map[positionY][positionX+1] === undefined
+                            ) {
+                                // facingWall = true;
+                                // tempArr.push(facingWallTile);
+                                // tempArrTiles.push(facingWallTile);
                             } else {
                                 tempArr.push(corridorTile);
                                 tempArrTiles.push(corridorTile);
                             }
+                            console.log('wallcheck dir E', mapArr)
                         break;
                         default:
-                            if(dg_map[positionY][positionX-1] === 0) {
-                                facingWall = true;
-                                tempArr.push(facingWallTile);
-                                tempArrTiles.push(facingWallTile);
+                            if(dg_map[positionY][positionX-1] === 0 || 
+                                dg_map[positionY][positionX-1] === undefined
+                            ) {
+                                // facingWall = true;
+                                // tempArr.push(facingWallTile);
+                                // tempArrTiles.push(facingWallTile);
                             } else {
                                 tempArr.push(corridorTile);
                                 tempArrTiles.push(corridorTile);
                             }
+                            console.log('wallcheck dir W', mapArr[i])
                         break;
                     }
                 break;
@@ -194,7 +205,7 @@ export const Room = () => {
                             nextTileOfPerpAxis = dg_map[i][positionX+1];
                             console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse', iniDir)
                             if(nextTileOfPerpAxis === 1) {
-                                    console.log(newDir,"NEWDIR RRRRR 1")
+                                console.log(newDir,"NEWDIR RRRRR 1")
                                 console.log('()_+ RIGHT')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
@@ -271,19 +282,62 @@ export const Room = () => {
                             }
                         break;
                         default:
+                           
+                    }
+                case undefined:
+                    if(undefCount < 1) {
+                    switch(currentDirLocal) {
+                        case 'N':
+                            if(verticalTileArr[positionX][positionY-1] === 0) {
+                                // facingWall = true;
+                                tempArr.push(facingWallTile);
+                                tempArrTiles.push(facingWallTile); 
+                            } 
+                            undefCount++
+                            console.log('wallcheck dir N', mapArr)
+                        break;
+                        case 'S':
+                            if(verticalTileArr[positionX][positionY+1] === 0) {
+                                // facingWall = true;
+                                tempArr.push(facingWallTile);
+                                tempArrTiles.push(facingWallTile);
+                            } 
+                            undefCount++
+                            console.log('wallcheck dir S', mapArr)
+                        break;
+                        case 'E':
+                            if(dg_map[positionY][positionX+1] === 0) {
+                                // facingWall = true;
+                                tempArr.push(facingWallTile);
+                                tempArrTiles.push(facingWallTile);
+                            } 
+                            undefCount++
+                            console.log('wallcheck dir E', mapArr)
+                        break;
+                        default:
+                            if(dg_map[positionY][positionX-1] === 0) {
+                                // facingWall = true;
+                                tempArr.push(facingWallTile);
+                                tempArrTiles.push(facingWallTile);
+                            }
+                            undefCount++
+                            console.log('wallcheck dir W', mapArr[i])
+                        break;
+                    }
+
                     }
                break;
                 default:
-                    tempArr.push('');
+                   tempArr.push('');
             }
             console.log('()_+ IIIII',tempArr)
         }
         setVertRes(tempArr)
         setPathTileArray(tempArr.filter(val => val != ''))
-        console.log('LOL ()_+ IIIII >>>>>>', pathTileArr, tempArr)
+        console.log('wallcheck 2', pathTileArr, tempArr)
         console.log(tempArr, tempArr.filter(val => val != ''), tempArrTiles.length, "TEMP!@")
         console.log(tempArr.length, tempArrTiles.length,"TEMP ARR")
-        console.log(verticalResources,"TEMP ARR 3")
+        console.log(verticalResources,"TEMP ARR 3");
     }
     
     useEffect(() => {
@@ -383,24 +437,9 @@ export const Room = () => {
 
     const reverse = () => {
         console.log('turndir 1 reverse', mapArray?.length, currentArrPos)
-        // setBacktrack([...backtrack, pathTileArr[0]]);
-        // let backtrackRev = backtrack.reverse();
-        // console.log(backtrack,"BACKTRACK <<<<<<<<<< ")
-        // let positionTemp = pathTileArr.reverse();
-        // setPathTileArray(backtrackRev);
-      facingWallTile  // setBacktrack(positionTemp);
-        // setPathTileArray(position.slice(1));
-        // setBacktrack([])
+    //   facingWallTile  // setBacktrack(positionTemp);
         let newPosition
         let newDir: boolean;
-        // let setInitialDirectionLocal = () => {
-        //     newDir = !iniDir
-        // } 
-        // setInitialDirectionLocal();
-        // console.log('NEWDIR 3', newDir)
-        // console.log('POS 123 4', currentArrPos)
-        // console.log(mapArray.length, currentArrPos, "CUR PATH TILE")
-        // dispatch(setLastTurnDir(''))
         switch(currentDir){
             case 'N':
                 newPosition = mapArray?.length - currentArrPos;
@@ -857,6 +896,7 @@ const turn = (turnDir:string) => {
         dispatch(setLastTurnDir(''))
     }
    console.log(currentDir, "turndir", turnDir);
+   console.log('wallcheck', pathTileArr)
 }
 
     useEffect(() => {
