@@ -59,15 +59,25 @@ export const Room = () => {
     // direction E && perpendicular axis index + 1 === 1 -> Right TURN -ELSE- LEFT
     // AT horizontal array[5,0 W] -> passes through tile type 2 -> needs to read vertical array 2(i) positionY 
     // At vertical array[2,0 S] -> passes thrrough tile type 2 -> needs to read horizontal array 0(i) positionX
-    const dg_map = [
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 2, 1, 1, 1, 1, 2, 0],
-        [0, 1, 0, 0, 0, 0, 1, 0],
-        [0, 1, 0, 0, 0, 0, 1, 0],
-        [0, 1, 0, 0, 0, 0, 1, 0],
-        [0, 1, 0, 0, 0, 0, 1, 0],
-        [0, 2, 1, 1, 1, 1, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0]
+    // const dg_map = [
+    //     [0, 0, 0, 0, 0, 0, 0, 0],
+    //     [0, 2, 1, 1, 1, 1, 2, 0],
+    //     [0, 1, 0, 0, 0, 0, 1, 0],
+    //     [0, 1, 0, 0, 0, 0, 1, 0],
+    //     [0, 1, 0, 0, 0, 0, 1, 0],
+    //     [0, 1, 0, 0, 0, 0, 1, 0],
+    //     [0, 2, 1, 1, 1, 1, 2, 0],
+    //     [0, 0, 0, 0, 0, 0, 0, 0]
+    // ]
+        const dg_map = [
+        [2, 1, 1, 1, 1, 1, 1, 2],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [2, 1, 1, 1, 1, 1, 1, 2]
     ]
 
     let mapArr = [];
