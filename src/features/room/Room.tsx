@@ -80,11 +80,11 @@ export const Room = () => {
     //     [2, 1, 1, 1, 1, 1, 1, 2]
     // ]
     const dg_map = [
-        [2, 1, 1, 1, 1, 1, 1, 2],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 1],
+        [2, 1, 1, 3, 1, 1, 1, 2],
+        [1, 0, 0, 1, 0, 0, 0, 1],
+        [3, 1, 1, 1, 1, 1, 1, 3],
+        [1, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 0, 1, 0, 0, 0, 1],
         [3, 1, 1, 1, 1, 1, 1, 3],
         [1, 0, 0, 0, 0, 0, 0, 1],
         [2, 1, 1, 1, 1, 1, 1, 2]
@@ -92,7 +92,7 @@ export const Room = () => {
     // Cases for 3: if arrayPosition
 
     let mapArr = [];
-    const generateMapResources = (currentDirLocal:String, newPosition: number, newDir: boolean, isReverse: boolean) => {
+    const generateMapResources = (currentDirLocal:String, newPosition: number, newDir: boolean, isReverse: boolean, is3turn) => {
         console.log('WALL CHECK VERTICAL ! ', newPosition, verticalTileArr[positionX][positionY])
         // console.log(arrayReverse,'()_+ array reverse')
         let tempArr = [];
@@ -647,9 +647,12 @@ export const Room = () => {
 // looking west, facing wall, turns right = N 
 // looking west, facing wall, turns left = S 
 
-const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
+const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn) => {
   let newDirection;
   let newPosition;
+  let tempLastTurnDir = 'test';
+  tempLastTurnDir = lastTurnDir !== '' ? lastTurnDir : tempLastTurnDir
+  console.log('TEMP LAST TURN', localLastTurnDir,' | ', lastTurnDir, turnDirection)
   
   switch(currentDir) {
     case 'N':
@@ -693,6 +696,70 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
   newPosition = mapArray?.length - currentArrPos;
   
   console.log(lastTurnDir, turnDirection, currentArrPos, positionX, mapArray,'turn direction') 
+  if(is3turn ) {
+    switch(currentDir) {
+        case 'N':
+            switch (turnDirection) {
+                case 'R':
+                    console.log('R maybe?')
+                    generateMapResources(newDirection, positionX, iniDir); 
+                    dispatch(setCurrentArrPos(positionX))
+                break;
+                case 'L':
+                    console.log('turn3 inverse dir')
+                    generateMapResources(newDirection, currentArrPos - positionX, !iniDir)
+                    dispatch(setCurrentArrPos(currentArrPos - positionX));
+                break;
+            }
+        break;
+        case 'S':
+            switch (turnDirection) {
+                case 'R':
+                    console.log('R maybe?')
+                    generateMapResources(newDirection, positionX, iniDir); 
+                    dispatch(setCurrentArrPos(positionX))
+                break;
+                case 'L':
+                    console.log('turn3 inverse dir')
+                    generateMapResources(newDirection, currentArrPos - positionX, !iniDir)
+                    dispatch(setCurrentArrPos(currentArrPos - positionX));
+                break;
+            }
+        break;
+        case 'W':
+            switch (turnDirection) {
+                case 'R':
+                    console.log('R maybe?')
+                    generateMapResources(newDirection, positionY, iniDir); 
+                    dispatch(setCurrentArrPos(currentArrPos - positionY))
+                break;
+                case 'L':
+                    console.log('turn3 inverse dir W L', positionY)
+                    generateMapResources(newDirection, positionY, iniDir)
+                    dispatch(setCurrentArrPos(positionY));
+                break;
+            }
+        break;
+        case 'E':
+            switch (turnDirection) {
+                case 'R':
+                    console.log('R maybe?')
+                    generateMapResources(newDirection, positionY, iniDir); 
+                    dispatch(setCurrentArrPos(positionY))
+                break;
+                case 'L':
+                    console.log('turn3 inverse dir')
+                    generateMapResources(newDirection, currentArrPos - positionY, !iniDir)
+                    dispatch(setCurrentArrPos(currentArrPos - positionY));
+                break;
+            }
+        break;
+    }
+
+    if(localLastTurnDir !== turnDirection) {
+           dispatch(setInitialDirection()) 
+    }
+    } else {
   // Update state with new direction and position
   if(lastTurnDir !== turnDirection) {
     if(currentDir === 'N' || currentDir === 'S') {
@@ -729,7 +796,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
                 dispatch(changeDir(newDirection));
                 dispatch(setCurrentArrPos(newPosition - 1));
                 generateMapResources(newDirection, newPosition - 1);
-                console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 0 y') 
+                console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 1 y') 
             } else {
                 if(positionY === 1) {
                     dispatch(changeDir(newDirection));
@@ -737,7 +804,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
                     generateMapResources(newDirection, newPosition - 1);
                 } else {
                     generateMapResources(newDirection, currentArrPos);
-                    console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 1 y') 
+                    console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 2 y') 
                 }
             }
         }
@@ -745,6 +812,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
     } else {
         generateMapResources(newDirection, currentArrPos);
         console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 3') 
+    }
     }
 };
     //in resources array + map array(one for loading tiles other for controling position and dictating what will happen)
@@ -767,7 +835,8 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection) => {
     //      - correlate movement to placement in map array
     // const [lastTurnCounter, setLastTurnCounter] = useState<number>(0)
     // const [currentTurnDir, setCurrentTurnDir] = useState<string>('');
-    
+  
+
 const turn = (turnDir:string) => {
     console.log('LOL BASE 0', mapArray?.length, currentArrPos, pathTileArr, mapArray)
     console.log('LOL BASE', currentDir, turnDir)
@@ -791,13 +860,20 @@ const turn = (turnDir:string) => {
                             console.log('CORNER TURN?')
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
-                            generateMapResources('E', 0); 
+                            if(currentArrayPositionHorz === 3 && dg_map[currentArrPos + 1] === undefined) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                console.log('turn direction 0 N', lastTurnDir, turnDir)
+                                console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                            } else {
+                                generateMapResources('E', 0); 
+                                console.log('CORNER TURN no e ',currentArrayPositionHorz)
+                            }
                         } else {
                             handleTurn(currentDir, lastTurnDir, turnDir);
                             console.log('LOL handle Turn')
                         }
                     }
-                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2) {
+                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2 && currentArrayPositionHorz !== 3) {
                         dispatch(setCurrentArrPos(0))
                     }                    
                 } else {
@@ -820,13 +896,20 @@ const turn = (turnDir:string) => {
                         console.log('LOL2 first if')
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
-                            generateMapResources('W', 0); 
-                            console.log('LOL2 second if', pathTileArr[0])
+                            if(currentArrayPositionHorz === 3 && dg_map[currentArrPos + 1] === undefined) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                console.log('turn direction 0 N L', lastTurnDir, turnDir)
+                                console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                            } else {
+                                generateMapResources('W', 0); 
+                                dispatch(setCurrentArrPos(0))
+                                console.log('CORNER TURN no e N L ',currentArrayPositionHorz)
+                            }
                         } else {
                             handleTurn(currentDir, lastTurnDir, turnDir);
                         }
                     }
-                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2) {
+                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2 && currentArrayPositionHorz !== 3) {
                         dispatch(setCurrentArrPos(0));
                         console.log('LOL if set current arr pos to zero', mapArray, pathTileArr);
                     }
@@ -850,13 +933,20 @@ const turn = (turnDir:string) => {
                             console.log('CORNER TURN?')
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
-                            generateMapResources('W', 0); 
-                            console.log('CORNER TURN no1 ')
+                            if(currentArrayPositionHorz === 3 && dg_map[currentArrPos + 1] === undefined) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                console.log('turn direction 0', lastTurnDir, turnDir)
+                                console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                            } else {
+                                generateMapResources('W', 0); 
+                                dispatch(setCurrentArrPos(0))
+                                console.log('CORNER TURN no e ',currentArrayPositionHorz)
+                            }
                         } else {
                             handleTurn(currentDir, lastTurnDir, turnDir);
                         } 
                     }
-                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2) { 
+                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2 && currentArrayPositionHorz !== 3) { 
                         dispatch(setCurrentArrPos(0))
                     }
                 } else {
@@ -876,13 +966,20 @@ const turn = (turnDir:string) => {
                         dispatch(setInitialDirection());
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
-                            generateMapResources('E', 0); 
-                            console.log('CORNER TURN no1 ', currentArrayPositionHorz)
+                            if(currentArrayPositionHorz === 3 && dg_map[currentArrPos + 1] === undefined) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                console.log('turn direction 0', lastTurnDir, turnDir)
+                                console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                            } else {
+                                generateMapResources('E', 0); 
+                                dispatch(setCurrentArrPos(0))
+                                console.log('CORNER TURN no e ',currentArrayPositionHorz)
+                            }
                         } else {
                             handleTurn(currentDir, lastTurnDir, turnDir);
                         }
                     }
-                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2) {
+                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2 && currentArrayPositionHorz !== 3) {
                         dispatch(setCurrentArrPos(0))
                     }                       
                 } else {
@@ -904,12 +1001,20 @@ const turn = (turnDir:string) => {
                         dispatch(setInitialDirection());
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
-                            generateMapResources('N', 0); 
+                            if(currentArrayPositionHorz === 3 && verticalTileArr[currentArrPos + 1] === undefined) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                console.log('turn direction 0', lastTurnDir, turnDir)
+                                console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                            } else {
+                                generateMapResources('N', 0); 
+                                dispatch(setCurrentArrPos(0))
+                                console.log('CORNER TURN no e ',currentArrayPositionHorz)
+                            }
                         } else {
                             handleTurn(currentDir, lastTurnDir, turnDir);
                         }
                     } 
-                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2) {
+                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2 && currentArrayPositionHorz !== 3) {
                         dispatch(setCurrentArrPos(0))
                     }
                 } else {
@@ -929,13 +1034,20 @@ const turn = (turnDir:string) => {
                             console.log('LOL6.2')
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
-                            generateMapResources('S', 0); 
-                            console.log('LOL6.1')
+                            if(currentArrayPositionHorz === 3 && verticalTileArr[currentArrPos + 1] === undefined) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                console.log('turn direction 0', lastTurnDir, turnDir)
+                                console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                            } else {
+                                generateMapResources('S', 0); 
+                                dispatch(setCurrentArrPos(0))
+                                console.log('CORNER TURN no e ',currentArrayPositionHorz)
+                            }
                         } else {
                             handleTurn(currentDir, lastTurnDir, turnDir);
                         } 
                     }
-                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2) {
+                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2 && currentArrayPositionHorz !== 3) {
                         dispatch(setCurrentArrPos(0));
                             console.log('LOL6.4')
                     }                    
@@ -960,13 +1072,19 @@ const turn = (turnDir:string) => {
                             console.log('LOL7.2')
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
-                            generateMapResources('S', 0); 
-                            console.log('LOL7.1')
+                            if(currentArrayPositionHorz === 3 && verticalTileArr[currentArrPos + 1] === undefined) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                console.log('CORNER TURN right no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                            } else {
+                                generateMapResources('S', 0); 
+                                dispatch(setCurrentArrPos(0))
+                                console.log('CORNER TURN right no e ',currentArrayPositionHorz)
+                            }
                         } else {
                             handleTurn(currentDir, lastTurnDir, turnDir);
                         }
                     }
-                    if(pathTileArr[0] === 1 || pathTileArr[0] === 2) {
+                    if((pathTileArr[0] === 1 || pathTileArr[0] === 2) && currentArrayPositionHorz !== 3) {
                         dispatch(setCurrentArrPos(0))
                             console.log('LOL7.4')
                     }                    
@@ -979,20 +1097,19 @@ const turn = (turnDir:string) => {
                 let trueFalseVar = iniDir ?
                 pathTileArr[0] !== 3 :
                 typeof pathTileArr[0] !== 'undefined';
-
                 if(trueFalseVar) {
                     if(currentArrPos === 0) {
                         generateMapResources('N', 0, !iniDir);
                         dispatch(setInitialDirection());
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
-                            if(currentArrayPositionHorz === 3) {
-                                generateMapResources('N', currentArrPos - positionY, iniDir); 
-
-                                dispatch(setCurrentArrPos(currentArrPos - positionY))
+                            if(currentArrayPositionHorz === 3 && verticalTileArr[currentArrPos + 1] === undefined) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                console.log('turn direction 0', lastTurnDir, turnDir)
                                 console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
                             } else {
                                 generateMapResources('N', 0); 
+                                dispatch(setCurrentArrPos(0))
                                 console.log('CORNER TURN no e ',currentArrayPositionHorz)
                             }
                         } else {
@@ -1014,7 +1131,6 @@ const turn = (turnDir:string) => {
                 "LOL DEFAULT"
             )
         }
-        
     dispatch(setLastTurnDir(turnDir));
     setLocalLastTurnDir(turnDir);
     if(pathTileArr[0] === 4 || pathTileArr.length === 0) {
