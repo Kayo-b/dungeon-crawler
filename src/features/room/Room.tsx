@@ -162,7 +162,7 @@ export const Room = () => {
         let undefCount = 0;
         console.log('wallcheck arrays', mapArr, tempArray, arrayPosition)
         for(let i = arrayPosition; i < tempArray.length; i++) {
-            console.log(mapArr,mapArr[i],resources,'resourcesxx');
+            console.log(mapArr,mapArr[i],resources,'resourcesxx',tempArray);
             console.log('wallcheck trigger', mapArr[i], arrayPosition);
             switch(mapArr[i]) {
                 case 1:
@@ -312,81 +312,89 @@ export const Room = () => {
                         case 'N':
                             nextTileOfPerpAxis = dg_map[i][positionX+1];
                             console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse', iniDir)
-                            if(nextTileOfPerpAxis === 1) {
-                                console.log(newDir,"NEWDIR RRRRR 1")
-                                console.log('()_+ RIGHT')
-                                tempArr.push(turnTileRight)
-                                tempArrTiles.push(turnTileRight)
-                            } else {
-                                if(newDir) {
-                                    console.log(newDir,"NEWDIR RRRR")
+                            if(mapArr[i] !== 2) {
+                                if(nextTileOfPerpAxis === 1) {
+                                    console.log(newDir,"NEWDIR RRRRR 1 3")
+                                    console.log('()_+ RIGHT')
                                     tempArr.push(turnTileRight)
                                     tempArrTiles.push(turnTileRight)
                                 } else {
-                                    console.log(newDir,"NEWDIR LLLL")
-                                    tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileLeft)
+                                    if(newDir) {
+                                        console.log(newDir,"NEWDIR RRRR 3")
+                                        tempArr.push(turnTileRight)
+                                        tempArrTiles.push(turnTileRight)
+                                    } else {
+                                        console.log(newDir,"NEWDIR LLLL 3")
+                                        tempArr.push(turnTileLeft)
+                                        tempArrTiles.push(turnTileLeft)
+                                    }
                                 }
                             }
                         break;
                         case 'S':
                             nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse', iniDir)
-                            if(nextTileOfPerpAxis === 1) {
-                                console.log('()_+ LEFT')
-                                tempArr.push(turnTileLeft)
-                                tempArrTiles.push(turnTileLeft)
-                            } else {
-                                console.log(newDir,"NEWDIR")
-                                if(newDir) {
-                                    tempArr.push(turnTileRight)
-                                    tempArrTiles.push(turnTileRight)
-                                } else {
-                                    console.log('()_+ RIGHT')
+                            console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], positionY, '()_+vertical reverse 3 S', mapArr[i])
+                            if(mapArr[i] !== 2) {
+                                if(nextTileOfPerpAxis === 1) {
+                                    console.log('()_+ LEFT 3here') 
                                     tempArr.push(turnTileLeft)
                                     tempArrTiles.push(turnTileLeft)
+                                } else {
+                                    console.log(newDir,"NEWDIR 3here")
+                                    if(newDir) {
+                                        tempArr.push(turnTileRight)
+                                        tempArrTiles.push(turnTileRight)
+                                    } else {
+                                        console.log('()_+ RIGHT 3here')
+                                        tempArr.push(turnTileLeft)
+                                        tempArrTiles.push(turnTileLeft)
+                                    }
                                 }
                             }
                         break;
                         case 'W':
                             nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
                             console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse', iniDir)
-                            if(nextTileOfPerpAxis === 1) {
-                                console.log('()_+ LEFT')
-                                tempArr.push(turnTileLeft)
-                                tempArrTiles.push(turnTileLeft)
-                            } else {
-                                console.log(newDir,"NEWDIR")
-                                if(newDir) {
-                                    tempArr.push(turnTileRight)
-                                    tempArrTiles.push(turnTileRight)
-                                } else {
-                                    console.log('()_+ RIGHT')
+                            if(mapArr[i] !== 2) {
+                                if(nextTileOfPerpAxis === 1) {
+                                    console.log('()_+ LEFT')
                                     tempArr.push(turnTileLeft)
                                     tempArrTiles.push(turnTileLeft)
+                                } else {
+                                    console.log(newDir,"NEWDIR")
+                                    if(newDir) {
+                                        tempArr.push(turnTileRight)
+                                        tempArrTiles.push(turnTileRight)
+                                    } else {
+                                        console.log('()_+ RIGHT')
+                                        tempArr.push(turnTileLeft)
+                                        tempArrTiles.push(turnTileLeft)
+                                    }
                                 }
                             }
                         break;
                         case 'E':
                             nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
                             console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse', newDir)
-                            if(nextTileOfPerpAxis === 1) {
-                                console.log(newDir,"NEWDIR RRRRR 1 ")
-                                console.log('()_+  RIGHT')
-                                tempArr.push(turnTileRight)
-                                tempArrTiles.push(turnTileRight)
-                            } else {
-                                console.log(newDir,"NEWDIR <><>")
-                                if(newDir) {
+                            if(mapArr[i] !== 2) {
+                                if(nextTileOfPerpAxis === 1) {
+                                    console.log(newDir,"NEWDIR RRRRR 1 ")
+                                    console.log('()_+  RIGHT')
                                     tempArr.push(turnTileRight)
-                                    console.log(newDir,"NEWDIR RRRR")
                                     tempArrTiles.push(turnTileRight)
                                 } else {
-                                    console.log('()_+  LEFT')
-                                    console.log(newDir,"NEWDIR LLLL")
-                                    tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileLeft)
-                                } 
+                                    console.log(newDir,"NEWDIR <><>")
+                                    if(newDir) {
+                                        tempArr.push(turnTileRight)
+                                        console.log(newDir,"NEWDIR RRRR")
+                                        tempArrTiles.push(turnTileRight)
+                                    } else {
+                                        console.log('()_+  LEFT')
+                                        console.log(newDir,"NEWDIR LLLL")
+                                        tempArr.push(turnTileLeft)
+                                        tempArrTiles.push(turnTileLeft)
+                                    } 
+                                }
                             }
                         break;
                         default:
@@ -698,6 +706,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn) => {
   
   console.log(lastTurnDir, turnDirection, currentArrPos, positionX, mapArray,'turn direction') 
   if(is3turn ) {
+    console.log('is3 turn', currentDir)
     switch(currentDir) {
         case 'N':
             switch (turnDirection) {
@@ -735,9 +744,17 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn) => {
             switch (turnDirection) {
                 case 'R':
                     console.log('R maybe?')
+                    if(currentArrayPositionHorz === 3) {
+                    generateMapResources(newDirection, 7 - positionY, true)
+                    dispatch(setInitialDirection(true));
+                    dispatch(setCurrentArrPos(7 - positionY));
+
+                    } else {
                     generateMapResources(newDirection, currentArrPos - positionY, true); 
                     dispatch(setInitialDirection(true));
                     dispatch(setCurrentArrPos(currentArrPos - positionY))
+
+                    }
                 break;
                 case 'L':
                     console.log('turn3 inverse dir W L', positionY)
@@ -755,11 +772,19 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn) => {
                     dispatch(setInitialDirection(true));
                     dispatch(setCurrentArrPos(positionY))
                 break;
-                case 'L':
-                    console.log('turn3 inverse dir')
+                case 'L': // LAST CHANGE HERE
+                    if(currentArrayPositionHorz === 3) {
+                    generateMapResources(newDirection, (mapArr.length - 2) - positionY, true)
+                    dispatch(setInitialDirection(true));
+                    dispatch(setCurrentArrPos(7 - positionY));
+
+                    } else {
+                    console.log('turn3 inverse dir', currentArrPos, positionY)
                     generateMapResources(newDirection, currentArrPos - positionY, false)
                     dispatch(setInitialDirection(false));
                     dispatch(setCurrentArrPos(currentArrPos - positionY));
+
+                    }
                 break;
             }
         break;
@@ -1056,11 +1081,11 @@ const turn = (turnDir:string) => {
                             if(currentArrayPositionHorz === 3 && verticalTileArr[currentArrPos + 1] === undefined) {
                                 handleTurn(currentDir, lastTurnDir, turnDir, true)
                                 console.log('turn direction 0', lastTurnDir, turnDir)
-                                console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                                console.log('CORNER TURN no e west1',currentArrayPositionHorz, currentArrPos, positionY)
                             } else {
                                 if(currentArrayPositionHorz === 3) {
                                     handleTurn(currentDir, lastTurnDir, turnDir, true)
-                                    console.log('NOT CORNER 2')
+                                    console.log('NOT CORNER wst2')
                                 } else {
                                     generateMapResources('S', 0); 
                                     dispatch(setCurrentArrPos(0))
@@ -1098,15 +1123,15 @@ const turn = (turnDir:string) => {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                             if(currentArrayPositionHorz === 3 && verticalTileArr[currentArrPos + 1] === undefined) {
                                 handleTurn(currentDir, lastTurnDir, turnDir, true)
-                                console.log('CORNER TURN right no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                                console.log('CORNER TURN right no east1 L ',currentArrayPositionHorz, currentArrPos, positionY)
                             } else {
                                 if(currentArrayPositionHorz === 3) {
                                     handleTurn(currentDir, lastTurnDir, turnDir, true)
-                                    console.log('no corner !!!')
+                                    console.log('no corner east !!!')
                                 } else {
                                     generateMapResources('S', 0); 
                                     dispatch(setCurrentArrPos(0))
-                                    console.log('CORNER TURN right no e ',currentArrayPositionHorz)
+                                    console.log('CORNER TURN right no east2 L ',currentArrayPositionHorz)
                                 }
                             }
                         } else {
@@ -1127,7 +1152,7 @@ const turn = (turnDir:string) => {
                 pathTileArr[0] !== 3 :
                 typeof pathTileArr[0] !== 'undefined';
                 if(trueFalseVar) {
-                    if(currentArrPos === 0) {
+                    if(currentArrPos === 0 && currentArrayPositionHorz !== 3) {
                         generateMapResources('N', 0, !iniDir);
                         dispatch(invertInitialDirection());
                     } else {
@@ -1135,11 +1160,16 @@ const turn = (turnDir:string) => {
                             if(currentArrayPositionHorz === 3 && verticalTileArr[currentArrPos + 1] === undefined) {
                                 handleTurn(currentDir, lastTurnDir, turnDir, true)
                                 console.log('turn direction 0', lastTurnDir, turnDir)
-                                console.log('CORNER TURN no e 3 ',currentArrayPositionHorz, currentArrPos, positionY)
+                                console.log('CORNER TURN no east1 ',currentArrayPositionHorz, currentArrPos, positionY)
                             } else {
-                                generateMapResources('N', 0); 
-                                dispatch(setCurrentArrPos(0))
-                                console.log('CORNER TURN no e ',currentArrayPositionHorz)
+                                if(currentArrayPositionHorz === 3) {
+                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                } else {
+                                    generateMapResources('N', ); 
+                                    dispatch(setCurrentArrPos(0))
+                                    console.log('CORNER TURN no east2 ',currentArrayPositionHorz)
+
+                                }
                             }
                         } else {
                             handleTurn(currentDir, lastTurnDir, turnDir);
