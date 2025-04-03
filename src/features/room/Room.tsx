@@ -732,6 +732,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
     switch (currentDir) {
       case 'N':
         if (currentArrPos !== 0) {
+            console.log('test 3turn 1 ')
           // Handle cases where currentArrPos is not 0
           if (localLastTurnDir !== turnDirection) {
             console.log('Turn direction changed for N with currentArrPos !== 0');
@@ -747,6 +748,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               dispatch(setCurrentArrPos(currentArrPos - positionX));
             }
           } else {
+            console.log('test 3turn 2 ')
             // Original logic for when turn direction remains the same
             if (turnDirection === 'R') {
               console.log('R maybe? N');
@@ -762,6 +764,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
           }
         } else {
           // Handle cases where currentArrPos is 0
+            console.log('test 3turn 3 ')
           if (iniDir) {
             if (localLastTurnDir !== turnDirection) {
               console.log('maybe here ?! N 1', iniDir);
@@ -776,6 +779,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               console.log('north 3way inidir true');
             }
           } else {
+            console.log('test 3turn 4 ')
             if (localLastTurnDir !== turnDirection) {
               console.log('maybe here ?! N 2', iniDir);
               generateMapResources(newDirection, positionX, true);
@@ -794,6 +798,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
         
       case 'S':
         if (currentArrPos !== 0) {
+            console.log('test 3turn 5 ')
           // Handle cases where currentArrPos is not 0
           if (localLastTurnDir !== turnDirection) {
             console.log('Turn direction changed for S with currentArrPos !== 0');
@@ -809,7 +814,8 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               dispatch(setCurrentArrPos(currentArrPos - positionX));
             }
           } else {
-            // Original logic for when turn direction remains the same
+            console.log('test 3turn 6 ')
+            // Original logic for whe1n turn direction remains the same
             if (turnDirection === 'R') {
               console.log('R maybe? S');
               generateMapResources(newDirection, positionX, true);
@@ -823,6 +829,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
             }
           }
         } else {
+            console.log('test 3turn 7 ')
           // Handle cases where currentArrPos is 0
           if (iniDir) {
             if (localLastTurnDir !== turnDirection) {
@@ -838,6 +845,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               console.log('south 3way inidir true');
             }
           } else {
+            console.log('test 3turn 8 ')
             if (localLastTurnDir !== turnDirection) {
               console.log('maybe here ?! S 2', iniDir);
               generateMapResources(newDirection, positionX, true);
@@ -856,6 +864,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
   
       case 'W':
         if (currentArrPos !== 0) {
+            console.log('test 3turn 9 ')
           // Handle cases where currentArrPos is not 0
           if (localLastTurnDir !== turnDirection) {
             console.log('Turn direction changed for W with currentArrPos !== 0');
@@ -870,6 +879,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               dispatch(setCurrentArrPos(positionY));
             }
           } else {
+            console.log('test 3turn 10 ')
             // Original logic for when turn direction remains the same
             if (turnDirection === 'R') {
               console.log('R maybe?, W', mapArr, mapArray);
@@ -877,6 +887,8 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               dispatch(setInitialDirection(true));
               dispatch(setCurrentArrPos(currentArrPos - positionY));
             } else if (turnDirection === 'L') {
+
+            console.log('test 3turn 10.1 ')
               generateMapResources(newDirection, positionY, false);
               dispatch(setInitialDirection(false));
               dispatch(setCurrentArrPos(positionY));
@@ -885,6 +897,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
         } else {
           // Handle cases where currentArrPos is 0
           if (iniDir) {
+            console.log('test 3turn 11 ')
             if (localLastTurnDir !== turnDirection) {
               console.log('maybe here ?! W 1', iniDir);
               generateMapResources(newDirection, positionY, true);
@@ -898,6 +911,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               console.log('west 3way inidir true');
             }
           } else {
+            console.log('test 3turn 12 ')
             if (localLastTurnDir !== turnDirection) {
               console.log('maybe here ?! W 2', iniDir);
               generateMapResources(newDirection, (mapArray.length - 1) - positionY, false);
@@ -916,6 +930,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
   
       case 'E':
         if (currentArrPos !== 0) {
+            console.log('test 3turn 13 ')
           // Handle cases where currentArrPos is not 0
           if (localLastTurnDir !== turnDirection) {
             console.log('Turn direction changed for E with currentArrPos !== 0');
@@ -932,6 +947,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
             }
           } else {
             // Original logic for when turn direction remains the same
+            console.log('test 3turn 14 ')
             if (turnDirection === 'R') {
               console.log('R maybe?, E', mapArr, mapArray);
               generateMapResources(newDirection, positionY, true);
@@ -947,6 +963,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
         } else {
           // Handle cases where currentArrPos is 0
           if (iniDir) {
+            console.log('test 3turn 15 ', localLastTurnDir, turnDirection)
             if (localLastTurnDir !== turnDirection) {
               console.log('maybe here ?! E 1', iniDir, mapArray, positionY);
               generateMapResources(newDirection, (mapArray.length - 1) - positionY, true);
@@ -955,9 +972,9 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
             } else {
               console.log('east 3way inidir true');
               dispatch(changeDir(newDirection));
-              generateMapResources(newDirection, (mapArray.length - 1) - positionY, isWallTurn ? !iniDir : iniDir);
-              dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
-              dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
+              generateMapResources(newDirection, positionY, isWallTurn ? iniDir : !iniDir);
+              dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
+              dispatch(setCurrentArrPos(positionY));
             }
           } else {
             if (localLastTurnDir !== turnDirection) {
@@ -1355,6 +1372,7 @@ const turn = (turnDir:string) => {
                                     console.log('should be here')
                                     handleTurn(currentDir, lastTurnDir, turnDir, true, true)
                                 } else {
+                                    console.log('not sure')
                                     handleTurn(currentDir, lastTurnDir, turnDir);
                             }
 
@@ -1366,6 +1384,7 @@ const turn = (turnDir:string) => {
                     }                    
                 } else {
                     handleTurn(currentDir, lastTurnDir, turnDir);
+                    console.log('final else ')
                 }
             } 
             if(turnDir === 'L') {
@@ -1390,7 +1409,6 @@ const turn = (turnDir:string) => {
                                     generateMapResources('N', 0); 
                                     dispatch(setCurrentArrPos(0))
                                     console.log('CORNER TURN no east2 ',currentArrayPositionHorz)
-
                                 }
                             }
                         } else {
@@ -1400,7 +1418,6 @@ const turn = (turnDir:string) => {
                                 } else {
                                     handleTurn(currentDir, lastTurnDir, turnDir);
                             }
-
                         }
                     }
                     if((pathTileArr[0] === 1 || pathTileArr[0] === 2) && currentArrayPositionHorz !== 3) {
