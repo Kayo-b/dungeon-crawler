@@ -840,7 +840,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               console.log(lastTurnDir, turnDirection, 'turn direction change arr pos 3 is3turn', newDirection, newPosition, currentArrPos, mapArray);
               dispatch(changeDir(newDirection));
               generateMapResources(newDirection, (mapArray.length - 1) - positionX, false);
-              dispatch(setInitialDirection(true));
+              dispatch(setInitialDirection(false));
               dispatch(setCurrentArrPos((mapArray.length - 1) - positionX));
               console.log('south 3way inidir true');
             }
