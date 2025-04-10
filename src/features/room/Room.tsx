@@ -899,24 +899,42 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
           if (iniDir) {
             console.log('test 3turn 11 ')
             if (localLastTurnDir !== turnDirection) {
-              console.log('maybe here ?! W 1', iniDir);
-              generateMapResources(newDirection, positionY, true);
-              // dispatch(invertInitialDirection()) 
-              dispatch(setInitialDirection(true));
+                if(turnDirection === 'R') {
+                    console.log('maybe here ?! W 1 R', iniDir, turnDirection);
+                    generateMapResources(newDirection, (mapArray.length -1) - positionY, iniDir);
+                    dispatch(setCurrentArrPos((mapArray.length -1) - positionY));
+                    // dispatch(invertInitialDirection()) 
+                    dispatch(setInitialDirection(iniDir));
+                } else {
+                    console.log('maybe here ?! W 1 L', iniDir, turnDirection);
+                    generateMapResources(newDirection, positionY, isWallTurn ? !iniDir : iniDir);
+                    dispatch(setCurrentArrPos(positionY));
+                    // dispatch(invertInitialDirection()) 
+                    dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
+                }
             } else {
               dispatch(changeDir(newDirection));
-              generateMapResources(newDirection, (mapArray.length - 1) - positionY, isWallTurn ? iniDir : !iniDir);
-              dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
-              dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
-              console.log('west 3way inidir true');
+              if (turnDirection === 'R') {
+                generateMapResources(newDirection, (mapArray.length - 1) - positionY, isWallTurn ? iniDir : !iniDir);
+                dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
+                dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
+                console.log('west 3way inidir true right');
+              } else {
+                generateMapResources(newDirection, positionY, isWallTurn ? !iniDir : iniDir);
+                dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
+                dispatch(setCurrentArrPos(positionY));
+                console.log('west 3way inidir true left');
+              }
             }
           } else {
             console.log('test 3turn 12 ')
             if (localLastTurnDir !== turnDirection) {
+
               console.log('maybe here ?! W 2', iniDir);
               generateMapResources(newDirection, (mapArray.length - 1) - positionY, false);
               dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
               dispatch(setInitialDirection(false));
+
             } else {
               console.log('west 3way W inidir false');
               dispatch(changeDir(newDirection));
@@ -941,9 +959,9 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               dispatch(setCurrentArrPos(positionY));
             } else if (turnDirection === 'L') {
               console.log('turn3 inverse dir', currentArrPos, positionY);
-              generateMapResources(newDirection, currentArrPos - positionY, false);
+              generateMapResources(newDirection, (mapArray.length - 1) - positionY, false);
               dispatch(setInitialDirection(false));
-              dispatch(setCurrentArrPos(currentArrPos - positionY));
+              dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
             }
           } else {
             // Original logic for when turn direction remains the same
@@ -955,9 +973,9 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               dispatch(setCurrentArrPos(positionY));
             } else if (turnDirection === 'L') {
               console.log('turn3 inverse dir', currentArrPos, positionY);
-              generateMapResources(newDirection, currentArrPos - positionY, false);
+              generateMapResources(newDirection, (mapArray.length - 1) - positionY, false);
               dispatch(setInitialDirection(false));
-              dispatch(setCurrentArrPos(currentArrPos - positionY));
+              dispatch(setCurrentArrPos((mapArray.length - 1) - positionY,));
             }
           }
         } else {
@@ -965,16 +983,35 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
           if (iniDir) {
             console.log('test 3turn 15 ', localLastTurnDir, turnDirection)
             if (localLastTurnDir !== turnDirection) {
-              console.log('maybe here ?! E 1', iniDir, mapArray, positionY);
-              generateMapResources(newDirection, (mapArray.length - 1) - positionY, true);
-              dispatch(setInitialDirection(iniDir));
-              dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
+                if(turnDirection === 'L') {
+                    console.log('maybe here ?! W 1 R', iniDir, turnDirection);
+                    generateMapResources(newDirection, (mapArray.length -1) - positionY, isWallTurn ? iniDir : !iniDir);
+                    dispatch(setCurrentArrPos((mapArray.length -1) - positionY));
+                    // dispatch(invertInitialDirection()) 
+                    dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
+                } else {
+                    console.log('maybe here ?! W 1 L', iniDir, turnDirection);
+                    generateMapResources(newDirection, positionY, isWallTurn ? iniDir : !iniDir);
+                    dispatch(setCurrentArrPos(positionY));
+                    // dispatch(invertInitialDirection()) 
+                    dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
+                }
             } else {
-              console.log('east 3way inidir true');
-              dispatch(changeDir(newDirection));
-              generateMapResources(newDirection, positionY, isWallTurn ? iniDir : !iniDir);
-              dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
-              dispatch(setCurrentArrPos(positionY));
+              if (turnDirection === 'R') {
+                console.log('east 3way inidir true right');
+                dispatch(changeDir(newDirection));
+                generateMapResources(newDirection, positionY, isWallTurn ? iniDir : !iniDir);
+                dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
+                dispatch(setCurrentArrPos(positionY));
+
+              } else {
+                console.log('east 3way inidir true left');
+                dispatch(changeDir(newDirection));
+                generateMapResources(newDirection, (mapArray.length - 1) - positionY, isWallTurn ? !iniDir : iniDir);
+                dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
+                dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
+
+              }
             }
           } else {
             if (localLastTurnDir !== turnDirection) {
