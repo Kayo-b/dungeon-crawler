@@ -930,9 +930,9 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
             console.log('Turn direction changed for W with currentArrPos !== 0');
             if (turnDirection === 'R') {
               console.log('R maybe?, W', mapArr, mapArray);
-              generateMapResources(newDirection, currentArrPos - positionY, true);
+              generateMapResources(newDirection, (mapArray.length - 1)- positionY, true);
               dispatch(setInitialDirection(true));
-              dispatch(setCurrentArrPos(currentArrPos - positionY));
+              dispatch(setCurrentArrPos((mapArray?.length - 1)- positionY));
             } else if (turnDirection === 'L') {
               generateMapResources(newDirection, positionY, false);
               dispatch(setInitialDirection(false));
@@ -1191,7 +1191,7 @@ const turn = (turnDir:string) => {
                     } else {
                         if(typeof pathTileArr[0] !== 'undefined' && pathTileArr[0] !== 3 && pathTileArr[0] !== 4) {
                             if(currentArrayPositionHorz === 3 && dg_map[currentArrPos + 1] === undefined) {
-                                handleTurn(currentDir, lastTurnDir, turnDir, true)
+                                handleTurn(currentDir, lastTurnDir, turnDir, false)
                                 console.log('turn direction 0 N', lastTurnDir, turnDir)
                                 console.log('CORNER TURN no e -3- ',currentArrayPositionHorz, currentArrPos, positionY)
                             } else {
