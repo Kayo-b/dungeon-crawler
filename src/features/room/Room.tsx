@@ -807,9 +807,9 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
                 if (localLastTurnDir !== turnDirection) {
                   if (turnDirection === 'R') {
                     console.log('maybe here ?! N 2 R', iniDir);
-                    generateMapResources(newDirection, (mapArray.length - 1) - positionX, false);
+                    generateMapResources(newDirection, positionX, false);
                     dispatch(setInitialDirection(false));
-                    dispatch(setCurrentArrPos((mapArray.length - 1) - positionX));
+                    dispatch(setCurrentArrPos(positionX));
                   } else {
                     console.log('maybe here ?! N 2 L', iniDir);
                     generateMapResources(newDirection, positionX, false);
@@ -937,9 +937,9 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
             // Original logic for when turn direction remains the same
             if (turnDirection === 'R') {
               console.log('R maybe?, W', mapArr, mapArray);
-              generateMapResources(newDirection, currentArrPos - positionY, true);
+              generateMapResources(newDirection, (mapArray.length - 1) - positionY, true);
               dispatch(setInitialDirection(true));
-              dispatch(setCurrentArrPos(currentArrPos - positionY));
+              dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
             } else if (turnDirection === 'L') {
 
             console.log('test 3turn 10.1 ')
