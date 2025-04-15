@@ -19,7 +19,7 @@ const roomInitialState: RoomState = {
     currentLvlIndex: 0,
     currentLvl: data.rooms[0].id,
     initialDirection: false, // true = clockwise, false = counter-clockwise
-    direction: 'S', // N S W E
+    direction: 'N', // N S W E
     posX: 0,
     posY: 0,
     verticalRes: [],

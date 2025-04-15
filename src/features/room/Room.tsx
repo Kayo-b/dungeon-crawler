@@ -81,14 +81,14 @@ export const Room = () => {
     //     [2, 1, 1, 1, 1, 1, 1, 2]
     // ]
     const dg_map = [
-        [2, 1, 1, 3, 1, 1, 1, 2],
-        [1, 0, 0, 1, 0, 0, 0, 1],
-        [3, 1, 1, 3, 1, 1, 1, 3],
-        [1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 1, 0, 0, 0, 1],
-        [2, 1, 1, 3, 1, 1, 1, 2]
+        [2, 1, 1, 3, 1, 3, 1, 2],
+        [1, 0, 0, 1, 0, 1, 0, 1],
+        [3, 1, 1, 3, 1, 3, 1, 3],
+        [1, 0, 0, 1, 0, 1, 0, 1],
+        [3, 1, 1, 3, 1, 3, 1, 3],
+        [1, 0, 0, 1, 0, 1, 0, 1],
+        [1, 0, 0, 1, 0, 1, 0, 1],
+        [2, 1, 1, 3, 1, 3, 1, 2]
     ]
     // reverse maparr if:
     // .                  direction is N 
@@ -317,8 +317,11 @@ export const Room = () => {
                     console.log(verticalTileArr[positionX], dg_map[positionY][positionX], positionX, positionY,'()_+')
                     switch(currentDirLocal) {
                         case 'N':
-                            nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            prevTileOfPerpAxis = dg_map[i][positionX-1];
+                            const nextTileOfPerpAxisHorz = dg_map[i][positionX+1];
+                            const prevTileOfPerpAxisHorz = dg_map[i][positionX-1];
+                            const nextTileOfPerpAxisVert = verticalTileArr[i][positionY+1];
+                            const prevTileOfPerpAxisVert = verticalTileArr[i][positionY-1];
+                            console.log(nextTileOfPerpAxisHorz, prevTileOfPerpAxisHorz, '<<<<<next and prev', nextTileOfPerpAxisVert, prevTileOfPerpAxisVert)
                             console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse', iniDir)
                             if(mapArr[i] !== 2) {
                                 if(verticalTileArr[positionX][positionY-1] === 0 ||
@@ -326,7 +329,7 @@ export const Room = () => {
                                     tempArr.push(facingWallTile)
                                     tempArrTiles.push(facingWallTile)
                                 } else {
-                                if(nextTileOfPerpAxis === 1 && prevTileOfPerpAxis === 1) {
+                                if((nextTileOfPerpAxisHorz === 0 && prevTileOfPerpAxisHorz === 0) || (nextTileOfPerpAxisHorz === 1 && prevTileOfPerpAxisHorz === 1)) {
                                     console.log(newDir,"NEWDIR RRRRR 1 3")
                                     console.log('()_+ RIGHT')
                                     tempArr.push(turnThreeWay)
@@ -336,8 +339,11 @@ export const Room = () => {
                                         console.log(newDir,"NEWDIR RRRR 3")
                                         tempArr.push(turnTileRight)
                                         tempArrTiles.push(turnTileRight)
+
                                     } else {
                                         console.log(newDir,"NEWDIR LLLL 3")
+                                        // tempArr.push(turnThreeWay)
+                                        // tempArrTiles.push(turnThreeWay)                                        
                                         tempArr.push(turnTileLeft)
                                         tempArrTiles.push(turnTileLeft)
                                     }
@@ -374,15 +380,20 @@ export const Room = () => {
                             }
                         break;
                         case 'W':
-                            nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            prevTileOfPerpAxis = verticalTileArr[i][positionY-1];
+                            // nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
+                            // prevTileOfPerpAxis = verticalTileArr[i][positionY-1];
+                            const nextTileOfPerpAxisHorz1 = dg_map[i][positionX+1];
+                            const prevTileOfPerpAxisHorz1 = dg_map[i][positionX-1];
+                            const nextTileOfPerpAxisVert1 = verticalTileArr[i][positionY+1];
+                            const prevTileOfPerpAxisVert1 = verticalTileArr[i][positionY-1];
+                            console.log(nextTileOfPerpAxisHorz1, prevTileOfPerpAxisHorz1, '<<<<<next and prev', nextTileOfPerpAxisVert1, prevTileOfPerpAxisVert1, i)
                             console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse', iniDir)
                             if(mapArr[i] !== 2) {
                                 if(dg_map[positionY][positionX-1] === 0 || dg_map[positionY][positionX-1] === undefined) {
                                     tempArr.push(facingWallTile)
                                     tempArrTiles.push(facingWallTile)
                                 } else {
-                                if(nextTileOfPerpAxis === 1 && prevTileOfPerpAxis === 1) {
+                                if((nextTileOfPerpAxisVert1 === 0 && prevTileOfPerpAxisVert1 === 0) || (nextTileOfPerpAxisVert1 === 1 && prevTileOfPerpAxisVert1 === 1)) {
                                     console.log('()_+ LEFT')
                                     tempArr.push(turnThreeWay)
                                     tempArrTiles.push(turnThreeWay)
@@ -914,9 +925,9 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
                 } else {
                   console.log('south 3way inidir false');
                   dispatch(changeDir(newDirection));
-                  generateMapResources(newDirection, (mapArray.length - 1) - positionX, isWallTurn ? iniDir : !iniDir);
+                  generateMapResources(newDirection, positionX, isWallTurn ? iniDir : !iniDir);
                   dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
-                  dispatch(setCurrentArrPos((mapArray.length - 1) - positionX));
+                  dispatch(setCurrentArrPos(positionX));
                 }
               }
             }
