@@ -41,7 +41,6 @@ export const Room = () => {
     const [resources2, setRes2] = useState([]);
     const [mapArray, setMapArray] = useState<Array<number>>();
     const [currentDirTemp, setCurrentDirTemp] = useState(currentDir);
-    // generateMapResources()
     const backtrackArr: Array<NodeRequire> = [];
     const [pathTileArr, setPathTileArray] = useState<NodeRequire[]>(resources);
     const [backtrack, setBacktrack] = useState(backtrackArr);
@@ -86,11 +85,11 @@ export const Room = () => {
         [3, 1, 1, 3, 1, 3, 1, 3],
         [1, 0, 0, 1, 0, 1, 0, 1],
         [3, 1, 1, 3, 1, 3, 1, 3],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [2, 1, 1, 3, 1, 3, 1, 2]
+        [1, 0, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 0, 1, 0, 1],
+        [2, 1, 1, 1, 1, 3, 1, 2]
     ]
-    // Define types for better code documentation
+
     type Direction = 'N' | 'S' | 'E' | 'W';
     type TurnDirection = 'L' | 'R';
     type TileType = 0 | 1 | 2 | 3 | undefined;
@@ -105,10 +104,6 @@ export const Room = () => {
     'E': { 'L': 'N', 'R': 'S' },
     'W': { 'L': 'S', 'R': 'N' }
     };
-
-    let mapArr = [];
-    // Define types for better documentation and type safety
-
 
 /**
  * Generates map resources based on player's current position and direction
@@ -233,6 +228,11 @@ const areOppositeDirections = (dir1: Direction, dir2: Direction): boolean => {
  * Process the map array to filter out unwanted tiles
  */
 const processMapArray = (mapArr: MapArray): MapArray => {
+  // console.log(isWallTurn,'is facing wall?')
+  mapArr.map(val => {
+    if(val === 3 && mapArr[0] === 1) mapArr.shift();
+    if(val === 3 && mapArr[mapArr.length - 1] === 1) mapArr.pop();
+  }) 
   return mapArr.filter(val => val !== 0);
 };
 
@@ -269,7 +269,7 @@ const generateTiles = (
   const tileArray = [];
   const tileTypes = [];
   
-  // Process each tile
+  // process each tile
   for (let i = arrayPosition; i < originalArray.length; i++) {
     const tileType = mapArr[i];
     const tileResult = processTile(
@@ -355,7 +355,7 @@ const processTurnTile = (
   index: number,
   newDir: boolean
 ) => {
-  // Determine if we should use left or right turn tile
+  // determine if we should use left or right turn tile
   const shouldUseRightTurn = shouldUseTurnRight(direction, index, newDir);
   
   return {
@@ -400,12 +400,11 @@ const processThreeWayTile = (
   newDir: boolean,
   mapArr: MapArray
 ) => {
-  // Check if facing a wall
   if (isFacingWall(direction)) {
     return { tile: facingWallTile };
   }
   
-  // Check perpendicular paths for three-way intersection
+  // check perpendicular paths for three-way intersection
   const hasThreeWayIntersection = checkForThreeWayIntersection(
     direction, 
     index
@@ -456,7 +455,6 @@ const processWallTile = (direction: Direction) => {
     return { tile: null };
   }
   
-  // Check if we're facing a wall
   if (isFacingWall(direction)) {
     incrementWallCount();
     return { tile: facingWallTile };
@@ -500,7 +498,8 @@ const resetWallCount = () => wallCount = 0;
         let currentArrayPositionHorz
 
     useEffect(() => {
-        console.log(verticalTileArr[positionX][positionY], "VERTICAL TILE ARR CHECK")
+        console.log(verticalTileArr[positionX][positionY -1], "-VERTICAL TILE ARR CHECK")
+        console.log(verticalTileArr[positionX][positionY +1], "+VERTICAL TILE ARR CHECK")
         currentArrayPositionVert = verticalTileArr[positionX][positionY];
         currentArrayPositionHorz = dg_map[positionY][positionX];
         console.log(verticalTileArr[positionX], '+_+ vertical')
@@ -620,7 +619,6 @@ const resetWallCount = () => wallCount = 0;
                     "DEFAULT"
                 )
        }       
-        // dispatch(invertInitialDirection(iniDir));
         console.log(currentArrPos,iniDir,"backtrack")
     }
 /**
@@ -633,13 +631,13 @@ const handleTurn = (
   is3turn?: boolean, 
   isWallTurn?: boolean
 ) => {
-  // Get new direction based on current direction and turn direction
+  // get new direction based on current direction and turn direction
   const newDirection = DIRECTION_MAP[currentDir][turnDirection];
-  
   // Calculate positions
-  const newPosition = mapArray?.length - currentArrPos;
-  const newPositionX = (mapArray?.length - 1) - positionX;
-  const newPositionY = (mapArray?.length - 1) - positionY;
+  const newPosition = /**mapArray?.length**/ 7 - currentArrPos;
+  const newPositionX = /**(mapArray?.length - 1)**/ 7 - positionX;
+  const newPositionY = /**(mapArray?.length - 1)**/ 7 - positionY;
+  console.log(mapArray, 'new positions', 'X ' + newPositionX, 'Y '+newPositionY, 'path Tiel arr', pathTileArr)
   
   // If this is a three-way intersection turn
   if (is3turn) {
@@ -739,18 +737,30 @@ const handle3WayTurnNotAtStart = (
   newDirection: Direction,
   turnDirection: TurnDirection,
   posX: number,
-  newPosX: number
+  newPosX: number,
+  isWallTurn?: boolean
 ) => {
+    console.log(posX,'posx', newPosX)
   if (localLastTurnDir !== turnDirection) {
     // Turn direction changed
     if (turnDirection === 'R') {
       generateMapResources(newDirection, posX, true);
       dispatch(setInitialDirection(true));
       dispatch(setCurrentArrPos(posX));
+      if(isWallTurn) {
+        console.log('is wall turn north 3 way not at start')
+        generateMapResources(newDirection, 0, !iniDir);
+        dispatch(invertInitialDirection());
+        dispatch(setCurrentArrPos(0));
+      }
     } else {
       generateMapResources(newDirection, newPosX, false);
       dispatch(setInitialDirection(false));
       dispatch(setCurrentArrPos(newPosX));
+      if(isWallTurn) {
+        generateMapResources(newDirection, 0);
+        dispatch(setCurrentArrPos(0));
+      }
     }
   } else {
     // Turn direction remained the same
@@ -758,10 +768,20 @@ const handle3WayTurnNotAtStart = (
       generateMapResources(newDirection, posX, true);
       dispatch(setInitialDirection(true));
       dispatch(setCurrentArrPos(posX));
+      if(isWallTurn) {
+        console.log('is wall turn north 3 way not at start same dir')
+        generateMapResources(newDirection, 0, !iniDir);
+        dispatch(invertInitialDirection());
+        dispatch(setCurrentArrPos(0));
+      }
     } else {
       generateMapResources(newDirection, newPosX, false);
       dispatch(setInitialDirection(false));
       dispatch(setCurrentArrPos(newPosX));
+      if(isWallTurn) {
+        generateMapResources(newDirection, 0);
+        dispatch(setCurrentArrPos(0));
+      }
     }
   }
 };
@@ -839,10 +859,20 @@ const handleSouth3WayTurn = (
         generateMapResources(newDirection, (mapArray.length - 1) - positionX, true);
         dispatch(setInitialDirection(true));
         dispatch(setCurrentArrPos((mapArray.length - 1) - positionX));
+        if(isWallTurn) {
+          console.log('is wall turn south 3 way')
+          generateMapResources(newDirection, 0, !iniDir);
+          dispatch(invertInitialDirection());
+          dispatch(setCurrentArrPos(0));
+        }
       } else {
         generateMapResources(newDirection, positionX, false);
         dispatch(setInitialDirection(false));
         dispatch(setCurrentArrPos(positionX));
+        if(isWallTurn) {
+          generateMapResources(newDirection, 0);
+          dispatch(setCurrentArrPos(0));
+        }
       }
     } else {
       // Turn direction remained the same
@@ -851,56 +881,97 @@ const handleSouth3WayTurn = (
         generateMapResources(newDirection, (mapArray.length - 1) - positionX, true);
         dispatch(setInitialDirection(true));
         dispatch(setCurrentArrPos((mapArray.length - 1) - positionX));
+        if(isWallTurn) {
+          console.log('is wall turn south 3 way same dir')
+          generateMapResources(newDirection, 0, !iniDir);
+          dispatch(invertInitialDirection());
+          dispatch(setCurrentArrPos(0));
+        }
       } else {
         generateMapResources(newDirection, positionX, false);
         dispatch(setInitialDirection(false));
         dispatch(setCurrentArrPos(positionX));
+        if(isWallTurn) {
+          generateMapResources(newDirection, 0);
+          dispatch(setCurrentArrPos(0));
+        }
       }
     }
   } else {
     // At starting position
     if (iniDir) {
-      if (localLastTurnDir !== turnDirection) {
-        if (turnDirection === 'R') {
-          generateMapResources(newDirection, (mapArray.length - 1) - positionX, isWallTurn ? !iniDir : iniDir);
-          dispatch(setCurrentArrPos((mapArray.length - 1) - positionX));
-          dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
-        } else {
-          generateMapResources(newDirection, positionX, isWallTurn ? iniDir : !iniDir);
-          dispatch(setCurrentArrPos(positionX));
-          dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
-        }
-      } else {
-        if (turnDirection === 'R') {
-          dispatch(changeDir(newDirection));
-          generateMapResources(newDirection, (mapArray.length - 1) - positionX, isWallTurn ? iniDir : !iniDir);
-          dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
-          dispatch(setCurrentArrPos((mapArray.length - 1) - positionX));
-        } else {
-          dispatch(changeDir(newDirection));
-          generateMapResources(newDirection, positionX, isWallTurn ? !iniDir : iniDir);
-          dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
-          dispatch(setCurrentArrPos(positionX));
-        }
-      }
+      handleSouth3WayTurnAtStartWithIniDir(
+        newDirection,
+        turnDirection,
+        positionX,
+        newPositionX,
+        isWallTurn
+      );
     } else {
-      if (localLastTurnDir !== turnDirection) {
-        if (turnDirection === 'R') {
-          generateMapResources(newDirection, (mapArray.length - 1) - positionX, false);
-          dispatch(setInitialDirection(false));
-          dispatch(setCurrentArrPos((mapArray.length - 1) - positionX));
-        } else {
-          generateMapResources(newDirection, positionX, false);
-          dispatch(setInitialDirection(false));
-          dispatch(setCurrentArrPos(positionX));
-        }
-      } else {
-        dispatch(changeDir(newDirection));
-        generateMapResources(newDirection, positionX, isWallTurn ? iniDir : !iniDir);
-        dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
-        dispatch(setCurrentArrPos(positionX));
-      }
+      handleSouth3WayTurnAtStartWithoutIniDir(
+        newDirection,
+        turnDirection,
+        positionX,
+        newPositionX,
+        isWallTurn
+      );
     }
+  }
+};
+
+/**
+ * Handle South 3-way turn at starting position with initial direction
+ */
+const handleSouth3WayTurnAtStartWithIniDir = (
+  newDirection: Direction,
+  turnDirection: TurnDirection,
+  posX: number,
+  newPosX: number,
+  isWallTurn?: boolean
+) => {
+  if (localLastTurnDir !== turnDirection) {
+    if (turnDirection === 'R') {
+      generateMapResources(newDirection, posX, isWallTurn ? iniDir : !iniDir);
+      dispatch(setCurrentArrPos(posX));
+      dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
+    } else {
+      generateMapResources(newDirection, newPosX, isWallTurn ? !iniDir : iniDir);
+      dispatch(setCurrentArrPos(newPosX));
+      dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
+    }
+  } else {
+    dispatch(changeDir(newDirection));
+    if (turnDirection === 'R') {
+      generateMapResources(newDirection, posX, isWallTurn ? iniDir : !iniDir);
+      dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
+      dispatch(setCurrentArrPos(posX));
+    } else {
+      generateMapResources(newDirection, newPosX, isWallTurn ? !iniDir : iniDir);
+      dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
+      dispatch(setCurrentArrPos(newPosX));
+    }
+  }
+};
+
+/**
+ * Handle South 3-way turn at starting position without initial direction
+ */
+const handleSouth3WayTurnAtStartWithoutIniDir = (
+  newDirection: Direction,
+  turnDirection: TurnDirection,
+  posX: number,
+  newPosX: number,
+  isWallTurn?: boolean
+) => {
+  if (localLastTurnDir !== turnDirection) {
+    generateMapResources(newDirection, posX, false);
+    dispatch(setInitialDirection(false));
+    dispatch(setCurrentArrPos(posX));
+  } else {
+    dispatch(changeDir(newDirection));
+    generateMapResources(newDirection, newPosX, isWallTurn ? iniDir : !iniDir);
+    dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
+    dispatch(setCurrentArrPos(newPosX));
   }
 };
 
@@ -914,18 +985,39 @@ const handleWest3WayTurn = (
   newPositionY: number,
   isWallTurn?: boolean
 ) => {
+  const isShortPath = verticalTileArr[positionX].filter(val => val !== 0).length === 8 ? false : true;
+
   if (currentArrPos !== 0) {
     // Not at starting position
     if (localLastTurnDir !== turnDirection) {
       if (turnDirection === 'R') {
-        generateMapResources(newDirection, (mapArray.length - 1) - positionY, true);
-        dispatch(setInitialDirection(true));
-        dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
+        console.log(isWallTurn,'is wall?', mapArray.length)
+        if(isShortPath) {
+          // if mapArray length is shorter because of partial path:
+          // check if its a short corridor
+          generateMapResources(newDirection, positionY, true);
+          dispatch(setInitialDirection(true));
+          dispatch(setCurrentArrPos(positionY));
+        } else {
+          generateMapResources(newDirection, (mapArray.length - 1) - positionY, true);
+          dispatch(setInitialDirection(true));
+          dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
+        }
+        if(isWallTurn) {
+            console.log('is wall turn west 3 way')
+            generateMapResources(newDirection, 0, !iniDir);
+            dispatch(invertInitialDirection());
+            dispatch(setCurrentArrPos(0));
+        }
       } else {
         console.log('double turn L')
         generateMapResources(newDirection, positionY, false);
         dispatch(setInitialDirection(false));
         dispatch(setCurrentArrPos(positionY));
+        if(isWallTurn) {
+            generateMapResources(newDirection, 0);
+            dispatch(setCurrentArrPos(0));
+        }
       }
     } else {
       // Turn direction remained the same
@@ -1172,7 +1264,6 @@ const handleChangedTurnInHorizontalDirection = (
   }
 };
 
-// Configuration flag for debug mode
     //in resources array + map array(one for loading tiles other for controling position and dictating what will happen)
     // if dir N and at first index in tile array = looking at the wall
     // if dir S and at last index in tile array = looking at the wall
@@ -1201,7 +1292,8 @@ const turn = (turnDir: TurnDirection) => {
   if (process.env.NODE_ENV !== 'production') {
     console.log('Turn initiated', { currentDir, turnDir, mapArray, currentArrPos });
   }
-
+  const isWall = checkForWall(currentDir)
+  console.log(isWall, 'is wall 1')
   // Get the new direction based on current direction and turn direction
   const newDirection = DIRECTION_MAP[currentDir][turnDir];
   
@@ -1212,10 +1304,12 @@ const turn = (turnDir: TurnDirection) => {
   const shouldApplySpecialTurnLogic = determineIfSpecialTurn();
   
   if (shouldApplySpecialTurnLogic) {
-    handleSpecialTurn(newDirection, turnDir);
+    console.log(isWall,'is wall def 2')
+    handleSpecialTurn(newDirection, turnDir, isWall);
   } else {
+    console.log(isWall,'is wall def')
     // Default case - use the handleTurn function
-    handleTurn(currentDir, lastTurnDir, turnDir);
+    handleTurn(currentDir, lastTurnDir, turnDir, null, isWall);
   }
   
   // Update last turn direction
@@ -1248,7 +1342,7 @@ const determineIfSpecialTurn = () => {
 /**
  * Handle special turn cases
  */
-const handleSpecialTurn = (newDirection: Direction, turnDir: TurnDirection) => {
+const handleSpecialTurn = (newDirection: Direction, turnDir: TurnDirection, isWall) => {
   // Case 1: At the start of array and not at a 3-way intersection
   if (currentArrPos === 0 && currentArrayPositionHorz !== 3) {
     generateMapResources(newDirection, 0, !iniDir);
@@ -1275,7 +1369,7 @@ const handleSpecialTurn = (newDirection: Direction, turnDir: TurnDirection) => {
     
     // At a 3-way intersection
     if (currentArrayPositionHorz === 3) {
-      handleTurn(currentDir, lastTurnDir, turnDir, true);
+      handleTurn(currentDir, lastTurnDir, turnDir, true, isWall);
       return;
     }
     
@@ -1300,7 +1394,66 @@ const handleSpecialTurn = (newDirection: Direction, turnDir: TurnDirection) => {
     dispatch(setCurrentArrPos(0));
   }
 };
-
+    const checkForWall = (currentDirLocal, checkBack = false) => {
+        console.log('Checking for wall in direction:', currentDirLocal, 'checkBack:', checkBack);
+        switch(currentDirLocal) {
+            case 'N':
+                if(checkBack) {
+                    return verticalTileArr[positionX] && 
+                        (verticalTileArr[positionX][positionY+1] === 0 || 
+                        verticalTileArr[positionX][positionY+1] === undefined);
+                } else {
+                    let wall = dg_map[positionX] && 
+                        !(dg_map[positionY-1] && dg_map[positionY-1][positionX+1] === 1 && 
+                          dg_map[positionY-1][positionX-1] === 1);
+                    console.log('North wall check:', wall);
+                    return wall;
+                }
+            
+            case 'S':
+                if(checkBack) {
+                    return verticalTileArr[positionX] && 
+                        (verticalTileArr[positionX][positionY-1] === 0 || 
+                        verticalTileArr[positionX][positionY-1] === undefined);
+                } else {
+                    let wall = dg_map[positionX] && 
+                        !(dg_map[positionY+1] && dg_map[positionY+1][positionX+1] === 1 && 
+                          dg_map[positionY+1][positionX-1] === 1);
+                    console.log('South wall check:', wall);
+                    return wall;
+                }
+            
+            case 'E':
+                if(checkBack) {
+                    return dg_map[positionY] && 
+                        (dg_map[positionY][positionX-1] === 0 || 
+                        dg_map[positionY][positionX-1] === undefined);
+                } else {
+                    let wall = verticalTileArr[positionX+1] && 
+                        !(verticalTileArr[positionX+1][positionY+1] === 1 && 
+                          verticalTileArr[positionX+1][positionY-1] === 1);
+                    console.log('East wall check:', wall);
+                    return wall;
+                }
+            
+            case 'W':
+                if(checkBack) {
+                    return dg_map[positionY] && 
+                        (dg_map[positionY][positionX+1] === 0|| 
+                        dg_map[positionY][positionX+1] === undefined);
+                } else {
+                    let wall = verticalTileArr[positionY] && 
+                        !(verticalTileArr[positionX][positionY+1] === 1 && 
+                          verticalTileArr[positionX][positionY-1] === 1);
+                    console.log('West wall check:', wall);
+                    return wall;
+                }
+            
+            default:
+                console.log('Wall check default case - no wall');
+                return false;
+        }
+    };
 /**
  * Debug logger for development environment only
  */
