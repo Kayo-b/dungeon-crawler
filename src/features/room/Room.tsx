@@ -47,8 +47,8 @@ export const Room = () => {
     const [backtrack, setBacktrack] = useState(backtrackArr);
     const [verticalTileArr, setVerticalTileArr] = useState<Array<Array<number>>>(Array.from({ length: 8 }, () => []));
     
-    const turnTileRight = require('../../resources/dung-turn.png');
-    const turnTileLeft = require('../../resources/dung-turn-left.png');
+    const turnTileRight = require('../../resources/dung-turn_old.png');
+    const turnTileLeft = require('../../resources/dung-turn-left_old.png');
     const corridorTile = require('../../resources/dung-corridor.png');
     const facingWallTile = require('../../resources/brickwall.png');
     const turnThreeWay = require('../../resources/dung-threeway.png');
@@ -71,14 +71,14 @@ export const Room = () => {
     //     [0, 0, 0, 0, 0, 0, 0, 0]
     // ]
     // const dg_map = [
-    //     [2, 1, 1, 1, 1, 1, 1, 2],
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [1, 0, 0, 0, 0, 0, 0, 1]3
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [2, 1, 1, 1, 1, 1, 1, 2],
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [2, 1, 1, 1, 1, 1, 1, 2]
+    //     [1, 1, 1, 1, 2, 0, 0, 0],
+    //     [0, 0, 0, 0, 1, 0, 0, 0],
+    //     [0, 0, 0, 0, 1, 0, 0, 0],
+    //     [9, 9, 1, 1, 3, 1, 1, 2],
+    //     [0, 0, 0, 0, 1, 0, 0, 1],
+    //     [0, 0, 0, 0, 1, 0, 0, 1],
+    //     [0, 0, 0, 0, 1, 0, 0, 1],
+    //     [0, 0, 0, 0, 2, 1, 1, 2]
     // ]
     const dg_map = [
         [2, 1, 1, 3, 1, 3, 1, 2],
@@ -355,7 +355,6 @@ const processTurnTile = (
   index: number,
   newDir: boolean
 ) => {
-  // Determine if we should use left or right turn tile
   const shouldUseRightTurn = shouldUseTurnRight(direction, index, newDir);
   
   return {
@@ -1342,6 +1341,16 @@ const debugLog = (message: string, data?: any) => {
             return () => document.removeEventListener('keydown', handleKeyPress);
         }
     }, [handleKeyPress]); 
+    function calculateScale(index: number) {
+      if (index === 0 ) {
+        return 1.31
+      } else if (index === 1) {
+        return 0.67
+      } else {
+        console.log(pathTileArr[index], 'path tile test')
+        return pathTileArr[index] === 2 ? 0.67 / index + 0.1 : 0.67 / index + 0.1
+      }
+    }
     return (
         <View style={styles.backgroundImage}>
             <TouchableOpacity 
@@ -1374,7 +1383,7 @@ const debugLog = (message: string, data?: any) => {
                     style={[
                         styles.backgroundImage,
                         {
-                            transform: [{scale: index === 1 ? 0.67 : 0.67/index+0.1}],
+                            transform: [{scale: calculateScale(index)}],// index === 1 ? 0.67 : 0.67/index+0.1}],
                             position: 'absolute'
                         }
                     ]} 
