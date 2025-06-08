@@ -1335,7 +1335,16 @@ const debugLog = (message: string, data?: any) => {
             break;
         }
     }, [forward, reverse, turn]);
-
+    function calculateScale(index: number) {
+      if (index === 0 ) {
+        return 1.31
+      } else if (index === 1) {
+        return 0.67
+      } else {
+        console.log(pathTileArr[index], 'path tile test')
+        return pathTileArr[index] === 2 ? 0.67 / index + 0.1 : 0.67 / index + 0.1
+      }
+    }
     useEffect(() => {
         if (Platform.OS === 'web') {
             document.addEventListener('keydown', handleKeyPress);
@@ -1374,7 +1383,7 @@ const debugLog = (message: string, data?: any) => {
                     style={[
                         styles.backgroundImage,
                         {
-                            transform: [{scale: index === 1 ? 0.67 : 0.67/index+0.1}],
+                            transform: [{scale: calculateScale(index)}],
                             position: 'absolute'
                         }
                     ]} 
