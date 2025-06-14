@@ -21,7 +21,7 @@ export const MainScreen = () => {
     // const count = useAppSelector(state => state.counter.value); // Select the current count
         dispatch(fetchEnemies())
         dispatch(addEnemy({index:0, id:0}))
-        dispatch(setCurrentPos([7,7]))
+        dispatch(setCurrentPos([7,4]))
     useEffect(() =>  {
         dispatch(addEnemy({index:0, id: randomNumber(2)}))
         console.log(randomNumber(2), 'random number')

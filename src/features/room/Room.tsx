@@ -1335,15 +1335,25 @@ const debugLog = (message: string, data?: any) => {
             break;
         }
     }, [forward, reverse, turn]);
-    function calculateScale(index: number) {
-      if (index === 0 ) {
-        return 1.31
-      } else if (index === 1) {
-        return 0.67
-      } else {
-        console.log(pathTileArr[index], 'path tile test')
-        return pathTileArr[index] === 2 ? 0.67 / index + 0.1 : 0.67 / index + 0.1
+
+    function calculateScale(index: number, tileType: number) {
+      const baseScale = 1.31;
+      const decayRate = 0.51;
+      
+      if (index === 0) {
+        return baseScale;
       }
+      if (index === 1) {
+        return 0.67;
+      }
+      
+      const perspectiveScale = baseScale * Math.pow(decayRate, index);
+      
+      if (pathTileArr[index] === 5 || pathTileArr[index] === 3) {
+        return perspectiveScale * 1.0;
+      }
+      
+      return perspectiveScale;
     }
     useEffect(() => {
         if (Platform.OS === 'web') {
@@ -1384,7 +1394,7 @@ const debugLog = (message: string, data?: any) => {
                         styles.backgroundImage,
                         {
                             transform: [{scale: calculateScale(index)}],
-                            position: 'absolute'
+                            position: 'absolute',
                         }
                     ]} 
                     >
