@@ -90,7 +90,6 @@ export const Room = () => {
         [1, 0, 0, 1, 0, 1, 0, 1],
         [2, 1, 1, 3, 1, 3, 1, 2]
     ]
-    // Define types for better code documentation
     type Direction = 'N' | 'S' | 'E' | 'W';
     type TurnDirection = 'L' | 'R';
     type TileType = 0 | 1 | 2 | 3 | undefined;
@@ -107,7 +106,6 @@ export const Room = () => {
     };
 
     let mapArr = [];
-    // Define types for better documentation and type safety
 
 
 /**
@@ -118,18 +116,16 @@ const generateMapResources = (
   newPosition: number,
   newDir?: boolean,
   isReverse?: boolean,
-  is3turn?: boolean
+  is3turn?: boolean,
+  regularCorner?: boolean
 ) => {
   // Initialize variables
   let tempArr = [];
   let tempArrTiles = [];
   let mapArr: MapArray;
   let arrayPosition: number;
-  
-  // Use provided newDir or fall back to initial direction
   const effectiveNewDir = newDir !== undefined ? newDir : iniDir;
   
-  // Set up map array and position based on direction
   ({ mapArr, arrayPosition } = setupMapArrayAndPosition(
     currentDirLocal, 
     newPosition, 
@@ -137,7 +133,6 @@ const generateMapResources = (
     positionY
   ));
   
-  // Handle direction changes
   handleDirectionChange(
     currentDirLocal, 
     currentDirTemp, 
@@ -145,20 +140,17 @@ const generateMapResources = (
     effectiveNewDir
   );
   
-  // Process map array
   const tempArray = [...mapArr];
   const processedMapArr = processMapArray(mapArr);
   if (shouldUpdateMapArray(processedMapArr)) {
     setMapArray(processedMapArr);
   }
   
-  // Reverse array if needed based on direction
   const finalMapArr = adjustMapArrayForDirection(
     processedMapArr, 
     currentDirLocal
   );
   
-  // Generate tiles
   const { tileArray, tileTypes } = generateTiles(
     finalMapArr,
     tempArray,
@@ -167,7 +159,6 @@ const generateMapResources = (
     effectiveNewDir
   );
   
-  // Update state with generated tiles
   updateTileState(tileArray, tileTypes);
 };
 
@@ -204,7 +195,6 @@ const handleDirectionChange = (
 ) => {
     console.log(previousDir, currentDir, "prev and curr")
   if (previousDir !== currentDir && isReverse === undefined) {
-    // Only process if direction has changed and not in reverse mode
     if (areOppositeDirections(previousDir, currentDir)) {
       dispatch(invertInitialDirection());
       return !newDir;
@@ -540,8 +530,15 @@ const resetWallCount = () => wallCount = 0;
             startCombat(index);
         } 
     }
-    
+    const checkNextTile = () => {
+      if(pathTileArr.length === 1) {
+        return false; 
+      } else {
+        return true;
+      }
+    } 
     const forward = () => {
+        if(!checkNextTile()) return
         let tempPosY = positionY; 
         let tempPosX = positionX;
         let tempArrPos = currentArrPos;
@@ -633,6 +630,7 @@ const handleTurn = (
   is3turn?: boolean, 
   isWallTurn?: boolean
 ) => {
+  console.log('handle turn')
   // Get new direction based on current direction and turn direction
   const newDirection = DIRECTION_MAP[currentDir][turnDirection];
   
@@ -690,6 +688,8 @@ const handle3WayTurn = (
     newPositionY,
     isWallTurn
   );
+  console.log('is 3 way', currentDir)
+
 };
 
 /**
@@ -918,11 +918,12 @@ const handleWest3WayTurn = (
     // Not at starting position
     if (localLastTurnDir !== turnDirection) {
       if (turnDirection === 'R') {
+        console.log('double turn R1')
         generateMapResources(newDirection, (mapArray.length - 1) - positionY, true);
         dispatch(setInitialDirection(true));
         dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
       } else {
-        console.log('double turn L')
+        console.log('double turn L1')
         generateMapResources(newDirection, positionY, false);
         dispatch(setInitialDirection(false));
         dispatch(setCurrentArrPos(positionY));
@@ -930,12 +931,12 @@ const handleWest3WayTurn = (
     } else {
       // Turn direction remained the same
       if (turnDirection === 'R') {
-        console.log('double turn R')
+        console.log('double turn R2')
         generateMapResources(newDirection, (mapArray.length - 1) - positionY, true);
         dispatch(setInitialDirection(true));
         dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
       } else {
-        console.log('double turn L')
+        console.log('double turn L2')
         generateMapResources(newDirection, positionY, false);
         dispatch(setInitialDirection(false));
         dispatch(setCurrentArrPos(positionY));
@@ -946,10 +947,12 @@ const handleWest3WayTurn = (
     if (iniDir) {
       if (localLastTurnDir !== turnDirection) {
         if (turnDirection === 'R') {
-          generateMapResources(newDirection, (mapArray.length - 1) - positionY, iniDir);
+          console.log('not double R1')
+          generateMapResources(newDirection, (mapArray.length - 1) - positionY, !iniDir);
           dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
-          dispatch(setInitialDirection(iniDir));
+          dispatch(setInitialDirection(!iniDir));
         } else {
+          console.log('not double L1')
           generateMapResources(newDirection, positionY, isWallTurn ? !iniDir : iniDir);
           dispatch(setCurrentArrPos(positionY));
           dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
@@ -957,10 +960,12 @@ const handleWest3WayTurn = (
       } else {
         dispatch(changeDir(newDirection));
         if (turnDirection === 'R') {
+          console.log('not double R2')
           generateMapResources(newDirection, (mapArray.length - 1) - positionY, isWallTurn ? iniDir : !iniDir);
           dispatch(setInitialDirection(isWallTurn ? iniDir : !iniDir));
           dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
         } else {
+          console.log('not double L2')
           generateMapResources(newDirection, positionY, isWallTurn ? !iniDir : iniDir);
           dispatch(setInitialDirection(isWallTurn ? !iniDir : iniDir));
           dispatch(setCurrentArrPos(positionY));
@@ -1067,6 +1072,7 @@ const handleRegularTurn = (
   turnDirection: TurnDirection,
   newPosition: number
 ) => {
+  console.log('regular turn')
   if (lastTurnDir !== turnDirection) {
     // When turn direction has changed from last turn
     handleChangedTurnDirection(
@@ -1251,6 +1257,7 @@ const determineIfSpecialTurn = () => {
 const handleSpecialTurn = (newDirection: Direction, turnDir: TurnDirection) => {
   // Case 1: At the start of array and not at a 3-way intersection
   if (currentArrPos === 0 && currentArrayPositionHorz !== 3) {
+  console.log('special turn')
     generateMapResources(newDirection, 0, !iniDir);
     dispatch(invertInitialDirection());
     return;
@@ -1261,26 +1268,29 @@ const handleSpecialTurn = (newDirection: Direction, turnDir: TurnDirection) => {
       pathTileArr[0] !== 3 && 
       pathTileArr[0] !== 4) {
     
+  console.log('special turn 2')
     // Check for edge case with intersection and undefined next position
     const isAtEdgeIntersection = 
       currentArrayPositionHorz === 3 && 
       (currentDir === 'N' || currentDir === 'S' 
         ? dg_map[currentArrPos + 1] === undefined
         : verticalTileArr[currentArrPos + 1] === undefined);
-    
     if (isAtEdgeIntersection) {
+  console.log('special turn 3')
       handleTurn(currentDir, lastTurnDir, turnDir, true);
       return;
     }
     
     // At a 3-way intersection
     if (currentArrayPositionHorz === 3) {
+        
+  console.log('special turn 4')
       handleTurn(currentDir, lastTurnDir, turnDir, true);
       return;
     }
     
     // Regular corner
-    generateMapResources(newDirection, 0);
+    generateMapResources(newDirection, 0, undefined, undefined, undefined,true);
     dispatch(setCurrentArrPos(0));
     return;
   }
@@ -1398,6 +1408,15 @@ const debugLog = (message: string, data?: any) => {
                         }
                     ]} 
                     >
+                    <View style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: getRandomShade(index),
+                      opacity: getRandomOpacity(index),
+                    }} />
                     </ImageBackground>
             })}
             {enemiesVal.map((val, index) => (
@@ -1409,11 +1428,27 @@ const debugLog = (message: string, data?: any) => {
                     </View>
                 ) : null
             ))}
+
         </ImageBackground>
         </View>
     );
 };
+function getRandomShade(index: number) {
+  const shades = [
+    'transparent',
+    'black',     
+    '#4a4a4a',    
+    '#8B4513',   
+    '#2c3e50',    
+    '#5d4e75',   
+  ];
+  return shades[index % shades.length];
+}
 
+function getRandomOpacity(index: number) {
+  const opacities = [0, 0.15, 0.1, 0.2, 0.12, 0.18];
+  return opacities[index % opacities.length];
+}
 const styles = StyleSheet.create({
     container: {
         flex: 1
