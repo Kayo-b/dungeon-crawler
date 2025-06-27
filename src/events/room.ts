@@ -17,6 +17,14 @@ export const useRoom = () => {
             dispatch(addEnemy({ index:x, id:z }));
         }
     } 
+
+    const encounterEvent = () =>  {
+            let event = Math.floor(Math.random() * 5) === 0 ? true : false; 
+            console.log(event, 'event', Math.floor(Math.random() * 5)) 
+        if(event) {
+            addRandomEnemies(1)
+        }
+    }
     
     const changeLvl = () => {
         dispatch(clearEnemies());
@@ -28,10 +36,10 @@ export const useRoom = () => {
     }        
 
     const getEnemies = () => {
-        // dispatch(fetchEnemies());
-        // dispatch(addEnemy(1));
+        dispatch(fetchEnemies());
+        dispatch(addEnemy({index:0, id: 2}));
     }
     
-    return { changeLvl, getEnemies};
+    return { changeLvl, getEnemies, encounterEvent};
 }
 

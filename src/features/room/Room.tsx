@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Button, Platform, ImageBackground, TouchableOpa
 import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
+import { addEnemy } from '../../features/enemy/enemySlice';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
 import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, invertInitialDirection, setLastTurnDir, setInitialDirection } from '../../features/room/roomSlice';
 import { useRoom } from '../../events/room';
@@ -28,7 +29,7 @@ export const Room = () => {
     const currentArrPos = useAppSelector(state => state.room.currentArrPos);
     const iniDir = useAppSelector(state => state.room.initialDirection);
     const lastTurnDir = useAppSelector(state => state.room.lastTurnDir);
-    const { changeLvl, getEnemies } = useRoom();
+    const { changeLvl, getEnemies , encounterEvent } = useRoom();
     const { startCombat } = useCombat();
     // dispatch(setCurrentPos([2,6]))
     // generate resources array based on dg_map layout
@@ -543,6 +544,9 @@ const resetWallCount = () => wallCount = 0;
     } 
     const forward = () => {
         if(!checkNextTile()) return
+        // add enemy encounter event
+        encounterEvent();
+        // dispatch(addEnemy({index:0, id: 1}));
         let tempPosY = positionY; 
         let tempPosX = positionX;
         let tempArrPos = currentArrPos;
