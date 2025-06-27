@@ -61,35 +61,35 @@ export const Room = () => {
     // AT horizontal array[5,0 W] -> passes through tile type 2 -> needs to read vertical array 2(i) positionY 
     // At vertical array[2,0 S] -> passes thrrough tile type 2 -> needs to read horizontal array 0(i) positionX
     // const dg_map = [
-    //     [0, 0, 0, 0, 0, 0, 0, 0],
-    //     [0, 2, 1, 1, 1, 1, 2, 0],
-    //     [0, 1, 0, 0, 0, 0, 1, 0],
-    //     [0, 1, 0, 0, 0, 0, 1, 0],
-    //     [0, 1, 0, 0, 0, 0, 1, 0],
-    //     [0, 1, 0, 0, 0, 0, 1, 0],
-    //     [0, 2, 1, 1, 1, 1, 2, 0],
-    //     [0, 0, 0, 0, 0, 0, 0, 0]
-    // ]
-    // const dg_map = [
-    //     [2, 1, 1, 1, 1, 1, 1, 2],
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [1, 0, 0, 0, 0, 0, 0, 1]3
+    //     [2, 1, 1, 0, 0, 1, 1, 2],
+    //     [1, 0, 2, 1, 1, 2, 0, 1],
     //     [1, 0, 0, 0, 0, 0, 0, 1],
     //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [2, 1, 1, 1, 1, 1, 1, 2],
+    //     [1, 0, 0, 1, 1, 1, 1, 3],
     //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [2, 1, 1, 1, 1, 1, 1, 2]
+    //     [2, 1, 0, 1, 1, 2, 0, 1],
+    //     [0, 2, 1, 2, 0, 1, 1, 2]
     // ]
     const dg_map = [
-        [2, 1, 1, 3, 1, 3, 1, 2],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [3, 1, 1, 3, 1, 3, 1, 3],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [3, 1, 1, 3, 1, 3, 1, 3],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [2, 1, 1, 3, 1, 3, 1, 2]
+        [2, 1, 1, 1, 1, 1, 1, 2],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [3, 1, 1, 1, 1, 1, 1, 3],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 1],
+        [2, 1, 1, 1, 1, 1, 1, 2]
     ]
+    // const dg_map = [
+    //     [2, 1, 1, 3, 1, 3, 1, 2],
+    //     [1, 0, 0, 1, 0, 1, 0, 1],
+    //     [3, 1, 1, 3, 1, 3, 1, 3],
+    //     [1, 0, 0, 1, 0, 1, 0, 1],
+    //     [3, 1, 1, 3, 1, 3, 1, 3],
+    //     [1, 0, 0, 1, 0, 1, 0, 1],
+    //     [1, 0, 0, 1, 0, 1, 0, 1],
+    //     [2, 1, 1, 3, 1, 3, 1, 2]
+    // ]
     type Direction = 'N' | 'S' | 'E' | 'W';
     type TurnDirection = 'L' | 'R';
     type TileType = 0 | 1 | 2 | 3 | undefined;
@@ -143,6 +143,7 @@ const generateMapResources = (
   const tempArray = [...mapArr];
   const processedMapArr = processMapArray(mapArr);
   if (shouldUpdateMapArray(processedMapArr)) {
+    console.log('should update')
     setMapArray(processedMapArr);
   }
   
@@ -187,6 +188,7 @@ const setupMapArrayAndPosition = (
 /**
  * Handle changes in direction and update initial direction state if needed
  */
+
 const handleDirectionChange = (
   currentDir: Direction,
   previousDir: Direction,
@@ -256,10 +258,9 @@ const generateTiles = (
   direction: Direction,
   newDir: boolean
 ) => {
+  console.log('generate tiles', mapArr, originalArray.length, arrayPosition)
   const tileArray = [];
   const tileTypes = [];
-  
-  // Process each tile
   for (let i = arrayPosition; i < originalArray.length; i++) {
     const tileType = mapArr[i];
     const tileResult = processTile(
@@ -291,15 +292,17 @@ const processTile = (
   arrayPosition: number,
   mapArr: MapArray
 ) => {
+  console.log('tile type', tileType, isFacingWall(direction))
+  if(isFacingWall(direction)) tileType = undefined;
   switch (tileType) {
+    case undefined:
+      return processWallTile(direction);
     case 1:
       return processCorridorTile(direction);
     case 2:
       return processTurnTile(direction, index, newDir);
     case 3:
       return processThreeWayTile(direction, index, newDir, mapArr);
-    case undefined:
-      return processWallTile(direction);
     default:
       return { tile: null };
   }
@@ -459,6 +462,7 @@ const processWallTile = (direction: Direction) => {
  * Update tile state with generated tiles
  */
 const updateTileState = (tileArray, tileTypes) => {
+  console.log('update tiles', tileArray)
   setVertRes(tileArray);
   setPathTileArray(tileArray.filter(val => val != ''));
 };
@@ -1288,7 +1292,7 @@ const handleSpecialTurn = (newDirection: Direction, turnDir: TurnDirection) => {
       handleTurn(currentDir, lastTurnDir, turnDir, true);
       return;
     }
-    
+   console.log(' last handle special turn') 
     // Regular corner
     generateMapResources(newDirection, 0, undefined, undefined, undefined,true);
     dispatch(setCurrentArrPos(0));
