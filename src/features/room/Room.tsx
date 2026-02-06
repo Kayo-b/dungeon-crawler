@@ -4,13 +4,86 @@ import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
-import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, invertInitialDirection, setLastTurnDir, setInitialDirection } from '../../features/room/roomSlice';
+import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, invertInitialDirection, setLastTurnDir, setInitialDirection, loadMap, resetPosition } from '../../features/room/roomSlice';
+import { getMapList, MapInfo } from '../../data/maps';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
 import { useCallback, useDebugValue, useEffect, useState } from 'react';
 import { useCombat } from '../../events/combat'
 import { current } from '@reduxjs/toolkit';
+import { debugMove, movementDebug, Direction } from '../../utils/debug';
+import { DebugOverlay } from './DebugOverlay';
+import { useMovement } from '../../systems/movement/useMovement';
+import { useMovementWithRender, TileImages } from '../../systems/movement/useMovementWithRender';
+import { isBlocked } from '../../systems/movement/TileNavigator';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
+
+/**
+ * Calculate the correct array position directly from player coordinates
+ * This avoids desync issues from stale state during rapid turns
+ */
+function calculateArrPosFromCoords(
+    playerX: number,
+    playerY: number,
+    direction: string,
+    horizontalMap: number[][],
+    verticalMap: number[][]
+): { arrPos: number; pathLength: number; filteredPath: number[]; iniDirForNewPath: boolean } {
+    // Get the raw path for the target direction
+    let rawPath: number[];
+    let playerCoord: number;
+
+    if (direction === 'N' || direction === 'S') {
+        rawPath = verticalMap[playerX] || [];
+        playerCoord = playerY;
+    } else {
+        rawPath = horizontalMap[playerY] || [];
+        playerCoord = playerX;
+    }
+
+    // Build position lookup and filtered path (removing walls)
+    const positionLookup: number[] = [];
+    const filteredPath: number[] = [];
+
+    for (let i = 0; i < rawPath.length; i++) {
+        if (rawPath[i] !== 0) {
+            positionLookup.push(i);
+            filteredPath.push(rawPath[i]);
+        }
+    }
+
+    // Find player's index in the filtered array
+    let arrPos = positionLookup.indexOf(playerCoord);
+    if (arrPos === -1) {
+        // Player coordinate not found in path - find closest
+        arrPos = 0;
+        for (let i = 0; i < positionLookup.length; i++) {
+            if (positionLookup[i] <= playerCoord) {
+                arrPos = i;
+            }
+        }
+    }
+
+    // For N/W, the array is reversed in generateMapResources, so adjust position
+    // arrPos should be the distance from the "start" of the visible path
+    let iniDirForNewPath: boolean;
+    if (direction === 'N' || direction === 'W') {
+        arrPos = filteredPath.length - 1 - arrPos;
+        // When entering from S going N, or E going W, iniDir should be based on entry
+        iniDirForNewPath = direction === 'N' ? false : false;
+    } else {
+        // S or E direction
+        iniDirForNewPath = direction === 'S' ? true : true;
+    }
+
+    return {
+        arrPos: Math.max(0, Math.min(arrPos, filteredPath.length - 1)),
+        pathLength: filteredPath.length,
+        filteredPath,
+        iniDirForNewPath
+    };
+}
+
 let display = 0;
 
 export const Room = () => {
@@ -28,8 +101,21 @@ export const Room = () => {
     const currentArrPos = useAppSelector(state => state.room.currentArrPos);
     const iniDir = useAppSelector(state => state.room.initialDirection);
     const lastTurnDir = useAppSelector(state => state.room.lastTurnDir);
+
+    // Map data from Redux (new)
+    const currentMapId = useAppSelector(state => state.room.currentMapId);
+    const mapWidth = useAppSelector(state => state.room.mapWidth);
+    const mapHeight = useAppSelector(state => state.room.mapHeight);
+    const mapTiles = useAppSelector(state => state.room.mapTiles);
+    const reduxVerticalTiles = useAppSelector(state => state.room.verticalTiles);
+
+    // Use Redux map data instead of hardcoded - dg_map now references Redux state
+    const dg_map = mapTiles;
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
+
+    // New movement system hook
+    const movement = useMovement();
     // dispatch(setCurrentPos([2,6]))
     // generate resources array based on dg_map layout
     // 1- take verticalTileArr for vertical tiles array and  dg_map for horizontal
@@ -45,51 +131,42 @@ export const Room = () => {
     const backtrackArr: Array<NodeRequire> = [];
     const [pathTileArr, setPathTileArray] = useState<NodeRequire[]>(resources);
     const [backtrack, setBacktrack] = useState(backtrackArr);
-    const [verticalTileArr, setVerticalTileArr] = useState<Array<Array<number>>>(Array.from({ length: 8 }, () => []));
+    // Use Redux vertical tiles, or initialize from map dimensions
+    const [verticalTileArr, setVerticalTileArr] = useState<Array<Array<number>>>(
+        reduxVerticalTiles.length > 0 ? reduxVerticalTiles : Array.from({ length: mapWidth }, () => [])
+    );
     
     const turnTileRight = require('../../resources/dung-turn.png');
     const turnTileLeft = require('../../resources/dung-turn-left.png');
     const corridorTile = require('../../resources/dung-corridor.png');
     const facingWallTile = require('../../resources/brickwall.png');
     const turnThreeWay = require('../../resources/dung-threeway.png');
-    // Need to find a way to identify if the turn tile is left or right
-    // vertical check: posX tiles will depend on the positionY[posX]
-    // direction N && perpendicular axis index + 1 === 1 -> RIGHT TURN -ELSE- LEFT
-    // direction S && perpendicular axis index + 1 === 1 -> LEFT TURN -ELSE- RIGHT
-    // direction W && perpendicular axis index + 1 === 1 -> LEFT TURN -ELSE RIGHT
-    // direction E && perpendicular axis index + 1 === 1 -> Right TURN -ELSE- LEFT
-    // AT horizontal array[5,0 W] -> passes through tile type 2 -> needs to read vertical array 2(i) positionY 
-    // At vertical array[2,0 S] -> passes thrrough tile type 2 -> needs to read horizontal array 0(i) positionX
-    // const dg_map = [
-    //     [0, 0, 0, 0, 0, 0, 0, 0],
-    //     [0, 2, 1, 1, 1, 1, 2, 0],
-    //     [0, 1, 0, 0, 0, 0, 1, 0],
-    //     [0, 1, 0, 0, 0, 0, 1, 0],
-    //     [0, 1, 0, 0, 0, 0, 1, 0],
-    //     [0, 1, 0, 0, 0, 0, 1, 0],
-    //     [0, 2, 1, 1, 1, 1, 2, 0],
-    //     [0, 0, 0, 0, 0, 0, 0, 0]
-    // ]
-    // const dg_map = [
-    //     [2, 1, 1, 1, 1, 1, 1, 2],
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [1, 0, 0, 0, 0, 0, 0, 1]3
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [2, 1, 1, 1, 1, 1, 1, 2],
-    //     [1, 0, 0, 0, 0, 0, 0, 1],
-    //     [2, 1, 1, 1, 1, 1, 1, 2]
-    // ]
-    const dg_map = [
-        [2, 1, 1, 3, 1, 3, 1, 2],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [3, 1, 1, 3, 1, 3, 1, 3],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [3, 1, 1, 3, 1, 3, 1, 3],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [1, 0, 0, 1, 0, 1, 0, 1],
-        [2, 1, 1, 3, 1, 3, 1, 2]
-    ]
+
+    // Tile images for new movement system
+    // Note: door, stairs, deadEnd, and fourWay use placeholders until custom images are added
+    const tileImages: TileImages = {
+        corridor: corridorTile,
+        turnLeft: turnTileLeft,
+        turnRight: turnTileRight,
+        threeWay: turnThreeWay,
+        wall: facingWallTile,
+        // New tile types - using fallbacks until dedicated images exist
+        fourWay: turnThreeWay,      // Fallback to 3-way for now
+        door: corridorTile,          // Fallback to corridor for now
+        doorOpen: corridorTile,      // Fallback to corridor for now
+        stairsUp: corridorTile,      // Fallback to corridor for now
+        stairsDown: corridorTile,    // Fallback to corridor for now
+        deadEnd: facingWallTile,     // Fallback to wall for now
+    };
+
+    // Toggle for new vs old movement system
+    const [useNewMovement, setUseNewMovement] = useState(false);
+
+    // New movement system hook
+    const newMovement = useMovementWithRender(tileImages);
+
+    // Map data now comes from Redux state (mapTiles/dg_map, reduxVerticalTiles)
+    // Available maps can be loaded via dispatch(loadMap('level1')) etc.
     // reverse maparr if:
     // .                  direction is N 
     ///                   direction is W
@@ -124,7 +201,7 @@ export const Room = () => {
         mapArr = mapArr.filter(val => val !== 0)
         let mapArrCount = mapArr.filter(val => val !== 1).length;
         console.log(mapArrCount, 'turndir maparrcount', mapArr);
-        if(mapArr.filter(val => val !== 1).filter(val => val !== 0).length !== 0) {
+        if(mapArr.filter(val => val !== 1).length !== 0) {
             setMapArray(mapArr);
             console.log(currentDirLocal, currentDirTemp, 'turndir current dir local')
             if(currentDirTemp !== currentDirLocal && isReverse === undefined) {
@@ -163,12 +240,96 @@ export const Room = () => {
         console.log('()_+ IIIII currentArrPos', newPosition)
         console.log('()_+ IIIII', currentDirLocal, mapArr, positionX, positionY, arrayPosition)
         let undefCount = 0;
+
+        // Build a lookup table: for each index in the filtered mapArr, what's the actual map position?
+        // This is needed because filtering removes walls and shifts indices
+        const positionLookup: number[] = [];
+        let lookupIdx = 0;
+        for (let pos = 0; pos < tempArray.length; pos++) {
+            if (tempArray[pos] !== 0) {
+                positionLookup[lookupIdx] = pos;
+                lookupIdx++;
+            }
+        }
+
         if(currentDirLocal === 'N' || currentDirLocal === 'W') {
             mapArr = mapArr.reverse();
+            positionLookup.reverse();
         }
-        console.log('wallcheck arrays', mapArr, tempArray, arrayPosition)
-        for(let i = arrayPosition; i < tempArray.length; i++) {
-            console.log(mapArr,mapArr[i],resources,'resourcesxx',tempArray);
+
+        // FIX: Calculate the visible path length - stop at first wall in the direction we're facing
+        // This prevents rendering tiles that are behind walls
+        let visiblePathEnd = mapArr.length;
+
+        // Find player's current position in the original tempArray
+        const playerCoord = currentDirLocal === 'N' || currentDirLocal === 'S' ? positionY : positionX;
+
+        // Check for walls blocking the view from current position
+        if (currentDirLocal === 'S') {
+            // Walking south (increasing Y), check for walls ahead
+            for (let y = positionY + 1; y < tempArray.length; y++) {
+                if (tempArray[y] === 0) {
+                    // Found a wall - find corresponding index in filtered array
+                    const wallIdx = positionLookup.findIndex(p => p >= y);
+                    if (wallIdx !== -1) {
+                        visiblePathEnd = wallIdx;
+                    } else {
+                        visiblePathEnd = mapArr.length;
+                    }
+                    break;
+                }
+            }
+        } else if (currentDirLocal === 'N') {
+            // Walking north (decreasing Y), array is reversed
+            // In reversed array, we walk forward but check original positions going backwards
+            for (let idx = arrayPosition; idx < mapArr.length; idx++) {
+                const originalPos = positionLookup[idx];
+                // Check if there's a wall between current position and this tile
+                for (let y = positionY - 1; y > originalPos; y--) {
+                    if (tempArray[y] === 0) {
+                        visiblePathEnd = idx;
+                        break;
+                    }
+                }
+                if (visiblePathEnd !== mapArr.length) break;
+            }
+        } else if (currentDirLocal === 'E') {
+            // Walking east (increasing X), check for walls ahead
+            for (let x = positionX + 1; x < tempArray.length; x++) {
+                if (tempArray[x] === 0) {
+                    const wallIdx = positionLookup.findIndex(p => p >= x);
+                    if (wallIdx !== -1) {
+                        visiblePathEnd = wallIdx;
+                    } else {
+                        visiblePathEnd = mapArr.length;
+                    }
+                    break;
+                }
+            }
+        } else if (currentDirLocal === 'W') {
+            // Walking west (decreasing X), array is reversed
+            for (let idx = arrayPosition; idx < mapArr.length; idx++) {
+                const originalPos = positionLookup[idx];
+                for (let x = positionX - 1; x > originalPos; x--) {
+                    if (tempArray[x] === 0) {
+                        visiblePathEnd = idx;
+                        break;
+                    }
+                }
+                if (visiblePathEnd !== mapArr.length) break;
+            }
+        }
+
+        console.log('wallcheck arrays', mapArr, tempArray, arrayPosition, 'positionLookup:', positionLookup, 'visiblePathEnd:', visiblePathEnd)
+
+        // Use visiblePathEnd to limit the loop instead of tempArray.length
+        const loopEnd = Math.min(visiblePathEnd, mapArr.length);
+        for(let i = arrayPosition; i < loopEnd; i++) {
+            // Get actual map position for perpendicular tile lookups
+            // i is used to index into mapArr, positionLookup[i] gives actual map coordinate
+            const actualMapPos = positionLookup[i] ?? i;
+
+            console.log(mapArr,mapArr[i],resources,'resourcesxx',tempArray, 'actualPos:', actualMapPos);
             console.log('wallcheck trigger', mapArr[i], arrayPosition);
             switch(mapArr[i]) {
                 case 1:
@@ -231,219 +392,288 @@ export const Room = () => {
                     let prevTileOfPerpAxis;
                     switch(currentDirLocal) {
                         case 'N':
-                            nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse', iniDir)
-                            if(nextTileOfPerpAxis === 1) {
-                                console.log(newDir,"NEWDIR RRRRR 1")
-                                console.log('()_+ RIGHT')
+                            // Use actualMapPos for Y coordinate when moving N/S
+                            // Check BOTH perpendicular directions: East (x+1) and West (x-1)
+                            nextTileOfPerpAxis = dg_map[actualMapPos]?.[positionX+1]; // East
+                            prevTileOfPerpAxis = dg_map[actualMapPos]?.[positionX-1]; // West
+                            console.log('case 2 N: East=', nextTileOfPerpAxis, 'West=', prevTileOfPerpAxis, 'actualMapPos:', actualMapPos)
+                            // When facing North: East is to your RIGHT, West is to your LEFT
+                            const hasEastPathN = nextTileOfPerpAxis !== undefined && nextTileOfPerpAxis !== 0;
+                            const hasWestPathN = prevTileOfPerpAxis !== undefined && prevTileOfPerpAxis !== 0;
+                            if(hasEastPathN && !hasWestPathN) {
+                                console.log('()_+ RIGHT (path to East)')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
+                            } else if(hasWestPathN && !hasEastPathN) {
+                                console.log('()_+ LEFT (path to West)')
+                                tempArr.push(turnTileLeft)
+                                tempArrTiles.push(turnTileLeft)
                             } else {
+                                // Both or neither have paths - use iniDir fallback
                                 if(newDir) {
-                                    console.log(newDir,"NEWDIR RRRR")
+                                    console.log(newDir,"NEWDIR RRRR (fallback)")
                                     tempArr.push(turnTileRight)
                                     tempArrTiles.push(turnTileRight)
                                 } else {
-                                    console.log(newDir,"NEWDIR LLLL")
+                                    console.log(newDir,"NEWDIR LLLL (fallback)")
                                     tempArr.push(turnTileLeft)
                                     tempArrTiles.push(turnTileLeft)
                                 }
                             }
                         break;
                         case 'S':
-                            nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse', iniDir)
-                            if(nextTileOfPerpAxis === 1) {
-                                console.log('()_+ LEFT')
+                            // Use actualMapPos for Y coordinate when moving N/S
+                            // Check BOTH perpendicular directions: East (x+1) and West (x-1)
+                            nextTileOfPerpAxis = dg_map[actualMapPos]?.[positionX+1]; // East
+                            prevTileOfPerpAxis = dg_map[actualMapPos]?.[positionX-1]; // West
+                            console.log('case 2 S: East=', nextTileOfPerpAxis, 'West=', prevTileOfPerpAxis, 'actualMapPos:', actualMapPos)
+                            // When facing South: East is to your LEFT, West is to your RIGHT
+                            const hasEastPathS = nextTileOfPerpAxis !== undefined && nextTileOfPerpAxis !== 0;
+                            const hasWestPathS = prevTileOfPerpAxis !== undefined && prevTileOfPerpAxis !== 0;
+                            if(hasEastPathS && !hasWestPathS) {
+                                console.log('()_+ LEFT (path to East)')
                                 tempArr.push(turnTileLeft)
                                 tempArrTiles.push(turnTileLeft)
+                            } else if(hasWestPathS && !hasEastPathS) {
+                                console.log('()_+ RIGHT (path to West)')
+                                tempArr.push(turnTileRight)
+                                tempArrTiles.push(turnTileRight)
                             } else {
-                                console.log(newDir,"NEWDIR")
+                                // Both or neither have paths - use iniDir fallback
+                                console.log(newDir,"NEWDIR (fallback)")
                                 if(newDir) {
                                     tempArr.push(turnTileRight)
                                     tempArrTiles.push(turnTileRight)
                                 } else {
-                                    console.log('()_+ RIGHT')
                                     tempArr.push(turnTileLeft)
                                     tempArrTiles.push(turnTileLeft)
                                 }
                             }
                         break;
                         case 'W':
-                            nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse', iniDir)
-                            if(nextTileOfPerpAxis === 1) {
-                                console.log('()_+ LEFT')
+                            // Use actualMapPos for X coordinate when moving E/W
+                            // Check BOTH perpendicular directions: South (y+1) and North (y-1)
+                            nextTileOfPerpAxis = verticalTileArr[actualMapPos]?.[positionY+1]; // South
+                            prevTileOfPerpAxis = verticalTileArr[actualMapPos]?.[positionY-1]; // North
+                            console.log('case 2 W: South=', nextTileOfPerpAxis, 'North=', prevTileOfPerpAxis, 'actualMapPos:', actualMapPos)
+                            // When facing West: South is to your LEFT, North is to your RIGHT
+                            const hasSouthPathW = nextTileOfPerpAxis !== undefined && nextTileOfPerpAxis !== 0;
+                            const hasNorthPathW = prevTileOfPerpAxis !== undefined && prevTileOfPerpAxis !== 0;
+                            if(hasSouthPathW && !hasNorthPathW) {
+                                console.log('()_+ LEFT (path to South)')
                                 tempArr.push(turnTileLeft)
                                 tempArrTiles.push(turnTileLeft)
+                            } else if(hasNorthPathW && !hasSouthPathW) {
+                                console.log('()_+ RIGHT (path to North)')
+                                tempArr.push(turnTileRight)
+                                tempArrTiles.push(turnTileRight)
                             } else {
-                                console.log(newDir,"NEWDIR")
+                                // Both or neither have paths - use iniDir fallback
+                                console.log(newDir,"NEWDIR (fallback)")
                                 if(newDir) {
                                     tempArr.push(turnTileRight)
                                     tempArrTiles.push(turnTileRight)
                                 } else {
-                                    console.log('()_+ RIGHT')
                                     tempArr.push(turnTileLeft)
                                     tempArrTiles.push(turnTileLeft)
                                 }
                             }
                         break;
                         case 'E':
-                            nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse', newDir)
-                            if(nextTileOfPerpAxis === 1) {
-                                console.log(newDir,"NEWDIR RRRRR 1")
-                                console.log('()_+  RIGHT')
+                            // Use actualMapPos for X coordinate when moving E/W
+                            // Check BOTH perpendicular directions: South (y+1) and North (y-1)
+                            nextTileOfPerpAxis = verticalTileArr[actualMapPos]?.[positionY+1]; // South
+                            prevTileOfPerpAxis = verticalTileArr[actualMapPos]?.[positionY-1]; // North
+                            console.log('case 2 E: South=', nextTileOfPerpAxis, 'North=', prevTileOfPerpAxis, 'actualMapPos:', actualMapPos)
+                            // When facing East: South is to your RIGHT, North is to your LEFT
+                            const hasSouthPathE = nextTileOfPerpAxis !== undefined && nextTileOfPerpAxis !== 0;
+                            const hasNorthPathE = prevTileOfPerpAxis !== undefined && prevTileOfPerpAxis !== 0;
+                            if(hasSouthPathE && !hasNorthPathE) {
+                                console.log('()_+ RIGHT (path to South)')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
+                            } else if(hasNorthPathE && !hasSouthPathE) {
+                                console.log('()_+ LEFT (path to North)')
+                                tempArr.push(turnTileLeft)
+                                tempArrTiles.push(turnTileLeft)
                             } else {
-                                console.log(newDir,"NEWDIR <><>")
+                                // Both or neither have paths - use iniDir fallback
+                                console.log(newDir,"NEWDIR (fallback)")
                                 if(newDir) {
                                     tempArr.push(turnTileRight)
-                                    console.log(newDir,"NEWDIR RRRR")
                                     tempArrTiles.push(turnTileRight)
                                 } else {
-                                    console.log('()_+  LEFT')
-                                    console.log(newDir,"NEWDIR LLLL")
                                     tempArr.push(turnTileLeft)
                                     tempArrTiles.push(turnTileLeft)
-                                } 
+                                }
                             }
                         break;
                         default:
-                           
+
                     }
                 case 3:
-                    console.log(verticalTileArr[positionX], dg_map[positionY][positionX], positionX, positionY,'()_+')
+                    console.log(verticalTileArr[positionX], dg_map[positionY][positionX], positionX, positionY,'()_+ case 3')
                     switch(currentDirLocal) {
                         case 'N':
-                            const nextTileOfPerpAxisHorz = dg_map[i][positionX+1];
-                            const prevTileOfPerpAxisHorz = dg_map[i][positionX-1];
-                            const nextTileOfPerpAxisVert = verticalTileArr[i][positionY+1];
-                            const prevTileOfPerpAxisVert = verticalTileArr[i][positionY-1];
-                            console.log(nextTileOfPerpAxisHorz, prevTileOfPerpAxisHorz, '<<<<<next and prev', nextTileOfPerpAxisVert, prevTileOfPerpAxisVert)
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionX, '()_+vertical reverse', iniDir)
+                            // Use actualMapPos for correct perpendicular tile lookup
+                            // Check BOTH perpendicular directions: East (x+1) and West (x-1)
+                            const nextTileOfPerpAxisHorz = dg_map[actualMapPos]?.[positionX+1]; // East
+                            const prevTileOfPerpAxisHorz = dg_map[actualMapPos]?.[positionX-1]; // West
+                            const nextTileOfPerpAxisVert = verticalTileArr[positionX]?.[actualMapPos+1];
+                            const prevTileOfPerpAxisVert = verticalTileArr[positionX]?.[actualMapPos-1];
+                            console.log('case 3 N: East=', nextTileOfPerpAxisHorz, 'West=', prevTileOfPerpAxisHorz, 'actualMapPos:', actualMapPos)
                             if(mapArr[i] !== 2) {
                                 if(verticalTileArr[positionX][positionY-1] === 0 ||
                                 verticalTileArr[positionX][positionY-1] === undefined) {
                                     tempArr.push(facingWallTile)
                                     tempArrTiles.push(facingWallTile)
                                 } else {
-                                if((nextTileOfPerpAxisHorz === 0 && prevTileOfPerpAxisHorz === 0) || (nextTileOfPerpAxisHorz === 1 && prevTileOfPerpAxisHorz === 1)) {
-                                    console.log(newDir,"NEWDIR RRRRR 1 3")
-                                    console.log('()_+ RIGHT')
-                                    tempArr.push(turnThreeWay)
-                                    tempArrTiles.push(turnThreeWay)
-                                } else {
-                                    if(newDir) {
-                                        console.log(newDir,"NEWDIR RRRR 3")
+                                    // When facing North: East is to your RIGHT, West is to your LEFT
+                                    const hasEastPath3N = nextTileOfPerpAxisHorz !== undefined && nextTileOfPerpAxisHorz !== 0;
+                                    const hasWestPath3N = prevTileOfPerpAxisHorz !== undefined && prevTileOfPerpAxisHorz !== 0;
+                                    if(hasEastPath3N && hasWestPath3N) {
+                                        // Both sides have paths - show 3-way
+                                        console.log('()_+ 3-WAY (both paths)')
+                                        tempArr.push(turnThreeWay)
+                                        tempArrTiles.push(turnThreeWay)
+                                    } else if(hasEastPath3N && !hasWestPath3N) {
+                                        // Only East (right) has path
+                                        console.log('()_+ RIGHT (path to East only)')
                                         tempArr.push(turnTileRight)
                                         tempArrTiles.push(turnTileRight)
-
-                                    } else {
-                                        console.log(newDir,"NEWDIR LLLL 3")
-                                        // tempArr.push(turnThreeWay)
-                                        // tempArrTiles.push(turnThreeWay)                                        
+                                    } else if(hasWestPath3N && !hasEastPath3N) {
+                                        // Only West (left) has path
+                                        console.log('()_+ LEFT (path to West only)')
                                         tempArr.push(turnTileLeft)
                                         tempArrTiles.push(turnTileLeft)
+                                    } else {
+                                        // Neither has path - use 3-way as fallback
+                                        console.log('()_+ 3-WAY (fallback, no perp paths)')
+                                        tempArr.push(turnThreeWay)
+                                        tempArrTiles.push(turnThreeWay)
                                     }
-                                }
                                 }
                             }
                         break;
                         case 'S':
-                            nextTileOfPerpAxis = dg_map[i][positionX+1];
-                            prevTileOfPerpAxis = dg_map[i][positionX-1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], positionY, '()_+vertical reverse 3 S', mapArr[i])
+                            // Use actualMapPos for correct perpendicular tile lookup
+                            // Check BOTH perpendicular directions: East (x+1) and West (x-1)
+                            const nextTileOfPerpAxis3S = dg_map[actualMapPos]?.[positionX+1]; // East
+                            const prevTileOfPerpAxis3S = dg_map[actualMapPos]?.[positionX-1]; // West
+                            console.log('case 3 S: East=', nextTileOfPerpAxis3S, 'West=', prevTileOfPerpAxis3S, 'actualMapPos:', actualMapPos)
                             if(mapArr[i] !== 2) {
                                 if(verticalTileArr[positionX][positionY+1] === 0 ||
                                 verticalTileArr[positionX][positionY+1] === undefined) {
                                     tempArr.push(facingWallTile)
                                     tempArrTiles.push(facingWallTile)
                                 } else {
-                                if(nextTileOfPerpAxis === 1 && prevTileOfPerpAxis === 1) {
-                                    console.log('()_+ LEFT 3here') 
-                                    tempArr.push(turnThreeWay)
-                                    tempArrTiles.push(turnThreeWay)
-                                } else {
-                                    console.log(newDir,"NEWDIR 3here")
-                                    if(newDir) {
+                                    // When facing South: East is to your LEFT, West is to your RIGHT
+                                    const hasEastPath3S = nextTileOfPerpAxis3S !== undefined && nextTileOfPerpAxis3S !== 0;
+                                    const hasWestPath3S = prevTileOfPerpAxis3S !== undefined && prevTileOfPerpAxis3S !== 0;
+                                    if(hasEastPath3S && hasWestPath3S) {
+                                        // Both sides have paths - show 3-way
+                                        console.log('()_+ 3-WAY (both paths)')
+                                        tempArr.push(turnThreeWay)
+                                        tempArrTiles.push(turnThreeWay)
+                                    } else if(hasEastPath3S && !hasWestPath3S) {
+                                        // Only East (left when facing South) has path
+                                        console.log('()_+ LEFT (path to East only)')
+                                        tempArr.push(turnTileLeft)
+                                        tempArrTiles.push(turnTileLeft)
+                                    } else if(hasWestPath3S && !hasEastPath3S) {
+                                        // Only West (right when facing South) has path
+                                        console.log('()_+ RIGHT (path to West only)')
                                         tempArr.push(turnTileRight)
                                         tempArrTiles.push(turnTileRight)
                                     } else {
-                                        console.log('()_+ RIGHT 3here')
-                                        tempArr.push(turnTileLeft)
-                                        tempArrTiles.push(turnTileLeft)
+                                        // Neither has path - use 3-way as fallback
+                                        console.log('()_+ 3-WAY (fallback, no perp paths)')
+                                        tempArr.push(turnThreeWay)
+                                        tempArrTiles.push(turnThreeWay)
                                     }
-                                }
                                 }
                             }
                         break;
                         case 'W':
-                            // nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            // prevTileOfPerpAxis = verticalTileArr[i][positionY-1];
-                            const nextTileOfPerpAxisHorz1 = dg_map[i][positionX+1];
-                            const prevTileOfPerpAxisHorz1 = dg_map[i][positionX-1];
-                            const nextTileOfPerpAxisVert1 = verticalTileArr[i][positionY+1];
-                            const prevTileOfPerpAxisVert1 = verticalTileArr[i][positionY-1];
-                            console.log(nextTileOfPerpAxisHorz1, prevTileOfPerpAxisHorz1, '<<<<<next and prev', nextTileOfPerpAxisVert1, prevTileOfPerpAxisVert1, i)
-                            console.log(nextTileOfPerpAxis, currentDirLocal, verticalTileArr[i], i, positionX, '()_+vertical reverse', iniDir)
+                            // Use actualMapPos for correct perpendicular tile lookup
+                            // Check BOTH perpendicular directions: South (y+1) and North (y-1)
+                            const nextTileOfPerpAxisHorz1 = dg_map[positionY]?.[actualMapPos+1];
+                            const prevTileOfPerpAxisHorz1 = dg_map[positionY]?.[actualMapPos-1];
+                            const nextTileOfPerpAxisVert1 = verticalTileArr[actualMapPos]?.[positionY+1]; // South
+                            const prevTileOfPerpAxisVert1 = verticalTileArr[actualMapPos]?.[positionY-1]; // North
+                            console.log('case 3 W: South=', nextTileOfPerpAxisVert1, 'North=', prevTileOfPerpAxisVert1, 'actualMapPos:', actualMapPos)
                             if(mapArr[i] !== 2) {
                                 if(dg_map[positionY][positionX-1] === 0 || dg_map[positionY][positionX-1] === undefined) {
                                     tempArr.push(facingWallTile)
                                     tempArrTiles.push(facingWallTile)
                                 } else {
-                                if((nextTileOfPerpAxisVert1 === 0 && prevTileOfPerpAxisVert1 === 0) || (nextTileOfPerpAxisVert1 === 1 && prevTileOfPerpAxisVert1 === 1)) {
-                                    console.log('()_+ LEFT')
-                                    tempArr.push(turnThreeWay)
-                                    tempArrTiles.push(turnThreeWay)
-                                } else {
-                                    console.log(newDir,"NEWDIR")
-                                    if(newDir) {
+                                    // When facing West: South is to your LEFT, North is to your RIGHT
+                                    const hasSouthPath3W = nextTileOfPerpAxisVert1 !== undefined && nextTileOfPerpAxisVert1 !== 0;
+                                    const hasNorthPath3W = prevTileOfPerpAxisVert1 !== undefined && prevTileOfPerpAxisVert1 !== 0;
+                                    if(hasSouthPath3W && hasNorthPath3W) {
+                                        // Both sides have paths - show 3-way
+                                        console.log('()_+ 3-WAY (both paths)')
+                                        tempArr.push(turnThreeWay)
+                                        tempArrTiles.push(turnThreeWay)
+                                    } else if(hasSouthPath3W && !hasNorthPath3W) {
+                                        // Only South (left when facing West) has path
+                                        console.log('()_+ LEFT (path to South only)')
+                                        tempArr.push(turnTileLeft)
+                                        tempArrTiles.push(turnTileLeft)
+                                    } else if(hasNorthPath3W && !hasSouthPath3W) {
+                                        // Only North (right when facing West) has path
+                                        console.log('()_+ RIGHT (path to North only)')
                                         tempArr.push(turnTileRight)
                                         tempArrTiles.push(turnTileRight)
                                     } else {
-                                        console.log('()_+ RIGHT')
-                                        tempArr.push(turnTileLeft)
-                                        tempArrTiles.push(turnTileLeft)
+                                        // Neither has path - use 3-way as fallback
+                                        console.log('()_+ 3-WAY (fallback, no perp paths)')
+                                        tempArr.push(turnThreeWay)
+                                        tempArrTiles.push(turnThreeWay)
                                     }
-                                }
- 
                                 }
                            }
                         break;
                         case 'E':
-                            nextTileOfPerpAxis = verticalTileArr[i][positionY+1];
-                            prevTileOfPerpAxis = verticalTileArr[i][positionY-1];
-                            console.log(nextTileOfPerpAxis, currentDirLocal, dg_map[i], positionY, '()_+vertical reverse', newDir)
+                            // Use actualMapPos for correct perpendicular tile lookup
+                            // Check BOTH perpendicular directions: South (y+1) and North (y-1)
+                            const nextTileOfPerpAxis3E = verticalTileArr[actualMapPos]?.[positionY+1]; // South
+                            const prevTileOfPerpAxis3E = verticalTileArr[actualMapPos]?.[positionY-1]; // North
+                            console.log('case 3 E: South=', nextTileOfPerpAxis3E, 'North=', prevTileOfPerpAxis3E, 'actualMapPos:', actualMapPos)
                             if(mapArr[i] !== 2) {
                                 if(dg_map[positionY][positionX+1] === 0 || dg_map[positionY][positionX+1] === undefined) {
                                     tempArr.push(facingWallTile)
                                     tempArrTiles.push(facingWallTile)
                                 } else {
-                               if(nextTileOfPerpAxis === 1 && prevTileOfPerpAxis === 1) {
-                                    console.log(newDir,"NEWDIR RRRRR 1 ")
-                                    console.log('()_+  RIGHT')
-                                    tempArr.push(turnThreeWay)
-                                    tempArrTiles.push(turnThreeWay)
-                                } else {
-                                    console.log(newDir,"NEWDIR <><>")
-                                    if(newDir) {
+                                    // When facing East: South is to your RIGHT, North is to your LEFT
+                                    const hasSouthPath3E = nextTileOfPerpAxis3E !== undefined && nextTileOfPerpAxis3E !== 0;
+                                    const hasNorthPath3E = prevTileOfPerpAxis3E !== undefined && prevTileOfPerpAxis3E !== 0;
+                                    if(hasSouthPath3E && hasNorthPath3E) {
+                                        // Both sides have paths - show 3-way
+                                        console.log('()_+ 3-WAY (both paths)')
+                                        tempArr.push(turnThreeWay)
+                                        tempArrTiles.push(turnThreeWay)
+                                    } else if(hasSouthPath3E && !hasNorthPath3E) {
+                                        // Only South (right when facing East) has path
+                                        console.log('()_+ RIGHT (path to South only)')
                                         tempArr.push(turnTileRight)
-                                        console.log(newDir,"NEWDIR RRRR")
                                         tempArrTiles.push(turnTileRight)
-                                    } else {
-                                        console.log('()_+  LEFT')
-                                        console.log(newDir,"NEWDIR LLLL")
+                                    } else if(hasNorthPath3E && !hasSouthPath3E) {
+                                        // Only North (left when facing East) has path
+                                        console.log('()_+ LEFT (path to North only)')
                                         tempArr.push(turnTileLeft)
                                         tempArrTiles.push(turnTileLeft)
-                                    } 
-                                }
+                                    } else {
+                                        // Neither has path - use 3-way as fallback
+                                        console.log('()_+ 3-WAY (fallback, no perp paths)')
+                                        tempArr.push(turnThreeWay)
+                                        tempArrTiles.push(turnThreeWay)
+                                    }
                                 }
                             }
                         break;
                         default:
-                           
+
                     }
 
                 case undefined:
@@ -492,7 +722,7 @@ export const Room = () => {
                 default:
                    tempArr.push('');
             }
-            console.log('()_+ IIIII',tempArr)
+            console.log('()_+ IIIII tempArr',tempArr)
         }
 
         setVertRes(tempArr)
@@ -503,13 +733,23 @@ export const Room = () => {
         console.log(verticalResources,"TEMP ARR 3");
     }
     
+    // Sync verticalTileArr with Redux when map changes
     useEffect(() => {
-        tileArrConstr(dg_map);
-    },[])
+        if (reduxVerticalTiles.length > 0) {
+            console.log('[Room] Using Redux vertical tiles for map:', currentMapId);
+            setVerticalTileArr(reduxVerticalTiles);
+        } else {
+            // Fallback: construct from dg_map
+            tileArrConstr(dg_map);
+        }
+    }, [currentMapId, reduxVerticalTiles])
+
     const tileArrConstr = (map:Array<number[]>) => {
-        const newVerticalArr:Array<Array<number>> = Array.from({ length: 8 }, () => []);
+        if (!map || map.length === 0) return;
+        const width = map[0]?.length || mapWidth;
+        const newVerticalArr:Array<Array<number>> = Array.from({ length: width }, () => []);
         console.log('backtrack 3',map.length, verticalTileArr)
-        // let horizontalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => []) 
+        // let horizontalTileArr: Array<Array<number>> = Array.from({ length:8 }, () => [])
         for(let i = 0; i < map.length; i++) {
             let row: Array<number> = map[i]; // pass posY  as i value to be the row position
             for(let j = 0; j < row.length; j++) {
@@ -565,58 +805,162 @@ export const Room = () => {
     }
     
     const forward = () => {
-        let tempPosY = positionY; 
+        // DEBUG: Start tracking forward movement
+        const currentTileType = (currentDir === 'N' || currentDir === 'S')
+            ? verticalTileArr[positionX]?.[positionY] ?? -1
+            : dg_map[positionY]?.[positionX] ?? -1;
+
+        debugMove.start('forward', {
+            posX: positionX,
+            posY: positionY,
+            direction: currentDir as Direction,
+            currentArrPos,
+            iniDir,
+            lastTurnDir,
+            tileType: currentTileType,
+        });
+
+        // WALL COLLISION CHECK - Don't move if blocked
+        const blocked = isBlocked(
+            { x: positionX, y: positionY },
+            currentDir as Direction,
+            dg_map as any,
+            mapWidth,
+            mapHeight
+        );
+
+        if (blocked) {
+            debugMove.note('BLOCKED by wall - movement cancelled');
+            debugMove.end({
+                posX: positionX,
+                posY: positionY,
+                direction: currentDir as Direction,
+                currentArrPos,
+                iniDir,
+                success: false,
+            });
+            console.log('Wall collision! Cannot move forward.');
+            return; // Exit without moving
+        }
+
+        // ENEMY COLLISION CHECK - Don't move if enemy is on the next tile
+        let nextTileX = positionX;
+        let nextTileY = positionY;
+        switch(currentDir) {
+            case 'N': nextTileY = positionY - 1; break;
+            case 'S': nextTileY = positionY + 1; break;
+            case 'E': nextTileX = positionX + 1; break;
+            case 'W': nextTileX = positionX - 1; break;
+        }
+
+        const enemyBlocking = Object.values(enemies).some(enemy =>
+            enemy.health > 0 &&
+            enemy.positionX === nextTileX &&
+            enemy.positionY === nextTileY
+        );
+
+        if (enemyBlocking) {
+            debugMove.note('BLOCKED by enemy - must defeat to proceed');
+            debugMove.end({
+                posX: positionX,
+                posY: positionY,
+                direction: currentDir as Direction,
+                currentArrPos,
+                iniDir,
+                success: false,
+            });
+            console.log('Enemy blocking path! Defeat the enemy to proceed.');
+            return; // Exit without moving
+        }
+
+        let tempPosY = positionY;
         let tempPosX = positionX;
         let tempArrPos = currentArrPos;
         console.log(currentArrPos,"POS 123")
         console.log("turndir inidir currentdir", iniDir, currentDir, mapArray, lastTurnDir, tempArrPos)
+
         switch(currentDir) {
             case 'N':
                 tempPosY = positionY - 1;
                 tempArrPos++;
+                debugMove.note(`Moving N: Y ${positionY} -> ${tempPosY}`);
                 dispatch(setCurrentArrPos(tempArrPos))
                 generateMapResources('N', tempArrPos);
             break;
             case 'S':
                 tempPosY = positionY + 1;
                 tempArrPos++;
+                debugMove.note(`Moving S: Y ${positionY} -> ${tempPosY}`);
                 dispatch(setCurrentArrPos(tempArrPos))
                 generateMapResources('S', tempArrPos);
             break;
-            case 'E': 
+            case 'E':
                 tempPosX = positionX + 1;
                 tempArrPos++;
+                debugMove.note(`Moving E: X ${positionX} -> ${tempPosX}`);
                 dispatch(setCurrentArrPos(tempArrPos))
                 generateMapResources('E', tempArrPos);
             break;
             default:
                 tempPosX = positionX - 1;
                 tempArrPos++;
+                debugMove.note(`Moving W: X ${positionX} -> ${tempPosX}`);
                 dispatch(setCurrentArrPos(tempArrPos))
                 generateMapResources('W', tempArrPos);
-
         }
+
         dispatch(setCurrentPos([tempPosX,tempPosY]))
         dispatch(setLastTurnDir(''));
         console.log(backtrack,pathTileArr, currentDir, tempArrPos, "+_+ backtrack")
+
+        // DEBUG: End tracking forward movement
+        debugMove.end({
+            posX: tempPosX,
+            posY: tempPosY,
+            direction: currentDir as Direction,
+            currentArrPos: tempArrPos,
+            iniDir,
+            success: true,
+        });
     }
 
     const reverse = () => {
+        // DEBUG: Start tracking reverse movement
+        const currentTileType = (currentDir === 'N' || currentDir === 'S')
+            ? verticalTileArr[positionX]?.[positionY] ?? -1
+            : dg_map[positionY]?.[positionX] ?? -1;
+
+        debugMove.start('reverse', {
+            posX: positionX,
+            posY: positionY,
+            direction: currentDir as Direction,
+            currentArrPos,
+            iniDir,
+            lastTurnDir,
+            tileType: currentTileType,
+        });
+
         console.log('turndir 1 reverse', mapArray?.length, currentArrPos)
     //   facingWallTile  // setBacktrack(positionTemp);
         let newPosition
         let newDir: boolean;
+        let newDirection: Direction = currentDir as Direction;
+
         switch(currentDir){
             case 'N':
                 newPosition = mapArray?.length - currentArrPos;
+                newDirection = 'S';
+                debugMove.note(`Reverse N->S, arrPos: ${currentArrPos} -> ${newPosition - 1}`);
                 dispatch(changeDir('S'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 dispatch(invertInitialDirection())
                 generateMapResources('S', newPosition-1, !iniDir, true);
             break;
-            
+
             case 'S':
                 newPosition = mapArray?.length - currentArrPos;
+                newDirection = 'N';
+                debugMove.note(`Reverse S->N, arrPos: ${currentArrPos} -> ${newPosition - 1}`);
                 dispatch(changeDir('N'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 dispatch(invertInitialDirection())
@@ -625,14 +969,18 @@ export const Room = () => {
 
             case 'W':
                 newPosition = mapArray?.length - currentArrPos;
+                newDirection = 'E';
+                debugMove.note(`Reverse W->E, arrPos: ${currentArrPos} -> ${newPosition - 1}`);
                 dispatch(changeDir('E'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 dispatch(invertInitialDirection())
                 generateMapResources('E', newPosition - 1, !iniDir, true);
             break;
-            
+
             case 'E':
                 newPosition = mapArray?.length - currentArrPos;
+                newDirection = 'W';
+                debugMove.note(`Reverse E->W, arrPos: ${currentArrPos} -> ${newPosition - 1}`);
                 dispatch(changeDir('W'));
                 dispatch(setCurrentArrPos(newPosition - 1))
                 dispatch(invertInitialDirection())
@@ -643,9 +991,19 @@ export const Room = () => {
                 console.log(
                     "DEFAULT"
                 )
-       }       
+       }
         // dispatch(invertInitialDirection(iniDir));
         console.log(currentArrPos,iniDir,"backtrack")
+
+        // DEBUG: End tracking reverse movement
+        debugMove.end({
+            posX: positionX,
+            posY: positionY,
+            direction: newDirection,
+            currentArrPos: (newPosition ?? currentArrPos) - 1,
+            iniDir: !iniDir,
+            success: true,
+        });
     }
 // looking north, facing wall, turns right = E (East - since turning right from North leads to East)
 // looking north, facing wall, turns left = E
@@ -690,25 +1048,94 @@ export const Room = () => {
        }       
     }
 
-// currentDir = east, turn left, currentDir = north, turn right
-// if lastTurnDir === turnDirection -> keep currentArrPos
-// else 
-// currentDir North, lastTurnDir === currentDir
-// looking north, facing wall, turns left = W 
-// looking south, facing wall, turns right = W 
-// looking south, facing wall, turns left = E 
-// looking east, facing wall, turns right = S 
-// looking east, facing wall, turns left = N 
-// looking west, facing wall, turns right = N 
-// looking west, facing wall, turns left = S 
+// FIXED: Simplified turn handler using coordinate-based position calculation
+// This avoids desync issues from stale mapArray state during rapid turns
 
+const handleTurnFixed = (currentDir: string, turnDirection: 'L' | 'R', is3turn?: boolean) => {
+  // Determine new direction using turn matrix
+  const TURN_LOOKUP: Record<string, Record<string, string>> = {
+    'N': { 'L': 'W', 'R': 'E' },
+    'S': { 'L': 'E', 'R': 'W' },
+    'E': { 'L': 'N', 'R': 'S' },
+    'W': { 'L': 'S', 'R': 'N' },
+  };
+
+  const newDirection = TURN_LOOKUP[currentDir]?.[turnDirection];
+  if (!newDirection) {
+    console.log("Invalid direction for turn");
+    return;
+  }
+
+  debugMove.note(`handleTurnFixed: ${currentDir} + ${turnDirection} -> ${newDirection}, is3way=${is3turn}`);
+
+  // Calculate correct array position from actual player coordinates
+  // This is the KEY FIX - we calculate from coords, not from stale state
+  const posInfo = calculateArrPosFromCoords(
+    positionX,
+    positionY,
+    newDirection,
+    dg_map as number[][],
+    verticalTileArr
+  );
+
+  console.log('FIXED TURN:', {
+    from: currentDir,
+    to: newDirection,
+    turnDir: turnDirection,
+    playerPos: { x: positionX, y: positionY },
+    calculatedArrPos: posInfo.arrPos,
+    pathLength: posInfo.pathLength,
+    is3turn
+  });
+
+  // Determine iniDir based on turn direction and current position
+  // When turning right from N->E or S->W, or left from N->W or S->E
+  // The visual orientation depends on which side of the path we're on
+  let newIniDir: boolean;
+
+  if (newDirection === 'E' || newDirection === 'W') {
+    // Horizontal path - iniDir based on whether we're closer to start or end
+    const pathMidpoint = Math.floor(posInfo.pathLength / 2);
+    if (turnDirection === 'R') {
+      newIniDir = posInfo.arrPos <= pathMidpoint;
+    } else {
+      newIniDir = posInfo.arrPos > pathMidpoint;
+    }
+  } else {
+    // Vertical path (N or S)
+    const pathMidpoint = Math.floor(posInfo.pathLength / 2);
+    if (turnDirection === 'R') {
+      newIniDir = posInfo.arrPos <= pathMidpoint;
+    } else {
+      newIniDir = posInfo.arrPos > pathMidpoint;
+    }
+  }
+
+  // Apply the state updates
+  dispatch(changeDir(newDirection));
+  dispatch(setCurrentArrPos(posInfo.arrPos));
+  dispatch(setInitialDirection(newIniDir));
+
+  // Generate resources with calculated position
+  generateMapResources(newDirection, posInfo.arrPos, newIniDir);
+};
+
+// Legacy handleTurn - kept for reference but calls handleTurnFixed
 const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn) => {
+  // DEBUG: Log handleTurn parameters
+  debugMove.note(`handleTurn (legacy): dir=${currentDir}, lastTurn=${lastTurnDir}, turn=${turnDirection}, is3way=${is3turn}, isWall=${isWallTurn}`);
+
+  // Use the fixed implementation
+  handleTurnFixed(currentDir, turnDirection as 'L' | 'R', is3turn);
+  return;
+
+  // OLD CODE BELOW - kept for reference but not executed
   let newDirection;
   let newPosition;
   let tempLastTurnDir = 'test';
   tempLastTurnDir = lastTurnDir !== '' ? lastTurnDir : tempLastTurnDir;
   console.log('TEMP LAST TURN', localLastTurnDir,' | ', lastTurnDir, turnDirection)
-  
+
   switch(currentDir) {
     case 'N':
       if (turnDirection === 'R') {
@@ -717,7 +1144,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
         newDirection = 'W';
       }
       break;
-    
+
     case 'S':
       if (turnDirection === 'R') {
         newDirection = 'W';
@@ -725,7 +1152,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
         newDirection = 'E';
       }
       break;
-    
+
     case 'E':
       if (turnDirection === 'R') {
         newDirection = 'S';
@@ -733,7 +1160,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
         newDirection = 'N';
       }
       break;
-    
+
     case 'W':
       if (turnDirection === 'R') {
         newDirection = 'N';
@@ -742,13 +1169,13 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
         newDirection = 'S';
       }
       break;
-      
+
     default:
       console.log("Invalid direction");
       return;
   }
 
-  // Calculate new position 
+  // Calculate new position
   newPosition = mapArray?.length - currentArrPos;
   const newPositionX = (mapArray?.length - 1) - positionX;
   
@@ -958,7 +1385,7 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
               dispatch(setInitialDirection(true));
               dispatch(setCurrentArrPos((mapArray.length - 1) - positionY));
             } else if (turnDirection === 'L') {
-            console.log('test 3turn 10.1 ')
+              console.log('test 3turn 10.1 ')
               generateMapResources(newDirection, positionY, false);
               dispatch(setInitialDirection(false));
               dispatch(setCurrentArrPos(positionY));
@@ -1176,9 +1603,165 @@ const handleTurn = (currentDir, lastTurnDir, turnDirection, is3turn, isWallTurn)
     //      - correlate movement to placement in map array
     // const [lastTurnCounter, setLastTurnCounter] = useState<number>(0)
     // const [currentTurnDir, setCurrentTurnDir] = useState<string>('');
-  
+
+    // Feature flag for using fixed turn logic
+    const [useFixedTurn, setUseFixedTurn] = useState(true);
+
+/**
+ * FIXED: Simplified turn function that uses coordinate-based position calculation
+ * This avoids desync issues from stale state during rapid turns
+ */
+const turnFixed = (turnDir: 'L' | 'R') => {
+    // DEBUG: Start tracking turn movement
+    const currentTileType = (currentDir === 'N' || currentDir === 'S')
+        ? verticalTileArr[positionX]?.[positionY] ?? -1
+        : dg_map[positionY]?.[positionX] ?? -1;
+
+    const moveType = turnDir === 'L' ? 'turn_L' : 'turn_R';
+    debugMove.start(moveType, {
+        posX: positionX,
+        posY: positionY,
+        direction: currentDir as Direction,
+        currentArrPos,
+        iniDir,
+        lastTurnDir,
+        tileType: currentTileType,
+    });
+
+    // Determine new direction using turn matrix
+    const TURN_LOOKUP: Record<string, Record<string, string>> = {
+        'N': { 'L': 'W', 'R': 'E' },
+        'S': { 'L': 'E', 'R': 'W' },
+        'E': { 'L': 'N', 'R': 'S' },
+        'W': { 'L': 'S', 'R': 'N' },
+    };
+
+    const newDirection = TURN_LOOKUP[currentDir]?.[turnDir];
+    if (!newDirection) {
+        console.log("Invalid direction for turn");
+        debugMove.end({
+            posX: positionX,
+            posY: positionY,
+            direction: currentDir as Direction,
+            currentArrPos,
+            iniDir,
+            success: false,
+        });
+        return;
+    }
+
+    debugMove.note(`turnFixed: ${currentDir} + ${turnDir} -> ${newDirection}`);
+
+    // Calculate correct array position from actual player coordinates
+    const posInfo = calculateArrPosFromCoords(
+        positionX,
+        positionY,
+        newDirection,
+        dg_map as number[][],
+        verticalTileArr
+    );
+
+    console.log('TURN FIXED:', {
+        from: currentDir,
+        to: newDirection,
+        turnDir,
+        playerPos: { x: positionX, y: positionY },
+        calculatedArrPos: posInfo.arrPos,
+        pathLength: posInfo.pathLength,
+        tileType: currentTileType
+    });
+
+    // Determine iniDir based on entry direction and position in path
+    // This determines which way turn tiles appear (left vs right visual)
+    let newIniDir: boolean;
+
+    // Check if there's a path to the left and right in the new direction
+    const leftDir = TURN_LOOKUP[newDirection]?.['L'];
+    const rightDir = TURN_LOOKUP[newDirection]?.['R'];
+
+    let leftHasPath = false;
+    let rightHasPath = false;
+
+    // Check perpendicular paths
+    if (leftDir) {
+        const leftPos = leftDir === 'N' ? { x: positionX, y: positionY - 1 } :
+                       leftDir === 'S' ? { x: positionX, y: positionY + 1 } :
+                       leftDir === 'E' ? { x: positionX + 1, y: positionY } :
+                       { x: positionX - 1, y: positionY };
+        const leftTile = dg_map[leftPos.y]?.[leftPos.x];
+        leftHasPath = leftTile !== undefined && leftTile !== 0;
+    }
+    if (rightDir) {
+        const rightPos = rightDir === 'N' ? { x: positionX, y: positionY - 1 } :
+                        rightDir === 'S' ? { x: positionX, y: positionY + 1 } :
+                        rightDir === 'E' ? { x: positionX + 1, y: positionY } :
+                        { x: positionX - 1, y: positionY };
+        const rightTile = dg_map[rightPos.y]?.[rightPos.x];
+        rightHasPath = rightTile !== undefined && rightTile !== 0;
+    }
+
+    // Set iniDir based on turn direction - this affects which turn tile visual is shown
+    if (turnDir === 'R') {
+        newIniDir = true;
+    } else {
+        newIniDir = false;
+    }
+
+    // Apply the state updates
+    dispatch(changeDir(newDirection));
+    dispatch(setCurrentArrPos(posInfo.arrPos));
+    dispatch(setInitialDirection(newIniDir));
+    dispatch(setLastTurnDir(turnDir));
+    setLocalLastTurnDir(turnDir);
+
+    // Generate resources with calculated position
+    generateMapResources(newDirection, posInfo.arrPos, newIniDir);
+
+    // DEBUG: End tracking
+    debugMove.end({
+        posX: positionX,
+        posY: positionY,
+        direction: newDirection as Direction,
+        currentArrPos: posInfo.arrPos,
+        iniDir: newIniDir,
+        success: true,
+    });
+};
 
 const turn = (turnDir:string) => {
+    // Use fixed turn logic if enabled
+    if (useFixedTurn) {
+        turnFixed(turnDir as 'L' | 'R');
+        return;
+    }
+
+    // Legacy code below (only runs if useFixedTurn is false)
+    // DEBUG: Start tracking turn movement
+    const currentTileType = (currentDir === 'N' || currentDir === 'S')
+        ? verticalTileArr[positionX]?.[positionY] ?? -1
+        : dg_map[positionY]?.[positionX] ?? -1;
+
+    const moveType = turnDir === 'L' ? 'turn_L' : 'turn_R';
+    debugMove.start(moveType, {
+        posX: positionX,
+        posY: positionY,
+        direction: currentDir as Direction,
+        currentArrPos,
+        iniDir,
+        lastTurnDir,
+        tileType: currentTileType,
+    });
+
+    // Track what direction we'll end up facing
+    const TURN_MATRIX: Record<string, Record<string, Direction>> = {
+        'N': { 'L': 'W', 'R': 'E' },
+        'S': { 'L': 'E', 'R': 'W' },
+        'E': { 'L': 'N', 'R': 'S' },
+        'W': { 'L': 'S', 'R': 'N' },
+    };
+    const expectedNewDir = TURN_MATRIX[currentDir]?.[turnDir] ?? currentDir;
+    debugMove.note(`Turn ${turnDir} from ${currentDir}, expect -> ${expectedNewDir}, tile=${currentTileType}`);
+
     console.log('LOL BASE 0', mapArray?.length, currentArrPos, pathTileArr, mapArray)
     console.log('LOL BASE', currentDir, turnDir)
     // console.log('turndir 1', lastTurnDir, mapArray, mapArray?.length, currentArrPos)
@@ -1566,89 +2149,254 @@ const turn = (turnDir:string) => {
     }
    console.log(currentDir, "turndir", turnDir);
    console.log('wallcheck', pathTileArr)
+
+    // DEBUG: End tracking turn movement
+    // Note: We use expectedNewDir since the dispatch hasn't updated Redux yet in this render
+    debugMove.end({
+        posX: positionX,
+        posY: positionY,
+        direction: expectedNewDir as Direction,
+        currentArrPos: currentArrPos, // This may be updated by handleTurn
+        iniDir: iniDir, // This may be updated by handleTurn
+        success: true,
+    });
 }
 
     useEffect(() => {
         console.log('LOL current position change', currentArrPos, pathTileArr[0], iniDir)
     },[currentArrPos])
     
+    // Select movement functions based on toggle
+    const activeForward = useNewMovement ? newMovement.forward : forward;
+    const activeReverse = useNewMovement ? newMovement.reverse : reverse;
+    const activeTurn = useNewMovement ? newMovement.turn : turn;
+    const activePathTileArr = useNewMovement ? newMovement.pathTileArr : pathTileArr;
+    const activeMapArray = useNewMovement ? newMovement.mapArray : mapArray;
+
     const handleKeyPress = useCallback((event: KeyboardEvent) => {
         switch (event.key.toLowerCase()) {
             case 'w':
             case 'arrowup':
-            forward();
+            activeForward();
             break;
             case 's':
             case 'arrowdown':
-            reverse();
+            activeReverse();
             break;
             case 'a':
             case 'arrowleft':
-            turn('L');
+            activeTurn('L');
             break;
             case 'd':
             case 'arrowright':
-            turn('R');
+            activeTurn('R');
+            break;
+            case 't': // Toggle movement system with 'T' key
+            setUseNewMovement(prev => !prev);
             break;
             default:
             break;
         }
-    }, [forward, reverse, turn]);
+    }, [activeForward, activeReverse, activeTurn]);
 
     useEffect(() => {
         if (Platform.OS === 'web') {
             document.addEventListener('keydown', handleKeyPress);
             return () => document.removeEventListener('keydown', handleKeyPress);
         }
-    }, [handleKeyPress]); 
+    }, [handleKeyPress]);
+
     return (
         <View style={styles.backgroundImage}>
-            <TouchableOpacity 
-            style={{...styles.button, opacity: 1}} 
-            onPress={forward}>
-               <Text>Move ↑</Text> 
+            {/* DEBUG OVERLAY */}
+            <DebugOverlay
+                visible={true}
+                mapArray={activeMapArray}
+                pathTileArr={activePathTileArr}
+                verticalTileArr={verticalTileArr}
+                dg_map={dg_map}
+            />
+
+            {/* Movement System Toggle */}
+            <TouchableOpacity
+            style={{...styles.button, backgroundColor: useNewMovement ? '#00aa00' : '#aa0000', opacity: 1}}
+            onPress={() => setUseNewMovement(!useNewMovement)}>
+               <Text style={{color: '#fff', fontSize: 10}}>{useNewMovement ? 'NEW' : 'OLD'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-            style={{...styles.button, opacity: 1}} 
-            onPress={reverse}>
-               <Text>Move ↓</Text> 
+
+            <TouchableOpacity
+            style={{...styles.button, opacity: 1}}
+            onPress={activeForward}>
+               <Text>Move ↑</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-            style={{...styles.button, opacity: 1}} 
-            onPress={ () => turn('R') }>
-               <Text>Right</Text> 
-            </TouchableOpacity>           
-            <TouchableOpacity 
-            style={{...styles.button, opacity: 1}} 
-            onPress={ () => turn('L') }>
-               <Text>Left</Text> 
+            <TouchableOpacity
+            style={{...styles.button, opacity: 1}}
+            onPress={activeReverse}>
+               <Text>Move ↓</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+            style={{...styles.button, opacity: 1}}
+            onPress={ () => activeTurn('R') }>
+               <Text>Right</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+            style={{...styles.button, opacity: 1}}
+            onPress={ () => activeTurn('L') }>
+               <Text>Left</Text>
             </TouchableOpacity>
             {/* <Button style={{styles.button}} title="next level" onPress={ changeLvl }></Button> */}
             <ImageBackground
-            source={resources[0] as ImageSourcePropType} 
+            source={resources[0] as ImageSourcePropType}
             style={styles.backgroundImage}>
-            {pathTileArr.map((val, index) => { 
-                    return <ImageBackground 
-                    source={pathTileArr[index] as ImageSourcePropType} 
-                    style={[
-                        styles.backgroundImage,
-                        {
-                            transform: [{scale: index === 1 ? 0.67 : 0.67/index+0.1}],
-                            position: 'absolute'
-                        }
-                    ]} 
+            {activePathTileArr.map((val, index) => {
+                    // Calculate fog opacity based on distance (index)
+                    // Each tile gets fog proportional to its distance from player
+                    // As player moves closer, tile index decreases, fog decreases
+
+                    // Fog increases linearly with each tile of distance
+                    // index 0: 0% fog (right in front of player)
+                    // index 1: 10% fog
+                    // index 2: 20% fog
+                    // index 3: 30% fog
+                    // etc, up to max 75%
+                    const fogPerTile = 0.12; // 12% fog added per tile of distance
+                    const fogOpacity = Math.min(0.75, index * fogPerTile);
+
+                    return <View
+                        key={index}
+                        style={{
+                            position: 'absolute',
+                            width: '100%',
+                            height: '100%',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                        }}
                     >
-                    </ImageBackground>
-            })}
-            {enemiesVal.map((val, index) => (
-                val.health > 0 ? ( 
-                    <View style={styles.enemiesContainer} key={index}>
-                        <TouchableOpacity onPress={() => startCombatAux(index)}>
-                            <Enemy index={index} />
-                        </TouchableOpacity>
+                        <ImageBackground
+                        source={activePathTileArr[index] as ImageSourcePropType}
+                        style={[
+                            styles.backgroundImage,
+                            {
+                                transform: [{scale: index === 1 ? 0.67 : 0.67/index+0.1}],
+                                position: 'absolute'
+                            }
+                        ]}
+                        >
+                            {/* Fog of war overlay */}
+                            {fogOpacity > 0 && (
+                                <View
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        backgroundColor: '#0a0a12',
+                                        opacity: fogOpacity,
+                                    }}
+                                />
+                            )}
+                        </ImageBackground>
                     </View>
-                ) : null
-            ))}
+            })}
+            {enemiesVal.map((val, index) => {
+                // Calculate distance from player to enemy based on direction
+                const enemyX = val.positionX ?? 0;
+                const enemyY = val.positionY ?? 0;
+
+                let distance = -1; // -1 means not visible (behind player or different path)
+                let isInLineOfSight = false;
+
+                // Check if enemy is in front of player based on current direction
+                switch(currentDir) {
+                    case 'N':
+                        if (enemyX === positionX && enemyY < positionY) {
+                            distance = positionY - enemyY;
+                            isInLineOfSight = true;
+                        }
+                        break;
+                    case 'S':
+                        if (enemyX === positionX && enemyY > positionY) {
+                            distance = enemyY - positionY;
+                            isInLineOfSight = true;
+                        }
+                        break;
+                    case 'E':
+                        if (enemyY === positionY && enemyX > positionX) {
+                            distance = enemyX - positionX;
+                            isInLineOfSight = true;
+                        }
+                        break;
+                    case 'W':
+                        if (enemyY === positionY && enemyX < positionX) {
+                            distance = positionX - enemyX;
+                            isInLineOfSight = true;
+                        }
+                        break;
+                }
+
+                // Only render if alive and in line of sight
+                if (val.health <= 0 || !isInLineOfSight || distance < 0) {
+                    return null;
+                }
+
+                // Calculate perspective scale for enemies
+                // Enemies should appear larger than tiles at same distance for visibility
+                // distance 1 = next tile = large and close, distance increases = smaller
+                const perspectiveScale = distance === 0 ? 1.0 :
+                                        distance === 1 ? 0.80 :
+                                        distance === 2 ? 0.75 :
+                                        distance === 3 ? 0.65 :
+                                        0.4 / distance + 0.10;
+
+                // Calculate fog opacity (same as tiles)
+                const fogPerTile = 0.12;
+                const fogOpacity = Math.min(0.75, distance * fogPerTile);
+
+                // Only allow combat when enemy is on the next tile (distance = 1)
+                const canEngage = distance === 1;
+
+                return (
+                    <View
+                        key={index}
+                        style={{
+                            position: 'absolute',
+                            width: '100%',
+                            height: '100%',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: 100 - distance, // Closer enemies render on top
+                        }}
+                    >
+                        <View style={{
+                            transform: [{scale: perspectiveScale}],
+                        }}>
+                            <TouchableOpacity
+                                onPress={() => canEngage ? startCombatAux(index) : null}
+                                disabled={!canEngage}
+                                style={{ opacity: canEngage ? 1 : 0.9 }}
+                            >
+                                <Enemy index={index} />
+                            </TouchableOpacity>
+                            {/* Fog overlay for distant enemies */}
+                            {fogOpacity > 0 && (
+                                <View
+                                    pointerEvents="none"
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        backgroundColor: '#0a0a12',
+                                        opacity: fogOpacity,
+                                    }}
+                                />
+                            )}
+                        </View>
+                    </View>
+                );
+            })}
         </ImageBackground>
         </View>
     );

@@ -127,11 +127,11 @@ export const Enemy: React.FC<EnemyProps> = ({index}) => {
 
 const styles = StyleSheet.create({
     enemy: {
-        width: 100,
-        height: 100,
+        width: 150,
+        height: 150,
         alignSelf: 'center',
         position: 'absolute',
-        top: 95,
+        top: 70,
     }, 
     text: {
         color: 'magenta',

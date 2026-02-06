@@ -60,6 +60,9 @@ interface EnemyState {
             stats: EnemyStats;
             loot: LootItem[];
             info: EnemyInfo;
+            // Position on the map
+            positionX: number;
+            positionY: number;
         }
     };
     
@@ -77,6 +80,9 @@ interface EnemyState {
             stats: EnemyStats;
             loot: LootItem[];
             info: EnemyInfo;
+            // Position on the map
+            positionX: number;
+            positionY: number;
         }
     };
     currentEnemyId: number;
@@ -161,10 +167,10 @@ const enemySlice = createSlice({
     name: 'enemy',
     initialState: enemyInitialState,
     reducers: {
-        addEnemy(state, action: PayloadAction<{index: number, id: number}>) {
+        addEnemy(state, action: PayloadAction<{index: number, id: number, positionX?: number, positionY?: number}>) {
             // clearEnemies();
-            const {index, id} = action.payload;
-            console.log(index, id, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<,,")
+            const {index, id, positionX = 0, positionY = 0} = action.payload;
+            console.log(index, id, positionX, positionY, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<,,")
             state.enemies[index] = {
                 id: id,
                 health: data.enemies[id].stats.health,
@@ -177,7 +183,9 @@ const enemySlice = createSlice({
                 xp: data.enemies[id].info.xp,
                 stats: data.enemies[id].stats,
                 loot: data.enemies[id].loot,
-                info: data.enemies[id].info
+                info: data.enemies[id].info,
+                positionX: positionX,
+                positionY: positionY
             };
             state.enemiesStorage = state.enemies;
             console.log("ENEMY ADDED!!!")
@@ -223,7 +231,9 @@ const enemySlice = createSlice({
                     xp: enemy.info.xp,
                     stats: enemy.stats,
                     loot: enemy.loot,
-                    info: enemy.info
+                    info: enemy.info,
+                    positionX: 0,
+                    positionY: 0
                 };
             });
         })

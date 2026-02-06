@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, Button, ImageBackground, Animated, Dimensions, 
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { useCombat } from '../../events/combat'
 import { Inventory } from '../inventory/Inventory'
+import { MiniMap } from '../room/MiniMap'
 import data from '../../data/characters.json';
 import itemData from '../../data/items.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -215,6 +216,9 @@ export const Player = () => {
             <View style={styles.inventory}>
                 <Inventory></Inventory>
             </View>
+            <View style={styles.miniMapContainer}>
+                <MiniMap size={18} />
+            </View>
         </View>
     );
 };
@@ -272,6 +276,9 @@ const styles = StyleSheet.create({
       logView: {
         flex: 1,
         flexDirection: 'column'
+      },
+      miniMapContainer: {
+        marginLeft: 10,
       }
 
 });

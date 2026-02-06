@@ -1,0 +1,21 @@
+{
+  "id": "level3-small",
+  "name": "The Box",
+  "description": "A small 4x4 dungeon - quick exploration.",
+  "width": 4,
+  "height": 4,
+  "tiles": [
+    [2, 1, 1, 2],
+    [1, 0, 0, 1],
+    [1, 0, 0, 1],
+    [2, 1, 1, 2]
+  ],
+  "startPosition": { "x": 0, "y": 0 },
+  "startDirection": "E",
+  "metadata": {
+    "difficulty": "easy",
+    "theme": "dungeon",
+    "author": "generated",
+    "version": 1
+  }
+}

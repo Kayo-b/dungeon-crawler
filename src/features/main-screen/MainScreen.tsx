@@ -15,7 +15,9 @@ export const MainScreen = () => {
     // const dispatch = useAppDispatch(); // Use the hook to get the dispatch function
     // const count = useAppSelector(state => state.counter.value); // Select the current count
         dispatch(fetchEnemies())
-        dispatch(addEnemy({index:0, id:0}))
+        // Spawn enemy at position (7, 6) - 1 tile ahead when facing North from (7,7)
+        // This allows immediate combat testing - enemy blocks the path
+        dispatch(addEnemy({index:0, id:0, positionX: 7, positionY: 6}))
         dispatch(setCurrentPos([7,7]))
     return (
         <View style={styles.mainScreen}>
