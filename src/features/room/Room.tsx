@@ -790,7 +790,9 @@ export const Room = () => {
     useEffect(() => {
         enemiesVal = Object.values(enemies)
         console.log(resources,"MOVE")
-        console.log("ENEMIES #### ROOM REFRESH", enemies, new Date().toLocaleTimeString(), enemiesVal[currentEnemy].health)
+        if (enemiesVal.length > 0 && enemiesVal[currentEnemy]) {
+            console.log("ENEMIES #### ROOM REFRESH", enemies, new Date().toLocaleTimeString(), enemiesVal[currentEnemy].health)
+        }
     },[Object.values(enemies).length, enemies, dispatch, pathTileArr])
 
     Object.values(enemies).map((val, index) => {
@@ -798,10 +800,18 @@ export const Room = () => {
     });
 
     const startCombatAux = (index:number) => {
+        console.log("=== COMBAT START ATTEMPT ===");
+        console.log("Enemy index:", index);
+        console.log("inCombat:", inCombat);
+        console.log("enemies:", enemies);
+        console.log("enemiesVal:", enemiesVal);
         if(!inCombat) {
+            console.log("Starting combat with enemy index:", index);
             dispatch(setCurrentEnemy(index));
             startCombat(index);
-        } 
+        } else {
+            console.log("Combat already in progress, not starting new combat");
+        }
     }
     
     const forward = () => {
@@ -2299,104 +2309,164 @@ const turn = (turnDir:string) => {
                         </ImageBackground>
                     </View>
             })}
-            {enemiesVal.map((val, index) => {
-                // Calculate distance from player to enemy based on direction
-                const enemyX = val.positionX ?? 0;
-                const enemyY = val.positionY ?? 0;
+            {(() => {
+                // Guard: Skip if no enemies loaded yet
+                if (!enemiesVal || enemiesVal.length === 0) return null;
 
-                let distance = -1; // -1 means not visible (behind player or different path)
-                let isInLineOfSight = false;
+                // Group enemies by position for stacking
+                const enemiesByPosition: { [key: string]: { enemy: typeof enemiesVal[0], index: number }[] } = {};
 
-                // Check if enemy is in front of player based on current direction
-                switch(currentDir) {
-                    case 'N':
-                        if (enemyX === positionX && enemyY < positionY) {
-                            distance = positionY - enemyY;
-                            isInLineOfSight = true;
-                        }
-                        break;
-                    case 'S':
-                        if (enemyX === positionX && enemyY > positionY) {
-                            distance = enemyY - positionY;
-                            isInLineOfSight = true;
-                        }
-                        break;
-                    case 'E':
-                        if (enemyY === positionY && enemyX > positionX) {
-                            distance = enemyX - positionX;
-                            isInLineOfSight = true;
-                        }
-                        break;
-                    case 'W':
-                        if (enemyY === positionY && enemyX < positionX) {
-                            distance = positionX - enemyX;
-                            isInLineOfSight = true;
-                        }
-                        break;
-                }
+                enemiesVal.forEach((val, index) => {
+                    if (!val || val.health <= 0) return;
+                    const key = `${val.positionX ?? 0},${val.positionY ?? 0}`;
+                    if (!enemiesByPosition[key]) {
+                        enemiesByPosition[key] = [];
+                    }
+                    enemiesByPosition[key].push({ enemy: val, index });
+                });
 
-                // Only render if alive and in line of sight
-                if (val.health <= 0 || !isInLineOfSight || distance < 0) {
-                    return null;
-                }
+                // Render grouped enemies
+                return Object.entries(enemiesByPosition).map(([posKey, enemyGroup]) => {
+                    const firstEnemy = enemyGroup[0].enemy;
+                    const enemyX = firstEnemy.positionX ?? 0;
+                    const enemyY = firstEnemy.positionY ?? 0;
 
-                // Calculate perspective scale for enemies
-                // Enemies should appear larger than tiles at same distance for visibility
-                // distance 1 = next tile = large and close, distance increases = smaller
-                const perspectiveScale = distance === 0 ? 1.0 :
-                                        distance === 1 ? 0.80 :
-                                        distance === 2 ? 0.75 :
-                                        distance === 3 ? 0.65 :
-                                        0.4 / distance + 0.10;
+                    let distance = -1;
+                    let isInLineOfSight = false;
 
-                // Calculate fog opacity (same as tiles)
-                const fogPerTile = 0.12;
-                const fogOpacity = Math.min(0.75, distance * fogPerTile);
+                    // Check if enemy group is in front of player based on current direction
+                    switch(currentDir) {
+                        case 'N':
+                            if (enemyX === positionX && enemyY < positionY) {
+                                distance = positionY - enemyY;
+                                isInLineOfSight = true;
+                            }
+                            break;
+                        case 'S':
+                            if (enemyX === positionX && enemyY > positionY) {
+                                distance = enemyY - positionY;
+                                isInLineOfSight = true;
+                            }
+                            break;
+                        case 'E':
+                            if (enemyY === positionY && enemyX > positionX) {
+                                distance = enemyX - positionX;
+                                isInLineOfSight = true;
+                            }
+                            break;
+                        case 'W':
+                            if (enemyY === positionY && enemyX < positionX) {
+                                distance = positionX - enemyX;
+                                isInLineOfSight = true;
+                            }
+                            break;
+                    }
 
-                // Only allow combat when enemy is on the next tile (distance = 1)
-                const canEngage = distance === 1;
+                    // Only render if in line of sight
+                    if (!isInLineOfSight || distance < 0) {
+                        return null;
+                    }
 
-                return (
-                    <View
-                        key={index}
-                        style={{
-                            position: 'absolute',
-                            width: '100%',
-                            height: '100%',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            zIndex: 100 - distance, // Closer enemies render on top
-                        }}
-                    >
-                        <View style={{
-                            transform: [{scale: perspectiveScale}],
-                        }}>
-                            <TouchableOpacity
-                                onPress={() => canEngage ? startCombatAux(index) : null}
-                                disabled={!canEngage}
-                                style={{ opacity: canEngage ? 1 : 0.9 }}
-                            >
-                                <Enemy index={index} />
-                            </TouchableOpacity>
-                            {/* Fog overlay for distant enemies */}
-                            {fogOpacity > 0 && (
-                                <View
-                                    pointerEvents="none"
-                                    style={{
+                    // Calculate perspective scale
+                    const perspectiveScale = distance === 0 ? 1.0 :
+                                            distance === 1 ? 0.80 :
+                                            distance === 2 ? 0.75 :
+                                            distance === 3 ? 0.65 :
+                                            0.4 / distance + 0.10;
+
+                    // Calculate fog opacity
+                    const fogPerTile = 0.12;
+                    const fogOpacity = Math.min(0.75, distance * fogPerTile);
+
+                    // Only allow combat when enemies are on the next tile (distance = 1)
+                    const canEngage = distance === 1;
+
+                    // Get the first enemy index for combat (combat system handles all enemies)
+                    const firstEnemyIndex = enemyGroup[0].index;
+
+                    return (
+                        <View
+                            key={posKey}
+                            style={{
+                                position: 'absolute',
+                                width: '100%',
+                                height: '100%',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                zIndex: 100 - distance,
+                            }}
+                        >
+                            <View style={{
+                                transform: [{scale: perspectiveScale}],
+                                flexDirection: 'row',
+                            }}>
+                                {/* Render stacked enemies with slight offset */}
+                                {enemyGroup.map(({ enemy, index }, stackIndex) => {
+                                    if (enemy.health <= 0) return null;
+
+                                    // Offset each enemy in the stack slightly
+                                    const offsetX = stackIndex * 15;
+                                    const offsetY = stackIndex * -10;
+
+                                    return (
+                                        <View
+                                            key={index}
+                                            style={{
+                                                marginLeft: stackIndex > 0 ? -100 : 0,
+                                                transform: [
+                                                    { translateX: offsetX },
+                                                    { translateY: offsetY }
+                                                ],
+                                                zIndex: enemyGroup.length - stackIndex,
+                                            }}
+                                        >
+                                            <TouchableOpacity
+                                                onPress={() => canEngage ? startCombatAux(firstEnemyIndex) : null}
+                                                disabled={!canEngage}
+                                                style={{ opacity: canEngage ? 1 : 0.9 }}
+                                            >
+                                                <Enemy index={index} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                })}
+                                {/* Pack count indicator */}
+                                {enemyGroup.length > 1 && (
+                                    <View style={{
                                         position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 0,
-                                        backgroundColor: '#0a0a12',
-                                        opacity: fogOpacity,
-                                    }}
-                                />
-                            )}
+                                        top: -20,
+                                        right: -20,
+                                        backgroundColor: '#ff4444',
+                                        borderRadius: 12,
+                                        paddingHorizontal: 8,
+                                        paddingVertical: 2,
+                                        zIndex: 999,
+                                    }}>
+                                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
+                                            x{enemyGroup.length}
+                                        </Text>
+                                    </View>
+                                )}
+                                {/* Fog overlay for distant enemies */}
+                                {fogOpacity > 0 && (
+                                    <View
+                                        pointerEvents="none"
+                                        style={{
+                                            position: 'absolute',
+                                            top: -50,
+                                            left: -50,
+                                            right: -50,
+                                            bottom: -50,
+                                            backgroundColor: '#0a0a12',
+                                            opacity: fogOpacity,
+                                        }}
+                                    />
+                                )}
+                            </View>
                         </View>
-                    </View>
-                );
-            })}
+                    );
+                });
+            })()}
         </ImageBackground>
         </View>
     );

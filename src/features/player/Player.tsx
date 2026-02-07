@@ -22,25 +22,22 @@ export const Player = () => {
     const playerLevel = useAppSelector(state => state.player.level);
     const dmgTakenLog = useAppSelector(state => state.player.dmgLog);
     const dmgTaken = dmgTakenLog.length > 0 ? dmgTakenLog[dmgTakenLog.length - 1].dmg : 0;
-    console.log(useAppSelector(state => state.enemy.enemies), currentEnemy, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-    console.log(currentEnemy, "CURRENT ENEMY ID", typeof currentEnemy)
     const enemiesObj = useAppSelector(state => state.enemy.enemies);
-    let dmgDoneObj = {}
-    if(Object.values(enemiesObj).length !== 0) {
-        dmgDoneObj = useAppSelector(state => state.enemy.enemies[currentEnemy].dmgLog);
+    console.log(enemiesObj, currentEnemy, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+    console.log(currentEnemy, "CURRENT ENEMY ID", typeof currentEnemy)
 
-    }
-    const dmgTakenObj = useAppSelector(state => state.player.dmgLog); // Select the current count
-    let combatLog = useAppSelector(state => state.player.combatLog);
+    // Access enemy data safely (hooks must be called unconditionally)
+    const currentEnemyData = enemiesObj[currentEnemy];
+    const dmgDoneObj = currentEnemyData?.dmgLog || {};
+    const enemyInfo = currentEnemyData?.info || {};
+
+    const dmgTakenObj = useAppSelector(state => state.player.dmgLog);
+    const combatLog = useAppSelector(state => state.player.combatLog);
     const stats = useAppSelector(state => state.player.stats)
     const defence = useAppSelector(state => state.player.defenceRating)
     const attack = useAppSelector(state => state.player.attackRating)
     const playerDmg = useAppSelector(state => state.player.playerDmg);
-    const playerLog = useAppSelector(state => state.player.dmgLog); 
-    let enemyInfo = {};
-    if(Object.values(enemiesObj).length !== 0) {
-        enemyInfo = useAppSelector(state => state.enemy.enemies[currentEnemy].info)
-    }
+    const playerLog = useAppSelector(state => state.player.dmgLog);
     console.log(enemyInfo, currentEnemy, "CURRENT")
     const fadeAnimDmg = useRef(new Animated.Value(1)).current;
     let equipment = useAppSelector(state => state.player.equipment);
@@ -59,7 +56,14 @@ export const Player = () => {
             const storedData = await AsyncStorage.getItem('characters');
             obj = storedData ? JSON.parse(storedData) : {};
         }
-        const health = obj.character.stats.health;
+        // If health is 0 or undefined, reset to default from data file
+        let health = obj.character.stats.health;
+        if (!health || health <= 0) {
+            console.log("Player health was 0, resetting to default:", data.character.stats.health);
+            health = data.character.stats.health;
+            obj.character.stats.health = health;
+            await AsyncStorage.setItem('characters', JSON.stringify(obj));
+        }
         const experience = obj.character.experience;
         const level = obj.character.level; 
         const stats = obj.character.stats;
@@ -141,13 +145,15 @@ export const Player = () => {
         console.log(dmgTakenObj, "PAYLOAD DMG 2 PLAYER")
         const keys = Object.keys(dmgTakenObj);
         console.log(dmgTakenObj, "DMG TAKEN 111111111111")
-        if(keys.length > 0) {
-            if(dmgTakenObj[keys.length -1].dmg === 0)  {
-                dispatch(setCombatLog(`${enemyInfo.name} missed.`));
-            } else if(dmgTakenObj[keys.length -1].crit) {
-                dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} critical damage.`));   
+        if(keys.length > 0 && dmgTakenObj[keys.length - 1]) {
+            const lastDmg = dmgTakenObj[keys.length - 1];
+            const enemyName = (enemyInfo as any)?.name || 'Enemy';
+            if(lastDmg.dmg === 0)  {
+                dispatch(setCombatLog(`${enemyName} missed.`));
+            } else if(lastDmg.crit) {
+                dispatch(setCombatLog(`You took ${lastDmg.dmg as number} critical damage.`));
             } else {
-                dispatch(setCombatLog(`You took ${dmgTakenObj[keys.length - 1].dmg as number} damage. From ${dmgTakenObj[keys.length - 1].enemy}`));
+                dispatch(setCombatLog(`You took ${lastDmg.dmg as number} damage. From ${lastDmg.enemy || enemyName}`));
             }
         }
         console.log(combatLog, "DMG COMBAT LOG")
@@ -156,14 +162,16 @@ export const Player = () => {
    useEffect(() => {
         const keys = Object.keys(dmgDoneObj);
         console.log(dmgDoneObj, "PAYLOAD DMG DONE")
-        if(keys.length > 0) {
-            console.log(dmgDoneObj[keys.length - 1], 'PAYLOAD KEYS')
-            if(dmgDoneObj[keys.length - 1].dmg === 0) {
-                dispatch(setCombatLog(`Attack Missed ${enemyInfo.name}`));
-            } else if(dmgDoneObj[keys.length - 1].crit) {
-                dispatch(setCombatLog(`${enemyInfo.name} took ${dmgDoneObj[keys.length - 1].dmg as number} critical damage .`))
+        if(keys.length > 0 && dmgDoneObj[keys.length - 1]) {
+            const lastDmg = dmgDoneObj[keys.length - 1];
+            const enemyName = (enemyInfo as any)?.name || 'Enemy';
+            console.log(lastDmg, 'PAYLOAD KEYS')
+            if(lastDmg.dmg === 0) {
+                dispatch(setCombatLog(`Attack Missed ${enemyName}`));
+            } else if(lastDmg.crit) {
+                dispatch(setCombatLog(`${enemyName} took ${lastDmg.dmg as number} critical damage.`))
             } else {
-                dispatch(setCombatLog(`${enemyInfo.name} took ${dmgDoneObj[keys.length - 1].dmg as number} damage .`))
+                dispatch(setCombatLog(`${enemyName} took ${lastDmg.dmg as number} damage.`))
             }
         }
         console.log(combatLog, "DMG COMBAT LOG")
