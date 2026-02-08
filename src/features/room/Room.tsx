@@ -114,6 +114,39 @@ export const Room = () => {
     const { changeLvl, getEnemies } = useRoom();
     const { startCombat } = useCombat();
 
+    // Get current tile type at player position for special tile interactions
+    const currentTileType = mapTiles?.[positionY]?.[positionX] ?? 0;
+    const isOnStairsUp = currentTileType === 6;
+    const isOnStairsDown = currentTileType === 7;
+    const isOnDoor = currentTileType === 5;
+    const isOnSpecialTile = isOnStairsUp || isOnStairsDown || isOnDoor;
+
+    // Level transition mapping
+    const levelTransitions: { [key: string]: { up?: string; down?: string } } = {
+        'level1': { down: 'level2-grid' },
+        'level2-grid': { up: 'level1', down: 'level3-small' },
+        'level3-small': { up: 'level2-grid', down: 'level4-large' },
+        'level4-large': { up: 'level3-small' },
+    };
+
+    // Handle stairs interaction
+    const handleStairsInteraction = () => {
+        const transitions = levelTransitions[currentMapId];
+        if (!transitions) return;
+
+        let targetLevel: string | undefined;
+        if (isOnStairsUp && transitions.up) {
+            targetLevel = transitions.up;
+        } else if (isOnStairsDown && transitions.down) {
+            targetLevel = transitions.down;
+        }
+
+        if (targetLevel) {
+            console.log(`Transitioning from ${currentMapId} to ${targetLevel}`);
+            dispatch(loadMap(targetLevel));
+        }
+    };
+
     // New movement system hook
     const movement = useMovement();
     // dispatch(setCurrentPos([2,6]))
@@ -2254,6 +2287,42 @@ const turn = (turnDir:string) => {
             onPress={ () => activeTurn('L') }>
                <Text>Left</Text>
             </TouchableOpacity>
+
+            {/* Stairs Interaction Button - appears when standing on stairs */}
+            {(isOnStairsUp || isOnStairsDown) && (
+                <TouchableOpacity
+                    style={{
+                        ...styles.button,
+                        backgroundColor: '#4a4a8a',
+                        borderColor: '#6a6aaa',
+                        borderWidth: 2,
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                    }}
+                    onPress={handleStairsInteraction}
+                >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                        {isOnStairsUp ? '↑ GO UP' : '↓ GO DOWN'}
+                    </Text>
+                </TouchableOpacity>
+            )}
+
+            {/* Door indicator - when standing on door */}
+            {isOnDoor && (
+                <View style={{
+                    backgroundColor: '#8B4513',
+                    paddingHorizontal: 15,
+                    paddingVertical: 8,
+                    borderRadius: 5,
+                    borderWidth: 2,
+                    borderColor: '#D2691E',
+                }}>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                        🚪 DOOR
+                    </Text>
+                </View>
+            )}
+
             {/* <Button style={{styles.button}} title="next level" onPress={ changeLvl }></Button> */}
             <ImageBackground
             source={resources[0] as ImageSourcePropType}
@@ -2271,6 +2340,21 @@ const turn = (turnDir:string) => {
                     // etc, up to max 75%
                     const fogPerTile = 0.12; // 12% fog added per tile of distance
                     const fogOpacity = Math.min(0.75, index * fogPerTile);
+
+                    // Get tile type for special tile labels
+                    const tileType = activeMapArray?.[index];
+                    const isDoor = tileType === 5;
+                    const isStairsUp = tileType === 6;
+                    const isStairsDown = tileType === 7;
+                    const isSpecialTile = isDoor || isStairsUp || isStairsDown;
+
+                    // Get label for special tiles
+                    const getSpecialTileLabel = () => {
+                        if (isDoor) return 'DOOR';
+                        if (isStairsUp) return '↑ STAIRS';
+                        if (isStairsDown) return '↓ STAIRS';
+                        return '';
+                    };
 
                     return <View
                         key={index}
@@ -2292,6 +2376,39 @@ const turn = (turnDir:string) => {
                             }
                         ]}
                         >
+                            {/* Special tile label overlay (Door/Stairs) */}
+                            {isSpecialTile && (
+                                <View
+                                    style={{
+                                        position: 'absolute',
+                                        top: '40%',
+                                        left: 0,
+                                        right: 0,
+                                        alignItems: 'center',
+                                        zIndex: 10,
+                                    }}
+                                >
+                                    <View style={{
+                                        backgroundColor: isDoor ? '#8B4513' : '#4a4a8a',
+                                        paddingHorizontal: 16,
+                                        paddingVertical: 8,
+                                        borderRadius: 8,
+                                        borderWidth: 2,
+                                        borderColor: isDoor ? '#D2691E' : '#6a6aaa',
+                                    }}>
+                                        <Text style={{
+                                            color: '#fff',
+                                            fontSize: 18,
+                                            fontWeight: 'bold',
+                                            textShadowColor: '#000',
+                                            textShadowOffset: { width: 1, height: 1 },
+                                            textShadowRadius: 2,
+                                        }}>
+                                            {getSpecialTileLabel()}
+                                        </Text>
+                                    </View>
+                                </View>
+                            )}
                             {/* Fog of war overlay */}
                             {fogOpacity > 0 && (
                                 <View
@@ -2421,7 +2538,7 @@ const turn = (turnDir:string) => {
                                             }}
                                         >
                                             <TouchableOpacity
-                                                onPress={() => canEngage ? startCombatAux(firstEnemyIndex) : null}
+                                                onPress={() => canEngage ? startCombatAux(index) : null}
                                                 disabled={!canEngage}
                                                 style={{ opacity: canEngage ? 1 : 0.9 }}
                                             >

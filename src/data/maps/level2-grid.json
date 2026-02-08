@@ -1,18 +1,18 @@
 {
   "id": "level2-grid",
   "name": "The Grid",
-  "description": "A complex grid dungeon with many intersections.",
+  "description": "A complex grid dungeon with many intersections, stairs, and doors.",
   "width": 8,
   "height": 8,
   "tiles": [
-    [2, 1, 1, 3, 1, 3, 1, 2],
+    [6, 1, 1, 3, 1, 3, 1, 2],
     [1, 0, 0, 1, 0, 1, 0, 1],
-    [3, 1, 1, 3, 1, 3, 1, 3],
+    [3, 1, 5, 3, 1, 3, 1, 3],
     [1, 0, 0, 1, 0, 1, 0, 1],
-    [3, 1, 1, 3, 1, 3, 1, 3],
+    [3, 1, 1, 3, 1, 3, 5, 3],
     [1, 0, 0, 1, 0, 1, 0, 1],
     [1, 0, 0, 1, 0, 1, 0, 1],
-    [2, 1, 1, 3, 1, 3, 1, 2]
+    [2, 1, 1, 3, 1, 3, 1, 7]
   ],
   "startPosition": { "x": 0, "y": 0 },
   "startDirection": "E",
@@ -20,6 +20,6 @@
     "difficulty": "medium",
     "theme": "dungeon",
     "author": "generated",
-    "version": 1
+    "version": 2
   }
 }

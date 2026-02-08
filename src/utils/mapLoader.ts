@@ -50,11 +50,12 @@ export function validateMap(config: MapConfig): MapValidationResult {
     }
   }
 
-  // Check for valid tile types
+  // Check for valid tile types (0-8)
+  // 0=Wall, 1=Corridor, 2=Turn, 3=ThreeWay, 4=FourWay, 5=Door, 6=StairsUp, 7=StairsDown, 8=DeadEnd
   for (let y = 0; y < config.tiles.length; y++) {
     for (let x = 0; x < config.tiles[y].length; x++) {
       const tile = config.tiles[y][x];
-      if (![0, 1, 2, 3, 4].includes(tile)) {
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8].includes(tile)) {
         errors.push(`Invalid tile type ${tile} at (${x}, ${y}).`);
       }
     }
