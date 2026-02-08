@@ -16,7 +16,10 @@ import { DebugOverlay } from './DebugOverlay';
 import { useMovement } from '../../systems/movement/useMovement';
 import { useMovementWithRender, TileImages } from '../../systems/movement/useMovementWithRender';
 import { isBlocked } from '../../systems/movement/TileNavigator';
+import { Room3D } from './Room3D';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
+
+const ROOM_VIEWPORT_SIZE = 512;
 
 /**
  * Calculate the correct array position directly from player coordinates
@@ -194,6 +197,9 @@ export const Room = () => {
 
     // Toggle for new vs old movement system
     const [useNewMovement, setUseNewMovement] = useState(false);
+
+    // Toggle for CSS 3D rendering mode (experimental)
+    const [use3DRendering, setUse3DRendering] = useState(true);
 
     // New movement system hook
     const newMovement = useMovementWithRender(tileImages);
@@ -2250,7 +2256,7 @@ const turn = (turnDir:string) => {
     }, [handleKeyPress]);
 
     return (
-        <View style={styles.backgroundImage}>
+        <View style={styles.roomRoot}>
             {/* DEBUG OVERLAY */}
             <DebugOverlay
                 visible={true}
@@ -2323,21 +2329,42 @@ const turn = (turnDir:string) => {
                 </View>
             )}
 
-            {/* <Button style={{styles.button}} title="next level" onPress={ changeLvl }></Button> */}
+            {/* 3D Rendering Mode Toggle */}
+            <TouchableOpacity
+                style={{
+                    ...styles.button,
+                    backgroundColor: use3DRendering ? '#0088ff' : '#555',
+                    opacity: 1,
+                    marginLeft: 10,
+                }}
+                onPress={() => setUse3DRendering(!use3DRendering)}
+            >
+                <Text style={{ color: '#fff', fontSize: 10 }}>
+                    {use3DRendering ? '3D' : '2D'}
+                </Text>
+            </TouchableOpacity>
+
+            {/* Conditional rendering: 3D CSS mode or classic 2D tiles */}
+            <View style={styles.gameViewport}>
+            {use3DRendering ? (
+                <Room3D
+                    positionX={positionX}
+                    positionY={positionY}
+                    direction={currentDir}
+                    mapTiles={mapTiles}
+                    mapWidth={mapWidth}
+                    mapHeight={mapHeight}
+                    viewDistance={5}
+                />
+            ) : (
             <ImageBackground
             source={resources[0] as ImageSourcePropType}
-            style={styles.backgroundImage}>
+            style={styles.tileViewport}>
             {activePathTileArr.map((val, index) => {
                     // Calculate fog opacity based on distance (index)
                     // Each tile gets fog proportional to its distance from player
-                    // As player moves closer, tile index decreases, fog decreases
-
-                    // Fog increases linearly with each tile of distance
-                    // index 0: 0% fog (right in front of player)
-                    // index 1: 10% fog
-                    // index 2: 20% fog
-                    // index 3: 30% fog
-                    // etc, up to max 75%
+                    // index 0: nearest tile (least fog)
+                    // Higher index = further away = more fog
                     const fogPerTile = 0.12; // 12% fog added per tile of distance
                     const fogOpacity = Math.min(0.75, index * fogPerTile);
 
@@ -2356,6 +2383,14 @@ const turn = (turnDir:string) => {
                         return '';
                     };
 
+                    // Original scale formula - index 0 is nearest (largest), higher = further (smaller)
+                    // index 0: special case to avoid division by zero
+                    // index 1: 0.67
+                    // index 2+: progressively smaller
+                    const tileScale = index === 0 ? 0.77 :
+                                     index === 1 ? 0.67 :
+                                     0.67 / index + 0.1;
+
                     return <View
                         key={index}
                         style={{
@@ -2369,9 +2404,9 @@ const turn = (turnDir:string) => {
                         <ImageBackground
                         source={activePathTileArr[index] as ImageSourcePropType}
                         style={[
-                            styles.backgroundImage,
+                            styles.tileViewport,
                             {
-                                transform: [{scale: index === 1 ? 0.67 : 0.67/index+0.1}],
+                                transform: [{scale: tileScale}],
                                 position: 'absolute'
                             }
                         ]}
@@ -2585,6 +2620,8 @@ const turn = (turnDir:string) => {
                 });
             })()}
         </ImageBackground>
+            )}
+            </View>
         </View>
     );
 };
@@ -2593,7 +2630,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1
     },
-    backgroundImage: {
+    roomRoot: {
         alignSelf: 'center', 
         resizeMode: 'cover', 
         width: '100%', 
@@ -2603,6 +2640,18 @@ const styles = StyleSheet.create({
         justifyContent: 'space-around',
         alignItems: 'center',
         flexDirection: 'row'
+    },
+    gameViewport: {
+        width: ROOM_VIEWPORT_SIZE,
+        height: ROOM_VIEWPORT_SIZE,
+        backgroundColor: '#0a0a12',
+        overflow: 'hidden',
+    },
+    tileViewport: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+        overflow: 'hidden',
     },
         backgroundImage2: {
         alignSelf: 'center', 
