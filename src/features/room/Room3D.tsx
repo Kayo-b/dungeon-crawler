@@ -66,9 +66,9 @@ export const Room3D: React.FC<Room3DProps> = ({
 
     // Get corridor opening at each distance
     const getFrameDimensions = (distance: number) => {
-        const scale = 1 / (distance * 0.5 + 0.5);
-        const width = VIEWPORT_WIDTH * scale * 0.6;
-        const height = VIEWPORT_HEIGHT * scale * 0.7;
+        const scale = 1 / (distance * 0.4 + 0.5);
+        const width = VIEWPORT_WIDTH * scale * (0.5 + (0.3 * distance/2));
+        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance/2));
         const left = CENTER_X - width / 2;
         const top = CENTER_Y - height / 2;
         const right = CENTER_X + width / 2;
