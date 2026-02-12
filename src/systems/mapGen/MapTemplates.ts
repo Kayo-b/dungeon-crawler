@@ -129,7 +129,7 @@ function generateLoop(width: number, height: number): {
   return {
     tiles,
     startPos: { x: 0, y: 0 },
-    startDir: 'E',
+    startDir: 'W',
   };
 }
 
@@ -181,7 +181,7 @@ function generateFigure8(width: number, height: number): {
   return {
     tiles,
     startPos: { x: 0, y: 0 },
-    startDir: 'E',
+    startDir: 'W',
   };
 }
 
@@ -267,7 +267,7 @@ function generateSpiral(width: number, height: number): {
   return {
     tiles,
     startPos: { x: 0, y: 0 },
-    startDir: 'E',
+    startDir: 'W',
   };
 }
 
@@ -315,7 +315,7 @@ function generateGrid(width: number, height: number): {
   return {
     tiles,
     startPos: { x: 0, y: 0 },
-    startDir: 'E',
+    startDir: 'W',
   };
 }
 
@@ -352,7 +352,7 @@ function generateCorridors(width: number, height: number): {
   return {
     tiles,
     startPos: { x: 0, y: 0 },
-    startDir: 'E',
+    startDir: 'W',
   };
 }
 
@@ -392,7 +392,7 @@ function generateRooms(width: number, height: number): {
   return {
     tiles,
     startPos: { x: 0, y: 0 },
-    startDir: 'E',
+    startDir: 'W',
   };
 }
 
@@ -458,7 +458,7 @@ function generateTShape(width: number, height: number): {
   return {
     tiles,
     startPos: { x: 0, y: 0 },
-    startDir: 'E',
+    startDir: 'W',
   };
 }
 

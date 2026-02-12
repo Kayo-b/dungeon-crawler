@@ -48,7 +48,6 @@ export const Room3D: React.FC<Room3DProps> = ({
                 case 'E': tileX = positionX + d; break;
                 case 'W': tileX = positionX - d; break;
             }
-
             if (tileX >= 0 && tileX < mapWidth && tileY >= 0 && tileY < mapHeight) {
                 const type = mapTiles[tileY]?.[tileX] ?? 0;
                 tiles.push({ x: tileX, y: tileY, type, distance: d });
@@ -67,17 +66,41 @@ export const Room3D: React.FC<Room3DProps> = ({
     // Get corridor opening at each distance
     const getFrameDimensions = (distance: number) => {
         const scale = 1 / (distance * 0.4 + 0.5);
-        const width = VIEWPORT_WIDTH * scale * (0.5 + (0.3 * distance/2));
-        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance/2));
-        const left = CENTER_X - width / 2;
-        const top = CENTER_Y - height / 2;
-        const right = CENTER_X + width / 2;
-        const bottom = CENTER_Y + height / 2;
+        const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance/2));
+        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance/4));
+        const left = CENTER_X - width / 1.8;
+        const top = CENTER_Y - height / 1.8;
+        const right = CENTER_X + width / 1.8;
+        const bottom = CENTER_Y + height / 1.8;
         return { width, height, left, top, right, bottom, scale };
+        // distance = 4;
+        // if(distance === 2) {
+        //     console.log('distance', distance)
+        //     const scale = 1 / distance;
+        //     const width = VIEWPORT_WIDTH * scale;
+        //     const height = VIEWPORT_HEIGHT * scale;
+        //     const left = CENTER_X - width / 1;
+        //     const top = CENTER_Y - height / 2;
+        //     const right = CENTER_X + width / 1;
+        //     const bottom = CENTER_Y + height / 1;
+        //     return { width, height, left, top, right, bottom, scale };
+        // } else {
+        //     console.log('distance', distance)
+        //     const scale = 1 / distance;
+        //     const width = VIEWPORT_WIDTH * scale;
+        //     const height = VIEWPORT_HEIGHT * scale;
+        //     const left = CENTER_X - width / 1;
+        //     const top = CENTER_Y - height / 2;
+        //     const right = CENTER_X + width / 1;
+        //     const bottom = CENTER_Y + height / 1;
+        //     return { width, height, left, top, right, bottom, scale };
+
+        // }
     };
 
     const getBrightness = (distance: number) => {
-        return Math.max(0.3, 1 - distance * 0.12);
+        return 1;
+        // return Math.max(0.3, 1 - distance * 0.12);
     };
 
     const isWeb = Platform.OS === 'web';
@@ -86,7 +109,7 @@ export const Room3D: React.FC<Room3DProps> = ({
         const frames: React.ReactNode[] = [];
 
         // Render from far to near
-        for (let i = tilesAhead.length - 1; i >= 0; i--) {
+        for (let i = tilesAhead.length - 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ; i >= 0; i--) {
             const tile = tilesAhead[i];
             const d = tile.distance;
             const brightness = getBrightness(d);
@@ -121,8 +144,9 @@ export const Room3D: React.FC<Room3DProps> = ({
             }
 
             // Wall rotation - moderate angle for visibility while creating depth
-            const wallRotation = 60;
-            const floorCeilingRotation = 60;
+            const wallRotation = 59.8 + (d - 1) * 4;
+            const floorRotation = 60;
+            const ceilingRotation= 100;
 
             // LEFT WALL - full height from near.top to near.bottom
             const leftWidth = far.left - near.left;
@@ -136,7 +160,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 left: near.left,
                                 top: near.top - 20, // Extend beyond to fill gaps
                                 width: leftWidth + 10,
-                                height: near.bottom - near.top + 40,
+                                height: near.bottom - near.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
                             isWeb && {
@@ -177,7 +201,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 left: far.right - 10,
                                 top: near.top - 20,
                                 width: rightWidth + 10,
-                                height: near.bottom - near.top + 40,
+                                height: near.bottom - near.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
                             isWeb && {
@@ -237,7 +261,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 },
                                 isWeb && {
                                     // @ts-ignore
-                                    transform: `rotateX(${floorCeilingRotation}deg)`,
+                                    transform: `rotateX(${floorRotation}deg)`,
                                     transformOrigin: '50% 0%',
                                 }
                             ]}
@@ -258,7 +282,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                             styles.segment,
                             {
                                 left: near.left - 20,
-                                top: near.top - 20,
+                                top: near.top + 130,
                                 width: near.right - near.left + 40,
                                 height: ceilingHeight + 20,
                                 zIndex: 98 - d,
@@ -279,7 +303,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 },
                                 isWeb && {
                                     // @ts-ignore
-                                    transform: `rotateX(-${floorCeilingRotation}deg)`,
+                                    transform: `rotateX(-${ceilingRotation}deg)`,
                                     transformOrigin: '50% 100%',
                                 }
                             ]}

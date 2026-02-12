@@ -51,7 +51,7 @@ export const DEFAULT_OPTIONS: MapGeneratorOptions = {
   maxDeadEnds: 4,
   ensureLoop: true,
   startCorner: 'NW',
-  startDirection: 'E',
+  startDirection: 'W',
 };
 
 /**

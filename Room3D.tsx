@@ -68,6 +68,7 @@ export const Room3D: React.FC<Room3DProps> = ({
     };
 
     const tilesAhead = getTilesAhead();
+    const scale = getScale();
     const maxDistance = tilesAhead.length > 0 ? tilesAhead[tilesAhead.length - 1].distance : 1;
     const hasEndWall = tilesAhead.length > 0 && tilesAhead[tilesAhead.length - 1].type === 0;
 
@@ -218,6 +219,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                     </Text>
                     <Text style={styles.debugText}>
                         Tiles ahead: {tilesAhead.length}
+                        Tile Scale: {scale}
                     </Text>
                 </View>
             </View>
