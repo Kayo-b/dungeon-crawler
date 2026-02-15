@@ -76,13 +76,23 @@
       },
       "loot": [
         { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 1.5 },
-        {"name":"Minor Healing Potion", "type":"consumable", "ID":"1", "dropChance":1.5}
+        {"name":"Minor Healing Potion", "type":"consumable", "ID":1, "dropChance":1.5},
+        {"name":"Scout Sash", "type":"belts", "ID":1, "dropChance":0.15}
       ],
       "info" : {
         "name": "Skell",
         "description": "A skeleton warrior, armed with a rusty sword.",
         "level": 2,
         "xp": 10
+      },
+      "behavior": {
+        "visibilityMode": "distance",
+        "visibilityRange": 6,
+        "attackStyle": "melee",
+        "attackRange": 1,
+        "playerEngageRange": 1,
+        "firstStrike": false,
+        "disposition": "hostile"
       }
     },
     {
@@ -109,6 +119,51 @@
         "description": "A giant rat, spawn from the depts.",
         "level": 1,
         "xp": 6
+      },
+      "behavior": {
+        "visibilityMode": "ambush",
+        "visibilityRange": 0,
+        "attackStyle": "melee",
+        "attackRange": 1,
+        "playerEngageRange": 0,
+        "firstStrike": false,
+        "disposition": "hostile"
+      }
+    },
+    {
+      "stats": {
+        "health": 12,
+        "attack": 2,
+        "strength": 6,
+        "dexterity": 14,
+        "stamina": 8,
+        "vitality": 8,
+        "intelligence": 4,
+        "defence": 4,
+        "atkSpeed": 1.0,
+        "crit": 0.08,
+        "dodge": 0.08
+      },
+      "loot": [
+        { "name": "Bone Arrow", "type": "ammo", "ID": 1, "dropChance": 0.4 },
+        { "name": "Rusted Bow", "type": "weapon", "ID": 2, "dropChance": 0.2 },
+        { "name": "Hunter Belt", "type": "belts", "ID": 2, "dropChance": 0.1 },
+        { "name": "War Belt", "type": "belts", "ID": 3, "dropChance": 0.05 }
+      ],
+      "info" : {
+        "name": "Skell Archer",
+        "description": "A ranged skeleton that fires from distance.",
+        "level": 2,
+        "xp": 12
+      },
+      "behavior": {
+        "visibilityMode": "distance",
+        "visibilityRange": 7,
+        "attackStyle": "ranged",
+        "attackRange": 4,
+        "playerEngageRange": 1,
+        "firstStrike": true,
+        "disposition": "hostile"
       }
     }
   ]

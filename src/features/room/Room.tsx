@@ -5,11 +5,11 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
 import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, invertInitialDirection, setLastTurnDir, setInitialDirection, loadMap, resetPosition } from '../../features/room/roomSlice';
+import { dmg2Player, regenResourcesOnTile } from '../player/playerSlice';
 import { getMapList, MapInfo } from '../../data/maps';
 import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
-import { useCallback, useDebugValue, useEffect, useState } from 'react';
-import { useCombat } from '../../events/combat'
+import { ReactNode, useCallback, useDebugValue, useEffect, useRef, useState } from 'react';
 import { current } from '@reduxjs/toolkit';
 import { debugMove, movementDebug, Direction } from '../../utils/debug';
 import { DebugOverlay } from './DebugOverlay';
@@ -17,6 +17,14 @@ import { useMovement } from '../../systems/movement/useMovement';
 import { useMovementWithRender, TileImages } from '../../systems/movement/useMovementWithRender';
 import { isBlocked } from '../../systems/movement/TileNavigator';
 import { Room3D } from './Room3D';
+import { Direction as FacingDirection } from '../../types/map';
+import { registerEnemyAttack } from '../../events/combatSlice';
+import {
+    getEnemyDistanceInFacingDirection,
+    isEnemyCombatReachable,
+    isEnemyOccludedByCloserEnemy,
+    isEnemyVisibleToPlayer,
+} from '../enemy/enemyPerception';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 
 const ROOM_VIEWPORT_SIZE = 512;
@@ -89,12 +97,20 @@ function calculateArrPosFromCoords(
 
 let display = 0;
 
-export const Room = () => {
+interface RoomProps {
+    startCombat: (id: number) => void;
+    engagePlayerAttack: (id: number) => void;
+    skillOverlay?: ReactNode;
+    rightOverlay?: ReactNode;
+}
+
+export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverlay }: RoomProps) => {
     const dispatch = useAppDispatch(); 
     // const enemyHealth = useAppSelector(state => state.enemy.enemies[0].stats.health); 
     const inCombat = useAppSelector(state => state.combat.inCombat);
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
+    const playerHealth = useAppSelector(state => state.player.health);
     const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
     const currentDir = useAppSelector(state => state.room.direction);
     const verticalResources = useAppSelector(state => state.room.verticalRes);
@@ -115,7 +131,7 @@ export const Room = () => {
     // Use Redux map data instead of hardcoded - dg_map now references Redux state
     const dg_map = mapTiles;
     const { changeLvl, getEnemies } = useRoom();
-    const { startCombat } = useCombat();
+    const playerClass = useAppSelector(state => state.player.classArchetype || 'warrior');
 
     // Get current tile type at player position for special tile interactions
     const currentTileType = mapTiles?.[positionY]?.[positionX] ?? 0;
@@ -200,6 +216,8 @@ export const Room = () => {
 
     // Toggle for CSS 3D rendering mode (experimental)
     const [use3DRendering, setUse3DRendering] = useState(true);
+    const rangedShotCooldownRef = useRef<{ [key: number]: number }>({});
+    const lastPlayerTileRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
 
     // New movement system hook
     const newMovement = useMovementWithRender(tileImages);
@@ -838,7 +856,7 @@ export const Room = () => {
         console.log('ENEMIES OBJECT VALUES', val, index);
     });
 
-    const startCombatAux = (index:number) => {
+    const startCombatAux = (index:number, armPlayer: boolean = false) => {
         console.log("=== COMBAT START ATTEMPT ===");
         console.log("Enemy index:", index);
         console.log("inCombat:", inCombat);
@@ -848,10 +866,144 @@ export const Room = () => {
             console.log("Starting combat with enemy index:", index);
             dispatch(setCurrentEnemy(index));
             startCombat(index);
+            if (armPlayer) {
+                engagePlayerAttack(index);
+            }
         } else {
-            console.log("Combat already in progress, not starting new combat");
+            console.log("Combat active: arming player attack on target:", index);
+            engagePlayerAttack(index);
         }
     }
+
+    const findAutoMeleeAggressor = (): number => {
+        const facingDirection = currentDir as FacingDirection;
+        const laneEnemies = Object.values(enemies) as any[];
+        let selectedIndex = -1;
+        let closestDistance = Number.POSITIVE_INFINITY;
+
+        laneEnemies.forEach((enemy, index) => {
+            if (!enemy || enemy.health <= 0) return;
+            if ((enemy.disposition || 'hostile') !== 'hostile') return;
+            if (enemy.visibilityMode === 'ambush') return;
+            if ((enemy.attackStyle || 'melee') !== 'melee') return;
+
+            const distance = getEnemyDistanceInFacingDirection(
+                positionX,
+                positionY,
+                facingDirection,
+                enemy.positionX ?? 0,
+                enemy.positionY ?? 0
+            );
+
+            if (distance === null) return;
+            const enemyAttackRange = Math.max(1, enemy.attackRange ?? 1);
+            if (distance > enemyAttackRange) return;
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                selectedIndex = index;
+            }
+        });
+
+        return selectedIndex;
+    };
+
+    useEffect(() => {
+        if (inCombat) return;
+
+        const enemyOnCurrentTile = enemiesVal.findIndex((enemy) =>
+            enemy &&
+            enemy.health > 0 &&
+            (enemy.disposition || 'hostile') === 'hostile' &&
+            enemy.positionX === positionX &&
+            enemy.positionY === positionY
+        );
+
+        if (enemyOnCurrentTile >= 0) {
+            startCombatAux(enemyOnCurrentTile);
+        }
+    }, [positionX, positionY, enemies, inCombat]);
+
+    useEffect(() => {
+        if (inCombat || playerHealth <= 0) return;
+
+        const aggressor = findAutoMeleeAggressor();
+        if (aggressor >= 0) {
+            startCombatAux(aggressor);
+        }
+    }, [positionX, positionY, currentDir, enemies, inCombat, playerHealth]);
+
+    useEffect(() => {
+        const currentTile = { x: positionX, y: positionY, mapId: currentMapId };
+        const previousTile = lastPlayerTileRef.current;
+
+        if (!previousTile) {
+            lastPlayerTileRef.current = currentTile;
+            return;
+        }
+
+        if (previousTile.mapId !== currentTile.mapId) {
+            lastPlayerTileRef.current = currentTile;
+            return;
+        }
+
+        if (previousTile.x === currentTile.x && previousTile.y === currentTile.y) {
+            return;
+        }
+
+        lastPlayerTileRef.current = currentTile;
+        dispatch(regenResourcesOnTile());
+    }, [positionX, positionY, currentMapId, dispatch]);
+
+    useEffect(() => {
+        if (inCombat || playerHealth <= 0) return;
+
+        const tryRangedAttacks = () => {
+            const now = Date.now();
+            const facingDirection = currentDir as FacingDirection;
+            const laneEnemies = Object.values(enemies) as any[];
+
+            laneEnemies.forEach((enemy, index) => {
+                if (!enemy || enemy.health <= 0) return;
+                if ((enemy.disposition || 'hostile') !== 'hostile') return;
+                if (enemy.attackStyle !== 'ranged') return;
+
+                const distance = getEnemyDistanceInFacingDirection(
+                    positionX,
+                    positionY,
+                    facingDirection,
+                    enemy.positionX ?? 0,
+                    enemy.positionY ?? 0
+                );
+
+                if (distance === null) return;
+                if (isEnemyOccludedByCloserEnemy(index, laneEnemies, positionX, positionY, facingDirection)) return;
+
+                const attackRange = enemy.attackRange ?? 4;
+                if (distance > attackRange) return;
+
+                const cooldownMs = Math.max(500, Math.floor(1000 / Math.max(enemy.atkSpeed || 1, 0.25)));
+                const lastShotAt = rangedShotCooldownRef.current[index] || 0;
+                if (now - lastShotAt < cooldownMs) return;
+
+                rangedShotCooldownRef.current[index] = now;
+
+                const randomAddDmg = Math.floor(Math.random() * 2);
+                const critRoll = Math.random();
+                const critChance = enemy.stats?.crit || 0.06;
+                const isCrit = critRoll <= critChance;
+                let dmg = (enemy.damage || 1) + randomAddDmg;
+                if (isCrit) dmg *= 2;
+
+                dispatch(registerEnemyAttack(index));
+                dispatch(dmg2Player({ dmg, crit: isCrit, enemy: `${enemy.info?.name || 'Ranged enemy'} (ranged)` }));
+            });
+        };
+
+        tryRangedAttacks();
+        const interval = setInterval(tryRangedAttacks, 300);
+        return () => clearInterval(interval);
+    }, [positionX, positionY, currentDir, enemies, inCombat, playerHealth]);
     
     const forward = () => {
         // DEBUG: Start tracking forward movement
@@ -889,36 +1041,6 @@ export const Room = () => {
                 success: false,
             });
             console.log('Wall collision! Cannot move forward.');
-            return; // Exit without moving
-        }
-
-        // ENEMY COLLISION CHECK - Don't move if enemy is on the next tile
-        let nextTileX = positionX;
-        let nextTileY = positionY;
-        switch(currentDir) {
-            case 'N': nextTileY = positionY - 1; break;
-            case 'S': nextTileY = positionY + 1; break;
-            case 'E': nextTileX = positionX + 1; break;
-            case 'W': nextTileX = positionX - 1; break;
-        }
-
-        const enemyBlocking = Object.values(enemies).some(enemy =>
-            enemy.health > 0 &&
-            enemy.positionX === nextTileX &&
-            enemy.positionY === nextTileY
-        );
-
-        if (enemyBlocking) {
-            debugMove.note('BLOCKED by enemy - must defeat to proceed');
-            debugMove.end({
-                posX: positionX,
-                posY: positionY,
-                direction: currentDir as Direction,
-                currentArrPos,
-                iniDir,
-                success: false,
-            });
-            console.log('Enemy blocking path! Defeat the enemy to proceed.');
             return; // Exit without moving
         }
 
@@ -2222,23 +2344,93 @@ const turn = (turnDir:string) => {
     const activePathTileArr = useNewMovement ? newMovement.pathTileArr : pathTileArr;
     const activeMapArray = useNewMovement ? newMovement.mapArray : mapArray;
 
+    const isBlockedByEnemyAhead = () => {
+        let nextX = positionX;
+        let nextY = positionY;
+        switch (currentDir) {
+            case 'N': nextY -= 1; break;
+            case 'S': nextY += 1; break;
+            case 'E': nextX += 1; break;
+            case 'W': nextX -= 1; break;
+        }
+
+        const enemiesOnNextTile = Object.values(enemies).filter((enemy) =>
+            enemy &&
+            enemy.health > 0 &&
+            (enemy.disposition || 'hostile') === 'hostile' &&
+            enemy.positionX === nextX &&
+            enemy.positionY === nextY
+        );
+
+        if (enemiesOnNextTile.length === 0) {
+            return false;
+        }
+
+        // Allow stepping into pure ambush stacks so they can trigger jump-in combat.
+        const hasNonAmbushEnemy = enemiesOnNextTile.some((enemy) => enemy.visibilityMode !== 'ambush');
+        return hasNonAmbushEnemy;
+    };
+
+    const guardedForward = () => {
+        if (inCombat) {
+            console.log('Cannot move away while in combat.');
+            return;
+        }
+
+        const enemyOnCurrentTile = enemiesVal.findIndex((enemy) =>
+            enemy &&
+            enemy.health > 0 &&
+            (enemy.disposition || 'hostile') === 'hostile' &&
+            enemy.positionX === positionX &&
+            enemy.positionY === positionY
+        );
+
+        if (enemyOnCurrentTile >= 0) {
+            startCombatAux(enemyOnCurrentTile);
+            return;
+        }
+
+        if (isBlockedByEnemyAhead()) {
+            console.log('Enemy blocking path! Defeat it to proceed.');
+            return;
+        }
+
+        activeForward();
+    };
+
+    const guardedReverse = () => {
+        if (inCombat) {
+            console.log('Cannot move away while in combat.');
+            return;
+        }
+        activeReverse();
+    };
+
+    const guardedTurn = (dir: 'L' | 'R') => {
+        if (inCombat) {
+            console.log('Cannot move away while in combat.');
+            return;
+        }
+        activeTurn(dir);
+    };
+
     const handleKeyPress = useCallback((event: KeyboardEvent) => {
         switch (event.key.toLowerCase()) {
             case 'w':
             case 'arrowup':
-            activeForward();
+            guardedForward();
             break;
             case 's':
             case 'arrowdown':
-            activeReverse();
+            guardedReverse();
             break;
             case 'a':
             case 'arrowleft':
-            activeTurn('L');
+            guardedTurn('L');
             break;
             case 'd':
             case 'arrowright':
-            activeTurn('R');
+            guardedTurn('R');
             break;
             case 't': // Toggle movement system with 'T' key
             setUseNewMovement(prev => !prev);
@@ -2246,7 +2438,7 @@ const turn = (turnDir:string) => {
             default:
             break;
         }
-    }, [activeForward, activeReverse, activeTurn]);
+    }, [guardedForward, guardedReverse, guardedTurn]);
 
     useEffect(() => {
         if (Platform.OS === 'web') {
@@ -2258,6 +2450,8 @@ const turn = (turnDir:string) => {
     const renderVisibleEnemies = () => {
         // Guard: Skip if no enemies loaded yet
         if (!enemiesVal || enemiesVal.length === 0) return null;
+        const facingDirection = currentDir as FacingDirection;
+        const laneEnemies = enemiesVal as any[];
 
         // Group enemies by position for stacking
         const enemiesByPosition: { [key: string]: { enemy: typeof enemiesVal[0], index: number }[] } = {};
@@ -2277,39 +2471,25 @@ const turn = (turnDir:string) => {
             const enemyX = firstEnemy.positionX ?? 0;
             const enemyY = firstEnemy.positionY ?? 0;
 
-            let distance = -1;
-            let isInLineOfSight = false;
+            const distance = getEnemyDistanceInFacingDirection(
+                positionX,
+                positionY,
+                facingDirection,
+                enemyX,
+                enemyY
+            );
 
-            // Check if enemy group is in front of player based on current direction
-            switch(currentDir) {
-                case 'N':
-                    if (enemyX === positionX && enemyY < positionY) {
-                        distance = positionY - enemyY;
-                        isInLineOfSight = true;
-                    }
-                    break;
-                case 'S':
-                    if (enemyX === positionX && enemyY > positionY) {
-                        distance = enemyY - positionY;
-                        isInLineOfSight = true;
-                    }
-                    break;
-                case 'E':
-                    if (enemyY === positionY && enemyX > positionX) {
-                        distance = enemyX - positionX;
-                        isInLineOfSight = true;
-                    }
-                    break;
-                case 'W':
-                    if (enemyY === positionY && enemyX < positionX) {
-                        distance = positionX - enemyX;
-                        isInLineOfSight = true;
-                    }
-                    break;
+            if (distance === null) {
+                return null;
             }
 
-            // Only render if in line of sight
-            if (!isInLineOfSight || distance < 0) {
+            const canSeeGroup = enemyGroup.some(({ enemy, index }) => {
+                if (!enemy || enemy.health <= 0) return false;
+                if (!isEnemyVisibleToPlayer(enemy as any, positionX, positionY, facingDirection)) return false;
+                return !isEnemyOccludedByCloserEnemy(index, laneEnemies, positionX, positionY, facingDirection);
+            });
+
+            if (!canSeeGroup) {
                 return null;
             }
 
@@ -2324,8 +2504,18 @@ const turn = (turnDir:string) => {
             const fogPerTile = 0.12;
             const fogOpacity = Math.min(0.75, distance * fogPerTile);
 
-            // Only allow combat when enemies are on the next tile (distance = 1)
-            const canEngage = distance === 1;
+            const canEngage = enemyGroup.some(({ enemy, index }) => {
+                if (!enemy || enemy.health <= 0) return false;
+                if ((enemy.disposition || 'hostile') !== 'hostile') return false;
+                if (isEnemyOccludedByCloserEnemy(index, laneEnemies, positionX, positionY, facingDirection)) return false;
+                return isEnemyCombatReachable(
+                    enemy as any,
+                    positionX,
+                    positionY,
+                    facingDirection,
+                    playerClass
+                );
+            });
 
             return (
                 <View
@@ -2364,11 +2554,14 @@ const turn = (turnDir:string) => {
                                     }}
                                 >
                                     <TouchableOpacity
-                                        onPress={() => canEngage ? startCombatAux(index) : null}
+                                        onPress={() => canEngage ? startCombatAux(index, true) : null}
                                         disabled={!canEngage}
                                         style={{ opacity: canEngage ? 1 : 0.9 }}
                                     >
-                                        <Enemy index={index} />
+                                        <Enemy
+                                            index={index}
+                                            jumpIntoView={enemy.visibilityMode === 'ambush' && distance === 0}
+                                        />
                                     </TouchableOpacity>
                                 </View>
                             );
@@ -2431,22 +2624,22 @@ const turn = (turnDir:string) => {
 
             <TouchableOpacity
             style={{...styles.button, opacity: 1}}
-            onPress={activeForward}>
+            onPress={guardedForward}>
                <Text>Move ↑</Text>
             </TouchableOpacity>
             <TouchableOpacity
             style={{...styles.button, opacity: 1}}
-            onPress={activeReverse}>
+            onPress={guardedReverse}>
                <Text>Move ↓</Text>
             </TouchableOpacity>
             <TouchableOpacity
             style={{...styles.button, opacity: 1}}
-            onPress={ () => activeTurn('R') }>
+            onPress={ () => guardedTurn('R') }>
                <Text>Right</Text>
             </TouchableOpacity>
             <TouchableOpacity
             style={{...styles.button, opacity: 1}}
-            onPress={ () => activeTurn('L') }>
+            onPress={ () => guardedTurn('L') }>
                <Text>Left</Text>
             </TouchableOpacity>
 
@@ -2620,6 +2813,16 @@ const turn = (turnDir:string) => {
         </ImageBackground>
             )}
             {renderVisibleEnemies()}
+            {skillOverlay ? (
+                <View style={styles.skillOverlayWrap}>
+                    {skillOverlay}
+                </View>
+            ) : null}
+            {rightOverlay ? (
+                <View style={styles.rightOverlayWrap}>
+                    {rightOverlay}
+                </View>
+            ) : null}
             </View>
         </View>
     );
@@ -2675,5 +2878,17 @@ const styles = StyleSheet.create({
     },
     enemiesContainer: {
         flexDirection: 'row',
-  },
+    },
+    skillOverlayWrap: {
+        position: 'absolute',
+        left: 10,
+        bottom: 10,
+        zIndex: 250,
+    },
+    rightOverlayWrap: {
+        position: 'absolute',
+        right: 10,
+        bottom: 10,
+        zIndex: 250,
+    },
 });

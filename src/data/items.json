@@ -8,6 +8,14 @@
           "stats": {
             "amount": 8
           }
+        },
+      "2": {
+          "ID": 2,
+          "name": "Minor Mana Flask",
+          "type": "consumable",
+          "stats": {
+            "mana": 14
+          }
         }
     },
     "currency": {
@@ -369,35 +377,46 @@
       "1": {
       "ID": 1,
       "type": "belt",
-      "name": "Sash",
-      "unique": "Lenymo",
-      "Defense": 2,
-      "Potion Slots": 8,
-      "Minimum Strength": "-",
-      "Durability": 12,
+      "name": "Scout Sash",
+      "unique": "Belt of Swiftness",
+      "stats": {
+        "defence": 2,
+        "consumableSlotsBonus": 1
+      },
       "Quality Level": 3
       },
       "2": {
       "ID": 2,
       "type": "belt",
-      "name": "Light Belt",
+      "name": "Hunter Belt",
       "unique": "Snakecord",
-      "Defense": 3,
-      "Potion Slots": 8,
-      "Minimum Strength": "-",
-      "Durability": 14,
+      "stats": {
+        "defence": 3,
+        "consumableSlotsBonus": 2
+      },
       "Quality Level": 7
       },
       "3": {
       "ID": 3,
       "type": "belt",
-      "name": "Belt",
+      "name": "War Belt",
       "unique": "Nightsmoke",
-      "Defense": 5,
-      "Potion Slots": 12,
-      "Minimum Strength": 25,
-      "Durability": 16,
+      "stats": {
+        "defence": 5,
+        "consumableSlotsBonus": 3
+      },
       "Quality Level": 12
+      },
+      "4": {
+      "ID": 4,
+      "type": "belt",
+      "name": "Champion Girdle",
+      "unique": "Iron Hold",
+      "stats": {
+        "defence": 7,
+        "consumableSlotsBonus": 4
+      },
+      "Quality Level": 18
       }
     },
     "boots": {

@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EnemyAttackStyle, EnemyDisposition, EnemyVisibilityMode, getEnemyBehaviorForType } from './enemyPerception';
 
 const enemyHealth = data.enemies[0].stats.health;
 const enemyDmg = data.enemies[0].stats.attack;
@@ -63,6 +64,13 @@ interface EnemyState {
             // Position on the map
             positionX: number;
             positionY: number;
+            visibilityMode: EnemyVisibilityMode;
+            visibilityRange: number;
+            attackStyle: EnemyAttackStyle;
+            attackRange: number;
+            playerEngageRange: number;
+            firstStrike: boolean;
+            disposition: EnemyDisposition;
         }
     };
     
@@ -83,6 +91,13 @@ interface EnemyState {
             // Position on the map
             positionX: number;
             positionY: number;
+            visibilityMode: EnemyVisibilityMode;
+            visibilityRange: number;
+            attackStyle: EnemyAttackStyle;
+            attackRange: number;
+            playerEngageRange: number;
+            firstStrike: boolean;
+            disposition: EnemyDisposition;
         }
     };
     currentEnemyId: number;
@@ -170,6 +185,7 @@ const enemySlice = createSlice({
         addEnemy(state, action: PayloadAction<{index: number, id: number, positionX?: number, positionY?: number}>) {
             // clearEnemies();
             const {index, id, positionX = 0, positionY = 0} = action.payload;
+            const behavior = getEnemyBehaviorForType(id);
             console.log(index, id, positionX, positionY, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<,,")
             state.enemies[index] = {
                 id: id,
@@ -185,7 +201,14 @@ const enemySlice = createSlice({
                 loot: data.enemies[id].loot,
                 info: data.enemies[id].info,
                 positionX: positionX,
-                positionY: positionY
+                positionY: positionY,
+                visibilityMode: behavior.visibilityMode,
+                visibilityRange: behavior.visibilityRange,
+                attackStyle: behavior.attackStyle,
+                attackRange: behavior.attackRange,
+                playerEngageRange: behavior.playerEngageRange,
+                firstStrike: behavior.firstStrike,
+                disposition: behavior.disposition,
             };
             state.enemiesStorage = state.enemies;
             console.log("ENEMY ADDED!!!")
@@ -219,6 +242,7 @@ const enemySlice = createSlice({
     },
     extraReducers: (builder) => {        builder.addCase(fetchEnemies.fulfilled, (state, action) => {
             action.payload.forEach((enemy: Enemy, index: number) => {
+                const behavior = getEnemyBehaviorForType(index);
                 state.enemiesStorage[index] = {
                     id: index,
                     health: enemy.stats.health,
@@ -233,7 +257,14 @@ const enemySlice = createSlice({
                     loot: enemy.loot,
                     info: enemy.info,
                     positionX: 0,
-                    positionY: 0
+                    positionY: 0,
+                    visibilityMode: behavior.visibilityMode,
+                    visibilityRange: behavior.visibilityRange,
+                    attackStyle: behavior.attackStyle,
+                    attackRange: behavior.attackRange,
+                    playerEngageRange: behavior.playerEngageRange,
+                    firstStrike: behavior.firstStrike,
+                    disposition: behavior.disposition,
                 };
             });
         })

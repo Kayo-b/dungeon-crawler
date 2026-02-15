@@ -5,6 +5,7 @@ import { changeRoom } from '../features/room/roomSlice';
 import { emptyCombatLog } from '../features/player/playerSlice';
 import { emptyDmgLog, clearEnemies } from '../features/enemy/enemySlice';
 import { setEnemyCount } from './combatSlice';
+import { pickSpawnEnemyType } from '../features/enemy/enemySpawn';
 
 export const useRoom = () => {
     const dispatch = useAppDispatch();
@@ -58,7 +59,7 @@ export const useRoom = () => {
         const startIndex = Object.keys(enemies).length;
 
         for (let i = 0; i < count; i++) {
-            const enemyType = Math.floor(Math.random() * 2); // Random enemy type (0 or 1)
+            const enemyType = pickSpawnEnemyType();
             dispatch(addEnemy({
                 index: startIndex + i,
                 id: enemyType,
@@ -76,7 +77,7 @@ export const useRoom = () => {
     const spawnEnemy = (position?: { x: number; y: number }) => {
         const spawnPos = position || getRandomSpawnPosition();
         const enemyIndex = Object.keys(enemies).length;
-        const enemyType = Math.floor(Math.random() * 2);
+        const enemyType = pickSpawnEnemyType();
 
         dispatch(addEnemy({
             index: enemyIndex,
@@ -111,7 +112,7 @@ export const useRoom = () => {
 
             // Spawn the pack
             for (let i = 0; i < packSize; i++) {
-                const enemyType = Math.floor(Math.random() * 2);
+                const enemyType = pickSpawnEnemyType();
                 dispatch(addEnemy({
                     index: spawned + i,
                     id: enemyType,
@@ -161,4 +162,3 @@ export const useRoom = () => {
         getWalkableTiles
     };
 };
-

@@ -1,292 +1,365 @@
-import { useEffect, useRef } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, ImageBackground, Animated, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Animated, Dimensions, ImageBackground, ScrollView, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { useCombat } from '../../events/combat'
-import { Inventory } from '../inventory/Inventory'
-import { MiniMap } from '../room/MiniMap'
 import data from '../../data/characters.json';
 import itemData from '../../data/items.json';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-// import {dmg, dmg2 } from '../../features/player/playerSlice'
-import { setHealth, setCrit, setXP, setLevel, setStats, setPlayerDmg, setAttackRating, setDefenceRating, setEquipment, setCombatLog, fetchEquipment } from '../../features/player/playerSlice'
-import { setInventory } from '../../features/inventory/inventorySlice';
-import { setCurrentEnemy, fetchEnemies, addEnemy } from '../enemy/enemySlice';
+import { Inventory } from '../inventory/Inventory';
+import { MiniMap } from '../room/MiniMap';
+import {
+  fetchEquipment,
+  setAttackRating,
+  setClassMeta,
+  setCombatLog,
+  setCrit,
+  setDefenceRating,
+  setHealth,
+  setLevel,
+  setPlayerDmg,
+  setStats,
+  setXP,
+} from './playerSlice';
+import { setInventory } from '../inventory/inventorySlice';
 
-export const Player = () => {
-    const dispatch = useAppDispatch(); 
-    const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId)
-    const count = useAppSelector(state => state.player.health); // Select the current count
-    const playerHealth = useAppSelector(state => state.player.health); 
-    const playerXP = useAppSelector(state => state.player.experience);
-    const playerLevel = useAppSelector(state => state.player.level);
-    const dmgTakenLog = useAppSelector(state => state.player.dmgLog);
-    const dmgTaken = dmgTakenLog.length > 0 ? dmgTakenLog[dmgTakenLog.length - 1].dmg : 0;
-    const enemiesObj = useAppSelector(state => state.enemy.enemies);
-    console.log(enemiesObj, currentEnemy, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-    console.log(currentEnemy, "CURRENT ENEMY ID", typeof currentEnemy)
+interface PlayerProps {
+  classLabel: string;
+}
 
-    // Access enemy data safely (hooks must be called unconditionally)
-    const currentEnemyData = enemiesObj[currentEnemy];
-    const dmgDoneObj = currentEnemyData?.dmgLog || {};
-    const enemyInfo = currentEnemyData?.info || {};
+export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
+  const dispatch = useAppDispatch();
+  const screenWidth = Dimensions.get('window').width;
+  const combatLogScrollRef = useRef<ScrollView | null>(null);
 
-    const dmgTakenObj = useAppSelector(state => state.player.dmgLog);
-    const combatLog = useAppSelector(state => state.player.combatLog);
-    const stats = useAppSelector(state => state.player.stats)
-    const defence = useAppSelector(state => state.player.defenceRating)
-    const attack = useAppSelector(state => state.player.attackRating)
-    const playerDmg = useAppSelector(state => state.player.playerDmg);
-    const playerLog = useAppSelector(state => state.player.dmgLog);
-    console.log(enemyInfo, currentEnemy, "CURRENT")
-    const fadeAnimDmg = useRef(new Animated.Value(1)).current;
-    let equipment = useAppSelector(state => state.player.equipment);
-    const screenWidth = Dimensions.get('window').width;
-    let inventory: Array<Object>;
-    
-    async function initializeData() {
-        // const dispatch = useAppDispatch()
+  const playerHealth = useAppSelector((state) => state.player.health);
+  const playerXP = useAppSelector((state) => state.player.experience);
+  const playerLevel = useAppSelector((state) => state.player.level);
+  const stats = useAppSelector((state) => state.player.stats as any);
+  const combatLog = useAppSelector((state) => state.player.combatLog);
+  const currentEnemy = useAppSelector((state) => state.enemy.currentEnemyId);
+  const enemiesObj = useAppSelector((state) => state.enemy.enemies);
+  const dmgTakenLog = useAppSelector((state) => state.player.dmgLog);
 
-        const storedData = await AsyncStorage.getItem('characters');
-        console.log(storedData, "storedData ")
-        let obj = storedData ? JSON.parse(storedData) : {};
-        if(!storedData) {
-            await AsyncStorage.setItem('characters', JSON.stringify(data));
-            await AsyncStorage.setItem('items', JSON.stringify(itemData));
-            const storedData = await AsyncStorage.getItem('characters');
-            obj = storedData ? JSON.parse(storedData) : {};
-        }
-        // If health is 0 or undefined, reset to default from data file
-        let health = obj.character.stats.health;
-        if (!health || health <= 0) {
-            console.log("Player health was 0, resetting to default:", data.character.stats.health);
-            health = data.character.stats.health;
-            obj.character.stats.health = health;
-            await AsyncStorage.setItem('characters', JSON.stringify(obj));
-        }
-        const experience = obj.character.experience;
-        const level = obj.character.level; 
-        const stats = obj.character.stats;
-        const baseDmg = obj.character.equipment.weapon.stats.damage;
-        const baseAR = obj.character.equipment.weapon.stats.atkSpeed;
-        const baseCrit = stats.crit;
-        const weaponCritMod = obj.character.equipment.weapon.stats.critMod;
-        console.log("CRIT WEAP AND BASE", baseCrit, weaponCritMod)
-        const crit =  baseCrit + weaponCritMod;
-        inventory = obj.character.inventory;
-        let defEquip = obj.character.equipment;
-        // Improve this logic for when defence equipment is equiped
-        const baseDef = defEquip.armor.name !== '' && defEquip.ring.name !== '' ?
-        obj.character.equipment.armor.stats.defence +
-        obj.character.equipment.ring.stats.defence : 0;
-        console.log(defEquip.armor.name, defEquip.ring.name, baseDef, "BASE DEF")
-        // !!!! Make the defence in hitChance be the enemy defence(not the players)
-        // Will need to be implemented somwhere else.
-        const playerDmg = physicalDmg(baseDmg, stats.strength, 3);
-        let playerAR = attackRating(baseAR, stats.dexterity, 1, 1);
-        let playerDR = defenceRating(baseDef, 1, stats.dexterity);
-        // let hitChan = hitChance(playerAR, playerDef, 1, 1);
+  const classArchetype = useAppSelector((state) => state.player.classArchetype || 'warrior');
+  const rage = useAppSelector((state) => state.player.rage);
+  const maxRage = useAppSelector((state) => state.player.maxRage);
+  const mana = useAppSelector((state) => state.player.mana);
+  const maxMana = useAppSelector((state) => state.player.maxMana);
+  const energy = useAppSelector((state) => state.player.energy);
+  const maxEnergy = useAppSelector((state) => state.player.maxEnergy);
 
-        // console.log(hitChan,"HIT")
-        dispatch(setStats(stats));
-        dispatch(setHealth(health));
-        dispatch(setXP(experience));
-        dispatch(setLevel(level));
-        dispatch(setPlayerDmg(playerDmg));
-        dispatch(setAttackRating(playerAR));
-        dispatch(setDefenceRating(playerDR));
-        dispatch(setInventory(inventory));
-        dispatch(setPlayerDmg(playerDmg));
-        console.log("SET CRIT", crit)
-        dispatch(setCrit(crit));
-        // dispatch(setEquipment(obj.character.equipment))
-        // dispatch(setEquipment(obj.character.equipment));
-        console.log(playerAR, playerDR, "AR DR STATS")
-        console.log("EQUIP PLAYER")
-        console.log("PLYER DMG", playerDmg)
+  const currentEnemyData = enemiesObj[currentEnemy];
+  const dmgDoneObj = currentEnemyData?.dmgLog || [];
+  const enemyInfo = currentEnemyData?.info || { name: 'Enemy' };
+
+  const lastTaken = dmgTakenLog.length > 0 ? dmgTakenLog[dmgTakenLog.length - 1] : { dmg: 0 };
+  const fadeAnimDmg = useRef(new Animated.Value(1)).current;
+
+  const physicalDmg = (baseDmg: number, str: number, strMod: number) => {
+    return Math.floor(baseDmg + (str / 10) * strMod);
+  };
+
+  const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
+    return (baseAR + dex * ARperDex) * (attackBonus + 1);
+  };
+
+  const defenceRating = (baseDef: number, bonusDef: number, dex: number) => {
+    return baseDef * (bonusDef + dex * 0.1);
+  };
+
+  const initializeData = async () => {
+    const storedData = await AsyncStorage.getItem('characters');
+    let obj = storedData ? JSON.parse(storedData) : {};
+
+    if (!storedData) {
+      await AsyncStorage.setItem('characters', JSON.stringify(data));
+      await AsyncStorage.setItem('items', JSON.stringify(itemData));
+      const seeded = await AsyncStorage.getItem('characters');
+      obj = seeded ? JSON.parse(seeded) : {};
     }
 
-    // these values might be wrong, need to check the formula
-    const physicalDmg = (baseDmg: number, str: number, strMod: number) => {
-        return Math.floor(baseDmg + str / 10 * strMod)
+    let health = obj.character.stats.health;
+    if (!health || health <= 0) {
+      health = data.character.stats.health;
+      obj.character.stats.health = health;
+      await AsyncStorage.setItem('characters', JSON.stringify(obj));
     }
 
-    // const hitChance = (AR: number, DR: number, ALevel: number, DLevel: number) => {
-    //     return 2 * (AR / (AR + DR)) * (ALevel / (ALevel + DLevel));
-    // }
+    const experience = obj.character.experience;
+    const level = obj.character.level;
+    const baseStats = obj.character.stats;
+    const baseDmg = obj.character.equipment.weapon.stats.damage;
+    const baseAR = obj.character.equipment.weapon.stats.atkSpeed;
+    const baseCrit = baseStats.crit;
+    const weaponCritMod = obj.character.equipment.weapon.stats.critMod || 0;
+    const crit = baseCrit + weaponCritMod;
 
-    const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
-        const value = (baseAR + dex * ARperDex) * (attackBonus + 1);
-        return value; 
-    }
+    const inv = obj.character.inventory || [];
+    const equipped = obj.character.equipment;
 
-    const defenceRating = (baseDef: number, bonusDef: number, dex: number) => { 
-        return baseDef * (bonusDef + (dex * 0.1));
-    }
+    const armorDef = equipped.armor?.stats?.defence || 0;
+    const ringDef = equipped.ring?.stats?.defence || 0;
+    const offhandDef = equipped.offhand?.stats?.defence || 0;
+    const baseDef = armorDef + ringDef + offhandDef;
 
-    useEffect(() => {
-        dispatch(fetchEquipment());
+    const computedDmg = physicalDmg(baseDmg, baseStats.strength, 3);
+    const playerAR = attackRating(baseAR, baseStats.dexterity, 1, 1);
+    const playerDR = defenceRating(baseDef, 1, baseStats.dexterity);
 
-    }, [dispatch]);
-
-    useEffect(() => {
-        initializeData()
-        console.log(inventory, "inventory!!!!")
-    },[playerLevel, equipment])
-    useEffect(() => {
-        fadeAnimDmg.setValue(1); 
-        Animated.timing(fadeAnimDmg, {
-            toValue: 0,
-            duration: 700,
-            useNativeDriver: true, 
-        }).start();
-    },[count])
-    useEffect(() => {
-        console.log(dmgTakenObj, "PAYLOAD DMG 2 PLAYER")
-        const keys = Object.keys(dmgTakenObj);
-        console.log(dmgTakenObj, "DMG TAKEN 111111111111")
-        if(keys.length > 0 && dmgTakenObj[keys.length - 1]) {
-            const lastDmg = dmgTakenObj[keys.length - 1];
-            const enemyName = (enemyInfo as any)?.name || 'Enemy';
-            if(lastDmg.dmg === 0)  {
-                dispatch(setCombatLog(`${enemyName} missed.`));
-            } else if(lastDmg.crit) {
-                dispatch(setCombatLog(`You took ${lastDmg.dmg as number} critical damage.`));
-            } else {
-                dispatch(setCombatLog(`You took ${lastDmg.dmg as number} damage. From ${lastDmg.enemy || enemyName}`));
-            }
-        }
-        console.log(combatLog, "DMG COMBAT LOG")
-    }, [Object.keys(dmgTakenObj).length])
-
-   useEffect(() => {
-        const keys = Object.keys(dmgDoneObj);
-        console.log(dmgDoneObj, "PAYLOAD DMG DONE")
-        if(keys.length > 0 && dmgDoneObj[keys.length - 1]) {
-            const lastDmg = dmgDoneObj[keys.length - 1];
-            const enemyName = (enemyInfo as any)?.name || 'Enemy';
-            console.log(lastDmg, 'PAYLOAD KEYS')
-            if(lastDmg.dmg === 0) {
-                dispatch(setCombatLog(`Attack Missed ${enemyName}`));
-            } else if(lastDmg.crit) {
-                dispatch(setCombatLog(`${enemyName} took ${lastDmg.dmg as number} critical damage.`))
-            } else {
-                dispatch(setCombatLog(`${enemyName} took ${lastDmg.dmg as number} damage.`))
-            }
-        }
-        console.log(combatLog, "DMG COMBAT LOG")
-        console.log(dmgTaken,"damage taken")
-    }, [Object.keys(dmgDoneObj).length])
-    let enemies = useAppSelector(state => state.enemy)
-    const changeEnemy = () => {
-        dispatch(setCurrentEnemy(1))
-        // startCombat()
-    }
-    const { startCombat } = useCombat();
-    // const combatStart = () => {
-    //     startCombat()
-    //     // dispatch(setCurrentEnemy(0))
-    //     // dispatch(setCurrentEnemy(1))
-    // }
-    return (
-        <View style={[styles.playerContainer, { width: screenWidth }]}> 
-            <View>
-                <ImageBackground
-                        source={require('../../resources/portrait.png')} 
-                        style={styles.enemy}
-                    >
-                        <Animated.Text style={[styles.dmgTxt, { opacity: fadeAnimDmg }]}>
-                            <Text>{dmgTaken}</Text>
-                        </Animated.Text>
-                </ImageBackground>
-                <Text style={styles.text}>Player Life: {playerHealth}</Text>
-                <Text style={styles.text}>XP: {playerXP}</Text>
-                <Text style={styles.text}>Level: {playerLevel}</Text>
-                <Text style={styles.text}>DMG: {playerDmg} | DEF: {JSON.stringify(defence)}</Text>
-                <Text style={styles.text}>STATS: {JSON.stringify(stats)}</Text>
-                {/* <TouchableOpacity style={styles.button} onPress={ startCombat }>
-                    <Text>Attack</Text>
-                </TouchableOpacity> */}
-                                <TouchableOpacity style={styles.button} onPress={ changeEnemy }>
-                    <Text>SwitchEnemy</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.dmgLog}>
-                <Text style={styles.dmgLog}>Combat Log</Text>
-                <ScrollView style={styles.logView}>
-                {combatLog.map((val:any, index:number) => (
-                    <Text style={styles.text}>
-                        {val}
-                    </Text>   
-                ))}
-                </ScrollView>
-            </View>
-            <View style={styles.inventory}>
-                <Inventory></Inventory>
-            </View>
-            <View style={styles.miniMapContainer}>
-                <MiniMap size={18} />
-            </View>
-        </View>
+    dispatch(setStats(baseStats));
+    dispatch(setHealth(health));
+    dispatch(setXP(experience));
+    dispatch(setLevel(level));
+    dispatch(setPlayerDmg(computedDmg));
+    dispatch(setAttackRating(playerAR));
+    dispatch(setDefenceRating(playerDR));
+    dispatch(setInventory(inv));
+    dispatch(setCrit(crit));
+    dispatch(fetchEquipment());
+    dispatch(
+      setClassMeta({
+        classArchetype: obj.character.classArchetype || 'warrior',
+        classLabel: obj.character.classLabel || 'Warrior',
+        specialName: obj.character.specialName || 'Crushing Blow',
+      })
     );
+  };
+
+  useEffect(() => {
+    initializeData();
+  }, [playerLevel]);
+
+  useEffect(() => {
+    fadeAnimDmg.setValue(1);
+    Animated.timing(fadeAnimDmg, {
+      toValue: 0,
+      duration: 700,
+      useNativeDriver: true,
+    }).start();
+  }, [playerHealth]);
+
+  useEffect(() => {
+    if (dmgTakenLog.length === 0) return;
+    const last = dmgTakenLog[dmgTakenLog.length - 1];
+    const enemyName = last.enemy || enemyInfo.name || 'Enemy';
+    if (last.dmg === 0) {
+      dispatch(setCombatLog(`${enemyName} missed.`));
+    } else if (last.crit) {
+      dispatch(setCombatLog(`You took ${last.dmg} critical damage from ${enemyName}.`));
+    } else {
+      dispatch(setCombatLog(`You took ${last.dmg} damage from ${enemyName}.`));
+    }
+  }, [dmgTakenLog.length]);
+
+  useEffect(() => {
+    if (!Array.isArray(dmgDoneObj) || dmgDoneObj.length === 0) return;
+    const last = dmgDoneObj[dmgDoneObj.length - 1];
+    const enemyName = enemyInfo.name || 'Enemy';
+    if (last.dmg === 0) {
+      dispatch(setCombatLog(`Attack missed ${enemyName}.`));
+    } else if (last.crit) {
+      dispatch(setCombatLog(`${enemyName} took ${last.dmg} critical damage.`));
+    } else {
+      dispatch(setCombatLog(`${enemyName} took ${last.dmg} damage.`));
+    }
+  }, [Array.isArray(dmgDoneObj) ? dmgDoneObj.length : 0]);
+
+  useEffect(() => {
+    combatLogScrollRef.current?.scrollToEnd({ animated: true });
+  }, [combatLog.length]);
+
+  const hpMax = useMemo(() => {
+    const vitBased = (stats?.vitality || 1) * 10;
+    return Math.max(vitBased, playerHealth, 1);
+  }, [stats, playerHealth]);
+
+  const hpPct = Math.max(0, Math.min(1, playerHealth / hpMax));
+
+  const xpToLevel = Math.max(16, Math.floor(16 * Math.pow(2, Math.max(0, playerLevel - 1))));
+  const xpIntoLevel = ((playerXP % xpToLevel) + xpToLevel) % xpToLevel;
+  const xpPct = Math.max(0, Math.min(1, xpIntoLevel / xpToLevel));
+
+  const resourceMeta = useMemo(() => {
+    if (classArchetype === 'caster') {
+      return {
+        label: 'MN',
+        value: mana,
+        max: maxMana,
+        color: '#0ea5e9',
+      };
+    }
+
+    if (classArchetype === 'ranger') {
+      return {
+        label: 'EN',
+        value: energy,
+        max: maxEnergy,
+        color: '#f59e0b',
+      };
+    }
+
+    return {
+      label: 'RG',
+      value: rage,
+      max: maxRage,
+      color: '#ef4444',
+    };
+  }, [classArchetype, rage, maxRage, mana, maxMana, energy, maxEnergy]);
+
+  const resourcePct = Math.max(0, Math.min(1, resourceMeta.value / Math.max(resourceMeta.max, 1)));
+
+  const renderThinBar = (
+    shortLabel: string,
+    pct: number,
+    color: string,
+    valueText: string
+  ) => (
+    <View style={styles.barRow}>
+      <Text style={styles.barLabel}>{shortLabel}</Text>
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: color }]} />
+      </View>
+      <Text style={styles.barValue}>{valueText}</Text>
+    </View>
+  );
+
+  return (
+    <View style={[styles.playerContainer, { width: screenWidth }]}> 
+      <View style={styles.hudPanel}>
+        <View style={styles.hudTopRow}>
+          <View style={styles.barsColumn}>
+            <Text style={styles.classText}>{classLabel} Lv {playerLevel}</Text>
+            {renderThinBar('HP', hpPct, '#dc2626', `${playerHealth}/${hpMax}`)}
+            {renderThinBar('XP', xpPct, '#2563eb', `${xpIntoLevel}/${xpToLevel}`)}
+            {renderThinBar(resourceMeta.label, resourcePct, resourceMeta.color, `${resourceMeta.value}/${resourceMeta.max}`)}
+          </View>
+
+          <ImageBackground source={require('../../resources/portrait.png')} style={styles.portrait}>
+            <Animated.Text style={[styles.dmgTxt, { opacity: fadeAnimDmg }]}>{lastTaken.dmg}</Animated.Text>
+          </ImageBackground>
+        </View>
+
+        <View style={styles.logPanelInline}>
+          <Text style={styles.panelTitle}>Combat Log</Text>
+          <ScrollView
+            ref={combatLogScrollRef}
+            style={styles.logView}
+            onContentSizeChange={() => combatLogScrollRef.current?.scrollToEnd({ animated: true })}
+          >
+            {combatLog.map((entry: string, index: number) => (
+              <Text key={`${entry}-${index}`} style={styles.logText}>{entry}</Text>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+
+      <View style={styles.inventoryPanel}>
+        <Inventory />
+      </View>
+
+      <View style={styles.miniMapContainer}>
+        <MiniMap size={18} />
+      </View>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    playerContainer: {
-        position: 'absolute',
-        top: 625, 
-        left: 0,  
-        width: '100%', 
-        flexDirection: 'row',
-        // justifyContent: 'space-between',
-        padding: 10, 
-      },
-      playerStats: {
-        borderWidth: 1,
-        borderColor: 'white',
-
-      },
-      dmgLog: {
-        backgroundColor: 'gray',
-        width: 125
-      },
-      enemy: {
-        width: 65,
-        height: 65,
-        alignSelf: 'flex-start', 
-      },
-      text: {
-        color: 'white',
-        fontSize: 10,
-        maxWidth: 125,
-      },
-      dmgTxt: {
-        color: 'red',
-        fontSize: 20,
-        alignContent: 'center',
-      },
-      inventory: {
-        position: 'relative',
-        // maxWidth: 600,
-        // maxHeight: 300,
-        // overflow: 'scroll',
-        // bottom: 0,
-        // right: 0,
-        // margin: 10,
-      },
-      button: {
-        backgroundColor: '#007bff',
-        padding: 10,
-        borderRadius: 5,
-        alignItems: 'center',
-        maxWidth: 100
-      },
-      logView: {
-        flex: 1,
-        flexDirection: 'column'
-      },
-      miniMapContainer: {
-        marginLeft: 10,
-      }
-
+  playerContainer: {
+    position: 'absolute',
+    top: 625,
+    left: 0,
+    width: '100%',
+    flexDirection: 'row',
+    padding: 8,
+    gap: 8,
+  },
+  hudPanel: {
+    width: 250,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    padding: 6,
+    gap: 6,
+  },
+  hudTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  barsColumn: {
+    flex: 1,
+    gap: 2,
+    paddingTop: 2,
+  },
+  classText: {
+    color: '#e2e8f0',
+    fontSize: 10,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  barLabel: {
+    width: 16,
+    color: '#cbd5e1',
+    fontSize: 8,
+    fontWeight: '700',
+  },
+  barTrack: {
+    flex: 1,
+    height: 7,
+    borderRadius: 3,
+    backgroundColor: '#334155',
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+  },
+  barValue: {
+    width: 58,
+    color: '#e2e8f0',
+    fontSize: 8,
+    textAlign: 'right',
+  },
+  portrait: {
+    width: 66,
+    height: 66,
+  },
+  dmgTxt: {
+    color: '#ef4444',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  logPanelInline: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 6,
+    backgroundColor: '#0f172a',
+    padding: 5,
+  },
+  panelTitle: {
+    color: '#f8fafc',
+    fontWeight: '700',
+    fontSize: 10,
+    marginBottom: 3,
+  },
+  logView: {
+    maxHeight: 70,
+  },
+  logText: {
+    color: '#cbd5e1',
+    fontSize: 10,
+  },
+  inventoryPanel: {
+    width: 270,
+  },
+  miniMapContainer: {
+    marginLeft: 4,
+    justifyContent: 'flex-start',
+  },
 });

@@ -1,19 +1,4 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { useEffect  } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-
-let inventory;
-
-async function getData() {
-    const data = await AsyncStorage.getItem('characters');
-    const obj = data ? JSON.parse(data) : {};
-    inventory = obj.character.inventory
-    //await AsyncStorage.setItem('characters',JSON.stringify(obj));
-    console.log(inventory, "GETDATA INV")
-}
-
-getData();
 
 interface InventoryState {
     inventory: Array<Object>
