@@ -182,24 +182,54 @@ const enemySlice = createSlice({
     name: 'enemy',
     initialState: enemyInitialState,
     reducers: {
-        addEnemy(state, action: PayloadAction<{index: number, id: number, positionX?: number, positionY?: number}>) {
+        addEnemy(state, action: PayloadAction<{index: number, id: number, positionX?: number, positionY?: number, strengthScale?: number, rewardScale?: number}>) {
             // clearEnemies();
-            const {index, id, positionX = 0, positionY = 0} = action.payload;
+            const {index, id, positionX = 0, positionY = 0, strengthScale = 1, rewardScale} = action.payload;
             const behavior = getEnemyBehaviorForType(id);
+            const combatScale = Math.max(1, strengthScale);
+            const lootAndXpScale = Math.max(1, rewardScale ?? combatScale);
+            const baseEnemy = data.enemies[id];
+            const baseStats = baseEnemy.stats;
+            const baseInfo = baseEnemy.info;
+            const scaledStats = {
+                ...baseStats,
+                health: Math.max(1, Math.floor(baseStats.health * (1 + (combatScale - 1) * 0.55))),
+                attack: Math.max(1, Math.floor(baseStats.attack * (1 + (combatScale - 1) * 0.40))),
+                strength: Math.max(1, Math.floor(baseStats.strength * (1 + (combatScale - 1) * 0.20))),
+                dexterity: Math.max(1, Math.floor(baseStats.dexterity * (1 + (combatScale - 1) * 0.16))),
+                stamina: Math.max(1, Math.floor(baseStats.stamina * (1 + (combatScale - 1) * 0.20))),
+                vitality: Math.max(1, Math.floor(baseStats.vitality * (1 + (combatScale - 1) * 0.20))),
+                intelligence: Math.max(1, Math.floor(baseStats.intelligence * (1 + (combatScale - 1) * 0.12))),
+                defence: Math.max(1, Math.floor(baseStats.defence * (1 + (combatScale - 1) * 0.30))),
+            };
+            const scaledLevel = baseInfo.level + Math.max(0, Math.floor(combatScale - 1));
+            const scaledXp = Math.max(1, Math.floor(baseInfo.xp * lootAndXpScale));
+            const scaledLoot = (baseEnemy.loot || []).map((lootItem: LootItem) => ({
+                ...lootItem,
+                dropChance: Math.min(1.95, Math.max(0.01, lootItem.dropChance * lootAndXpScale)),
+                amount:
+                    typeof lootItem.amount === 'number'
+                        ? Math.max(1, Math.floor(lootItem.amount * lootAndXpScale))
+                        : lootItem.amount,
+            }));
             console.log(index, id, positionX, positionY, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<,,")
             state.enemies[index] = {
                 id: id,
-                health: data.enemies[id].stats.health,
+                health: scaledStats.health,
                 dmgLog: [],
-                damage: data.enemies[id].stats.attack,
+                damage: scaledStats.attack,
                 atkRating: 0,
-                atkSpeed: data.enemies[id].stats.atkSpeed,
-                defence: data.enemies[id].stats.defence,
-                level: data.enemies[id].info.level,
-                xp: data.enemies[id].info.xp,
-                stats: data.enemies[id].stats,
-                loot: data.enemies[id].loot,
-                info: data.enemies[id].info,
+                atkSpeed: scaledStats.atkSpeed,
+                defence: scaledStats.defence,
+                level: scaledLevel,
+                xp: scaledXp,
+                stats: scaledStats,
+                loot: scaledLoot,
+                info: {
+                    ...baseInfo,
+                    level: scaledLevel,
+                    xp: scaledXp,
+                },
                 positionX: positionX,
                 positionY: positionY,
                 visibilityMode: behavior.visibilityMode,

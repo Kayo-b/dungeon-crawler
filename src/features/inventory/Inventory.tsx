@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { restoreHealth, restoreMana, setEquipment } from '../../features/player/playerSlice';
-import { setInventory } from './inventorySlice';
+import { restoreHealth, restoreMana, setCombatLog, setEquipment } from '../../features/player/playerSlice';
+import { setAllInventory } from './inventorySlice';
 import { ItemIcon } from '../../components/ItemIcon';
+import { BAG_CAPACITY, CONSUMABLE_STASH_CAPACITY, normalizeInventoryContainers } from './inventoryUtils';
 
 interface EquipmentSlot {
   key: string;
@@ -16,6 +17,7 @@ interface EquipmentSlot {
 export const Inventory = () => {
   const dispatch = useAppDispatch();
   const inventory = useAppSelector((state) => state.inventory.inventory as any[]);
+  const consumableStash = useAppSelector((state) => state.inventory.consumableStash as any[]);
   const equipment = useAppSelector((state) => state.player.equipment as Record<string, any>);
   const playerHealth = useAppSelector((state) => state.player.health);
 
@@ -96,24 +98,46 @@ export const Inventory = () => {
     try {
       const dataChar = await AsyncStorage.getItem('characters');
       const objChar = dataChar ? JSON.parse(dataChar) : {};
-      const itemType = item.type;
+      if (!objChar?.character) return;
+
+      const normalized = normalizeInventoryContainers(
+        objChar.character.inventory,
+        objChar.character.consumableStash
+      );
+      const bag = [...normalized.inventory];
+      const stash = [...normalized.consumableStash];
+      const selectedBagItem = bag[index];
+      const activeItem = selectedBagItem || item;
+      if (!activeItem || index < 0 || index >= bag.length) return;
+
+      const itemType = activeItem.type;
 
       if (itemType === 'currency') {
         return;
       }
 
       if (itemType === 'consumable') {
-        const hpAmount = item.stats?.amount || 0;
-        const manaAmount = item.stats?.mana || 0;
+        const hpAmount = activeItem.stats?.amount || 0;
+        const manaAmount = activeItem.stats?.mana || 0;
+        const effectSegments: string[] = [];
+
         if (hpAmount > 0) {
           dispatch(restoreHealth(hpAmount));
           objChar.character.stats.health = playerHealth + hpAmount;
+          effectSegments.push(`+${hpAmount} HP`);
         }
         if (manaAmount > 0) {
           dispatch(restoreMana(manaAmount));
+          effectSegments.push(`+${manaAmount} Mana`);
         }
-        objChar.character.inventory.splice(index, 1);
-        dispatch(setInventory([...objChar.character.inventory]));
+
+        const effectText = effectSegments.length > 0 ? effectSegments.join(', ') : 'No effect';
+        dispatch(setCombatLog(`Used ${activeItem.name || 'Consumable'} (${effectText}).`));
+
+        bag.splice(index, 1);
+        objChar.character.inventory = bag;
+        objChar.character.consumableStash = stash;
+        dispatch(setAllInventory({ inventory: bag, consumableStash: stash }));
         await AsyncStorage.setItem('characters', JSON.stringify(objChar));
         setSelectedBagIndex(null);
         return;
@@ -127,13 +151,17 @@ export const Inventory = () => {
       }
 
       if (currentEquippedItem?.name) {
-        objChar.character.inventory.push(currentEquippedItem);
+        bag.push(currentEquippedItem);
       }
 
-      objChar.character.inventory.splice(index, 1);
-      objChar.character.equipment[slotType] = item;
+      bag.splice(index, 1);
+      objChar.character.equipment[slotType] = activeItem;
 
-      dispatch(setInventory([...objChar.character.inventory]));
+      const nextBag = bag.slice(0, BAG_CAPACITY);
+      const nextStash = stash.slice(0, CONSUMABLE_STASH_CAPACITY);
+      objChar.character.inventory = nextBag;
+      objChar.character.consumableStash = nextStash;
+      dispatch(setAllInventory({ inventory: nextBag, consumableStash: nextStash }));
       dispatch(setEquipment({ ...objChar.character.equipment }));
 
       await AsyncStorage.setItem('characters', JSON.stringify(objChar));
@@ -196,31 +224,47 @@ export const Inventory = () => {
 
       <View style={styles.section}>
         <TouchableOpacity style={styles.sectionHeader} onPress={() => setBagOpen((prev) => !prev)}>
-          <Text style={styles.sectionTitle}>Bag</Text>
+          <Text style={styles.sectionTitle}>
+            Bag ({Math.min(inventory.length, BAG_CAPACITY)}/{BAG_CAPACITY})
+          </Text>
           <Text style={styles.toggleText}>{bagOpen ? 'Close' : 'Open'}</Text>
         </TouchableOpacity>
+        <Text style={styles.stashMeta}>
+          Consumable Stash: {Math.min(consumableStash.length, CONSUMABLE_STASH_CAPACITY)}/
+          {CONSUMABLE_STASH_CAPACITY}
+        </Text>
 
         {bagOpen && (
           <ScrollView style={styles.bagScroll}>
             <View style={styles.bagGrid}>
-              {inventory.map((item: any, index) => (
-                <Pressable
-                  key={`${item.name}-${index}`}
-                  style={[styles.bagCell, selectedBagIndex === index && styles.bagCellSelected]}
-                  onPress={() => {
-                    equipItem(item, index);
-                  }}
-                  onLongPress={() => setSelectedBagIndex(index)}
-                  onHoverIn={() => setHoveredItem(item)}
-                  onHoverOut={() => setHoveredItem(null)}
-                >
-                  <ItemIcon type={item.type} size={20} />
-                </Pressable>
-              ))}
+              {Array.from({ length: BAG_CAPACITY }).map((_, index) => {
+                const item = inventory[index];
+                return (
+                  <Pressable
+                    key={`bag-slot-${index}`}
+                    style={[
+                      styles.bagCell,
+                      selectedBagIndex === index && !!item && styles.bagCellSelected,
+                      !item && styles.bagCellEmpty,
+                    ]}
+                    onPress={() => {
+                      if (!item) return;
+                      equipItem(item, index);
+                    }}
+                    onLongPress={() => item && setSelectedBagIndex(index)}
+                    onHoverIn={() => item && setHoveredItem(item)}
+                    onHoverOut={() => setHoveredItem(null)}
+                  >
+                    {item ? <ItemIcon type={item.type} size={20} /> : null}
+                  </Pressable>
+                );
+              })}
             </View>
           </ScrollView>
         )}
-        <Text style={styles.helperText}>Tap item to quick-equip, or long-press item then tap a slot to place it.</Text>
+        <Text style={styles.helperText}>
+          Bag has fixed 16 slots. Stash is separate and auto-fills with consumables first.
+        </Text>
       </View>
     </View>
   );
@@ -302,9 +346,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  bagCellEmpty: {
+    opacity: 0.45,
+  },
   bagCellSelected: {
     borderColor: '#22c55e',
     borderWidth: 2,
+  },
+  stashMeta: {
+    color: '#94a3b8',
+    fontSize: 10,
+    marginBottom: 4,
   },
   helperText: {
     color: '#94a3b8',

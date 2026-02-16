@@ -1,5 +1,5 @@
 import { setStatusBarNetworkActivityIndicatorVisible, StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, Platform, ImageBackground, TouchableOpacity, Touchable } from 'react-native';
+import { StyleSheet, Text, View, Button, Platform, ImageBackground, TouchableOpacity, Touchable, Image } from 'react-native';
 import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
@@ -7,9 +7,8 @@ import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
 import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, invertInitialDirection, setLastTurnDir, setInitialDirection, loadMap, resetPosition } from '../../features/room/roomSlice';
 import { dmg2Player, regenResourcesOnTile } from '../player/playerSlice';
 import { getMapList, MapInfo } from '../../data/maps';
-import { useRoom } from '../../events/room';
 import { ImageSourcePropType } from 'react-native';
-import { ReactNode, useCallback, useDebugValue, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useDebugValue, useEffect, useMemo, useRef, useState } from 'react';
 import { current } from '@reduxjs/toolkit';
 import { debugMove, movementDebug, Direction } from '../../utils/debug';
 import { DebugOverlay } from './DebugOverlay';
@@ -19,12 +18,14 @@ import { isBlocked } from '../../systems/movement/TileNavigator';
 import { Room3D } from './Room3D';
 import { Direction as FacingDirection } from '../../types/map';
 import { registerEnemyAttack } from '../../events/combatSlice';
+import { getDoorTargetMap, getMapDepth, getStairsTargetMap } from '../../data/maps/transitions';
 import {
     getEnemyDistanceInFacingDirection,
     isEnemyCombatReachable,
     isEnemyOccludedByCloserEnemy,
     isEnemyVisibleToPlayer,
 } from '../enemy/enemyPerception';
+import { computeDerivedPlayerStats } from '../player/playerStats';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 
 const ROOM_VIEWPORT_SIZE = 512;
@@ -111,6 +112,9 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
     const playerHealth = useAppSelector(state => state.player.health);
+    const playerDodgeChance = useAppSelector(state => state.player.dodgeChance || 0);
+    const playerStats = useAppSelector(state => state.player.stats as Record<string, any>);
+    const playerLevel = useAppSelector(state => state.player.level);
     const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
     const currentDir = useAppSelector(state => state.room.direction);
     const verticalResources = useAppSelector(state => state.room.verticalRes);
@@ -123,6 +127,7 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
 
     // Map data from Redux (new)
     const currentMapId = useAppSelector(state => state.room.currentMapId);
+    const dungeonDepth = getMapDepth(currentMapId);
     const mapWidth = useAppSelector(state => state.room.mapWidth);
     const mapHeight = useAppSelector(state => state.room.mapHeight);
     const mapTiles = useAppSelector(state => state.room.mapTiles);
@@ -130,8 +135,14 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
 
     // Use Redux map data instead of hardcoded - dg_map now references Redux state
     const dg_map = mapTiles;
-    const { changeLvl, getEnemies } = useRoom();
     const playerClass = useAppSelector(state => state.player.classArchetype || 'warrior');
+    const effectiveStamina = useMemo(() => {
+        const derived = computeDerivedPlayerStats(playerStats || {}, {}, {
+            classArchetype: playerClass,
+            level: playerLevel,
+        });
+        return Number(derived.maxStamina || 0);
+    }, [playerStats, playerClass, playerLevel]);
 
     // Get current tile type at player position for special tile interactions
     const currentTileType = mapTiles?.[positionY]?.[positionX] ?? 0;
@@ -140,30 +151,36 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
     const isOnDoor = currentTileType === 5;
     const isOnSpecialTile = isOnStairsUp || isOnStairsDown || isOnDoor;
 
-    // Level transition mapping
-    const levelTransitions: { [key: string]: { up?: string; down?: string } } = {
-        'level1': { down: 'level2-grid' },
-        'level2-grid': { up: 'level1', down: 'level3-small' },
-        'level3-small': { up: 'level2-grid', down: 'level4-large' },
-        'level4-large': { up: 'level3-small' },
+    // Handle stairs interaction (changes dungeon depth/map branch)
+    const handleStairsInteraction = () => {
+        if (inCombat) return;
+        const targetMap = isOnStairsUp
+            ? getStairsTargetMap(currentMapId, 'up')
+            : isOnStairsDown
+                ? getStairsTargetMap(currentMapId, 'down')
+                : undefined;
+
+        if (!targetMap) {
+            console.log(`[Room] No stairs transition configured for map "${currentMapId}"`);
+            return;
+        }
+
+        console.log(`[Room] Stairs transition: ${currentMapId} -> ${targetMap}`);
+        dispatch(loadMap(targetMap));
     };
 
-    // Handle stairs interaction
-    const handleStairsInteraction = () => {
-        const transitions = levelTransitions[currentMapId];
-        if (!transitions) return;
-
-        let targetLevel: string | undefined;
-        if (isOnStairsUp && transitions.up) {
-            targetLevel = transitions.up;
-        } else if (isOnStairsDown && transitions.down) {
-            targetLevel = transitions.down;
+    // Handle door interaction (switch map, keep same dungeon depth)
+    const handleDoorInteraction = () => {
+        if (inCombat) return;
+        if (!isOnDoor) return;
+        const targetMap = getDoorTargetMap(currentMapId);
+        if (!targetMap) {
+            console.log(`[Room] No door transition configured for map "${currentMapId}"`);
+            return;
         }
 
-        if (targetLevel) {
-            console.log(`Transitioning from ${currentMapId} to ${targetLevel}`);
-            dispatch(loadMap(targetLevel));
-        }
+        console.log(`[Room] Door transition: ${currentMapId} -> ${targetMap}`);
+        dispatch(loadMap(targetMap));
     };
 
     // New movement system hook
@@ -193,6 +210,14 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
     const corridorTile = require('../../resources/dung-corridor.png');
     const facingWallTile = require('../../resources/brickwall.png');
     const turnThreeWay = require('../../resources/dung-threeway.png');
+    const doorFrontLeft = require('../../resources/door_parts/door_front_left.png');
+    const doorFrontRight = require('../../resources/door_parts/door_front_right.png');
+    const doorSideLeft = require('../../resources/door_parts/door_side_left.png');
+    const doorSideRight = require('../../resources/door_parts/door_side_right.png');
+    const doorFrontLeftFar = require('../../resources/door_parts/door_front_left_far.png');
+    const doorFrontRightFar = require('../../resources/door_parts/door_front_right_far.png');
+    const doorSideLeftFar = require('../../resources/door_parts/door_side_left_far.png');
+    const doorSideRightFar = require('../../resources/door_parts/door_side_right_far.png');
 
     // Tile images for new movement system
     // Note: door, stairs, deadEnd, and fourWay use placeholders until custom images are added
@@ -218,6 +243,21 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
     const [use3DRendering, setUse3DRendering] = useState(true);
     const rangedShotCooldownRef = useRef<{ [key: number]: number }>({});
     const lastPlayerTileRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
+    const lastMoveFrameAtRef = useRef(0);
+
+    const getDoorOverlaySources = (tileSprite: NodeRequire, distanceIndex: number): NodeRequire[] => {
+        const useFar = distanceIndex >= 4;
+        if (tileSprite === turnTileLeft) {
+            return [useFar ? doorSideLeftFar : doorSideLeft];
+        }
+        if (tileSprite === turnTileRight) {
+            return [useFar ? doorSideRightFar : doorSideRight];
+        }
+        return [
+            useFar ? doorFrontLeftFar : doorFrontLeft,
+            useFar ? doorFrontRightFar : doorFrontRight,
+        ];
+    };
 
     // New movement system hook
     const newMovement = useMovementWithRender(tileImages);
@@ -996,6 +1036,10 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
                 if (isCrit) dmg *= 2;
 
                 dispatch(registerEnemyAttack(index));
+                if (Math.random() <= playerDodgeChance) {
+                    dispatch(dmg2Player({ dmg: 0, crit: false, enemy: `${enemy.info?.name || 'Ranged enemy'} (ranged)` }));
+                    return;
+                }
                 dispatch(dmg2Player({ dmg, crit: isCrit, enemy: `${enemy.info?.name || 'Ranged enemy'} (ranged)` }));
             });
         };
@@ -1003,7 +1047,7 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
         tryRangedAttacks();
         const interval = setInterval(tryRangedAttacks, 300);
         return () => clearInterval(interval);
-    }, [positionX, positionY, currentDir, enemies, inCombat, playerHealth]);
+    }, [positionX, positionY, currentDir, enemies, inCombat, playerHealth, playerDodgeChance]);
     
     const forward = () => {
         // DEBUG: Start tracking forward movement
@@ -2371,6 +2415,16 @@ const turn = (turnDir:string) => {
         return hasNonAmbushEnemy;
     };
 
+    const consumeMovementFrame = () => {
+        const now = Date.now();
+        const frameCooldownMs = effectiveStamina <= 0 ? 1000 : 250;
+        if (now - lastMoveFrameAtRef.current < frameCooldownMs) {
+            return false;
+        }
+        lastMoveFrameAtRef.current = now;
+        return true;
+    };
+
     const guardedForward = () => {
         if (inCombat) {
             console.log('Cannot move away while in combat.');
@@ -2395,6 +2449,10 @@ const turn = (turnDir:string) => {
             return;
         }
 
+        if (!consumeMovementFrame()) {
+            return;
+        }
+
         activeForward();
     };
 
@@ -2403,6 +2461,11 @@ const turn = (turnDir:string) => {
             console.log('Cannot move away while in combat.');
             return;
         }
+
+        if (!consumeMovementFrame()) {
+            return;
+        }
+
         activeReverse();
     };
 
@@ -2411,6 +2474,11 @@ const turn = (turnDir:string) => {
             console.log('Cannot move away while in combat.');
             return;
         }
+
+        if (!consumeMovementFrame()) {
+            return;
+        }
+
         activeTurn(dir);
     };
 
@@ -2537,20 +2605,25 @@ const turn = (turnDir:string) => {
                         {enemyGroup.map(({ enemy, index }, stackIndex) => {
                             if (enemy.health <= 0) return null;
 
-                            // Offset each enemy in the stack slightly
-                            const offsetX = stackIndex * 15;
-                            const offsetY = stackIndex * -10;
+                            // Spread stacks from center to reduce heavy overlap in packs.
+                            const stackCenter = (enemyGroup.length - 1) / 2;
+                            const centeredSlot = stackIndex - stackCenter;
+                            const isRat = enemy.id === 1;
+                            const horizontalSpread = isRat ? 52 : 40;
+                            const verticalSpread = isRat ? 8 : 12;
+                            const offsetX = centeredSlot * horizontalSpread;
+                            const offsetY = -Math.abs(centeredSlot) * verticalSpread;
+                            const stackZ = 200 - Math.abs(centeredSlot);
 
                             return (
                                 <View
                                     key={index}
                                     style={{
-                                        marginLeft: stackIndex > 0 ? -100 : 0,
                                         transform: [
                                             { translateX: offsetX },
                                             { translateY: offsetY }
                                         ],
-                                        zIndex: enemyGroup.length - stackIndex,
+                                        zIndex: stackZ,
                                     }}
                                 >
                                     <TouchableOpacity
@@ -2614,6 +2687,9 @@ const turn = (turnDir:string) => {
                 verticalTileArr={verticalTileArr}
                 dg_map={dg_map}
             />
+            <View style={styles.depthIndicator}>
+                <Text style={styles.depthIndicatorText}>{`Depth ${dungeonDepth} · ${currentMapId}`}</Text>
+            </View>
 
             {/* Movement System Toggle */}
             <TouchableOpacity
@@ -2662,20 +2738,23 @@ const turn = (turnDir:string) => {
                 </TouchableOpacity>
             )}
 
-            {/* Door indicator - when standing on door */}
+            {/* Door Interaction Button - appears when standing on doors */}
             {isOnDoor && (
-                <View style={{
-                    backgroundColor: '#8B4513',
-                    paddingHorizontal: 15,
-                    paddingVertical: 8,
-                    borderRadius: 5,
-                    borderWidth: 2,
-                    borderColor: '#D2691E',
-                }}>
+                <TouchableOpacity
+                    style={{
+                        ...styles.button,
+                        backgroundColor: '#8B4513',
+                        borderColor: '#D2691E',
+                        borderWidth: 2,
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                    }}
+                    onPress={handleDoorInteraction}
+                >
                     <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                        🚪 DOOR
+                        ENTER DOOR
                     </Text>
-                </View>
+                </TouchableOpacity>
             )}
 
             {/* 3D Rendering Mode Toggle */}
@@ -2722,7 +2801,9 @@ const turn = (turnDir:string) => {
                     const isDoor = tileType === 5;
                     const isStairsUp = tileType === 6;
                     const isStairsDown = tileType === 7;
-                    const isSpecialTile = isDoor || isStairsUp || isStairsDown;
+                    const isSpecialTile = isStairsUp || isStairsDown;
+                    const tileSprite = activePathTileArr[index] as NodeRequire;
+                    const doorOverlays = isDoor ? getDoorOverlaySources(tileSprite, index) : [];
 
                     // Get label for special tiles
                     const getSpecialTileLabel = () => {
@@ -2773,12 +2854,12 @@ const turn = (turnDir:string) => {
                                     }}
                                 >
                                     <View style={{
-                                        backgroundColor: isDoor ? '#8B4513' : '#4a4a8a',
+                                        backgroundColor: '#4a4a8a',
                                         paddingHorizontal: 16,
                                         paddingVertical: 8,
                                         borderRadius: 8,
                                         borderWidth: 2,
-                                        borderColor: isDoor ? '#D2691E' : '#6a6aaa',
+                                        borderColor: '#6a6aaa',
                                     }}>
                                         <Text style={{
                                             color: '#fff',
@@ -2793,6 +2874,15 @@ const turn = (turnDir:string) => {
                                     </View>
                                 </View>
                             )}
+                            {doorOverlays.map((overlay, overlayIndex) => (
+                                <Image
+                                    key={`door-overlay-${index}-${overlayIndex}`}
+                                    testID={`door-overlay-${index}-${overlayIndex}`}
+                                    source={overlay}
+                                    resizeMode="contain"
+                                    style={styles.doorOverlay}
+                                />
+                            ))}
                             {/* Fog of war overlay */}
                             {fogOpacity > 0 && (
                                 <View
@@ -2890,5 +2980,30 @@ const styles = StyleSheet.create({
         right: 10,
         bottom: 10,
         zIndex: 250,
+    },
+    depthIndicator: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderWidth: 1,
+        borderColor: '#3f3f46',
+        backgroundColor: 'rgba(10, 10, 18, 0.85)',
+        borderRadius: 8,
+        zIndex: 280,
+    },
+    depthIndicatorText: {
+        color: '#e2e8f0',
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    doorOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 14,
     },
 });

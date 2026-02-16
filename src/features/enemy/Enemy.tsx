@@ -93,26 +93,17 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false }) => 
 
   if (!enemy) return null;
   const enemySprite = resources[enemy.id] || resources[0];
+  const isRat = enemy.id === 1;
 
   const maxHealth = Math.max(enemy.stats.health || 1, 1);
   const healthPct = Math.max(0, Math.min(1, enemy.health / maxHealth));
   const healthColor = healthPct > 0.6 ? '#22c55e' : healthPct > 0.3 ? '#f59e0b' : '#ef4444';
 
   return (
-    <View>
+    <View style={[styles.enemyRoot, isRat && styles.enemyRootRat]}>
       <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: ambushJumpAnim }, { translateX: attackAnim }] }}>
-        <ImageBackground
-          source={enemySprite as ImageSourcePropType}
-          style={styles.enemy}
-          imageStyle={enemy.id === 2 ? styles.archerTint : undefined}
-          resizeMode="contain"
-        >
-          {showHitEffect && (
-            <View style={styles.hitEffectWrap}>
-              <HitEffect variant={lastPlayerHitType} size={56} />
-            </View>
-          )}
-          <View style={styles.healthBarWrap}>
+        <View style={styles.enemyFrame}>
+          <View style={[styles.healthBarWrap, isRat && styles.healthBarWrapRat]}>
             <View style={styles.healthBarTrack}>
               <View
                 style={[
@@ -125,25 +116,64 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false }) => 
               />
             </View>
           </View>
-        </ImageBackground>
+          <ImageBackground
+            source={enemySprite as ImageSourcePropType}
+            style={[styles.enemy, isRat && styles.enemyRat]}
+            imageStyle={enemy.id === 2 ? styles.archerTint : undefined}
+            resizeMode="contain"
+          >
+            {showHitEffect && (
+              <View style={[styles.hitEffectWrap, isRat && styles.hitEffectWrapRat]}>
+                <HitEffect variant={lastPlayerHitType} size={isRat ? 44 : 56} />
+              </View>
+            )}
+          </ImageBackground>
+        </View>
       </Animated.View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  enemyRoot: {
+    width: 150,
+    height: 170,
+    alignSelf: 'center',
+    position: 'absolute',
+    top: 54,
+  },
+  enemyRootRat: {
+    width: 120,
+    height: 142,
+    top: 68,
+  },
+  enemyFrame: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
   enemy: {
     width: 150,
     height: 150,
     alignSelf: 'center',
     position: 'absolute',
-    top: 70,
+    top: 20,
+  },
+  enemyRat: {
+    width: 120,
+    height: 120,
+    top: 14,
   },
   healthBarWrap: {
     position: 'absolute',
-    top: 6,
-    left: 10,
-    right: 10,
+    top: 0,
+    left: 16,
+    right: 16,
+    zIndex: 7,
+  },
+  healthBarWrapRat: {
+    left: 12,
+    right: 12,
   },
   healthBarTrack: {
     height: 8,
@@ -162,6 +192,10 @@ const styles = StyleSheet.create({
     top: -24,
     left: 42,
     zIndex: 5,
+  },
+  hitEffectWrapRat: {
+    top: -16,
+    left: 30,
   },
   archerTint: {
     tintColor: '#8fc6ff',

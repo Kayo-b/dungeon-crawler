@@ -10,12 +10,52 @@ import level2Grid from './level2-grid.json';
 import level3Small from './level3-small.json';
 import level4Large from './level4-large.json';
 
+const level1Annex: MapConfig = {
+  ...(level1 as MapConfig),
+  id: 'level1-annex',
+  name: 'The Beginning Annex',
+  description: 'A side-wing connected by doors on the same dungeon floor.',
+  startPosition: { x: 7, y: 0 },
+  startDirection: 'S',
+};
+
+const level2GridAnnex: MapConfig = {
+  ...(level2Grid as MapConfig),
+  id: 'level2-grid-annex',
+  name: 'The Grid Annex',
+  description: 'A connected branch of level 2 accessed through doors.',
+  startPosition: { x: 7, y: 7 },
+  startDirection: 'W',
+};
+
+const level3SmallAnnex: MapConfig = {
+  ...(level3Small as MapConfig),
+  id: 'level3-small-annex',
+  name: 'The Box Annex',
+  description: 'An alternate route through level 3 for annex branch transitions.',
+  startPosition: { x: 3, y: 3 },
+  startDirection: 'N',
+};
+
+const level4LargeAnnex: MapConfig = {
+  ...(level4Large as MapConfig),
+  id: 'level4-large-annex',
+  name: 'The Labyrinth Annex',
+  description: 'A deep side area linked through doors at the same floor depth.',
+  startPosition: { x: 11, y: 0 },
+  startDirection: 'W',
+};
+
 // Type assertion for JSON imports
 const maps: Record<string, MapConfig> = {
   'level1': level1 as MapConfig,
+  'level1-annex': level1Annex,
   'level2-grid': level2Grid as MapConfig,
+  'level2-grid-annex': level2GridAnnex,
   'level3-small': level3Small as MapConfig,
+  'level3-small-annex': level3SmallAnnex,
   'level4-large': level4Large as MapConfig,
+  'level4-large-annex': level4LargeAnnex,
 };
 
 // Map metadata for selection UI
@@ -87,7 +127,7 @@ export function validateAllMaps(): void {
 }
 
 // Export individual maps for direct access
-export { level1, level2Grid, level3Small, level4Large };
+export { level1, level1Annex, level2Grid, level2GridAnnex, level3Small, level3SmallAnnex, level4Large, level4LargeAnnex };
 
 // Export all maps
 export default maps;

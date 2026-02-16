@@ -15,7 +15,12 @@
   "level": 1,
   "experience": 0,
   "xptolvlup": 16,
+  "unspentStatPoints": 0,
   "inventory": [],
+  "consumableStash": [
+    { "ID": 1, "name": "Minor Healing Potion", "type": "consumable", "stats": { "amount": 8 } },
+    { "ID": 2, "name": "Minor Mana Flask", "type": "consumable", "stats": { "mana": 14 } }
+  ],
   "equipment": {
     "weapon": {
       "name": "Rusty Sword",
@@ -77,6 +82,7 @@
       "loot": [
         { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 1.5 },
         {"name":"Minor Healing Potion", "type":"consumable", "ID":1, "dropChance":1.5},
+        {"name":"Minor Mana Flask", "type":"consumable", "ID":2, "dropChance":0.9},
         {"name":"Scout Sash", "type":"belts", "ID":1, "dropChance":0.15}
       ],
       "info" : {
@@ -111,6 +117,7 @@
       },
       "loot": [
         { "name": "Cooper coin", "type": "currency", "amout": 1, "ID": 1, "dropChance": 0.7},
+        { "name": "Minor Mana Flask", "type": "consumable", "ID": 2, "dropChance": 0.45 },
         { "name": "Wooden Ring", "type": "ring", "ID": 3, "dropChance": 1 },
         { "ID": 33, "type":"shield", "name": "Spiked Shield", "dropChance": 0.3 }
       ],
@@ -147,6 +154,7 @@
       "loot": [
         { "name": "Bone Arrow", "type": "ammo", "ID": 1, "dropChance": 0.4 },
         { "name": "Rusted Bow", "type": "weapon", "ID": 2, "dropChance": 0.2 },
+        { "name": "Minor Mana Flask", "type": "consumable", "ID": 2, "dropChance": 1.1 },
         { "name": "Hunter Belt", "type": "belts", "ID": 2, "dropChance": 0.1 },
         { "name": "War Belt", "type": "belts", "ID": 3, "dropChance": 0.05 }
       ],

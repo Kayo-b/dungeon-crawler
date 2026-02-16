@@ -6,7 +6,10 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "playtest": "bash ./scripts/playtest/run-playtest.sh --label quick-check",
+    "playtest:headed": "bash ./scripts/playtest/run-playtest.sh --label headed-check --headed",
+    "playtest:reuse": "bash ./scripts/playtest/run-playtest.sh --label reuse-server --skip-server"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.1.3",

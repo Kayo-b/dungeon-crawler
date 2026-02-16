@@ -8,18 +8,18 @@ import { Inventory } from '../inventory/Inventory';
 import { MiniMap } from '../room/MiniMap';
 import {
   fetchEquipment,
-  setAttackRating,
   setClassMeta,
   setCombatLog,
-  setCrit,
-  setDefenceRating,
+  setEquipment,
   setHealth,
   setLevel,
-  setPlayerDmg,
   setStats,
+  setUnspentStatPoints,
   setXP,
 } from './playerSlice';
-import { setInventory } from '../inventory/inventorySlice';
+import { setAllInventory } from '../inventory/inventorySlice';
+import { computeDerivedPlayerStats } from './playerStats';
+import { normalizeInventoryContainers } from '../inventory/inventoryUtils';
 
 interface PlayerProps {
   classLabel: string;
@@ -38,14 +38,11 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
   const currentEnemy = useAppSelector((state) => state.enemy.currentEnemyId);
   const enemiesObj = useAppSelector((state) => state.enemy.enemies);
   const dmgTakenLog = useAppSelector((state) => state.player.dmgLog);
-
   const classArchetype = useAppSelector((state) => state.player.classArchetype || 'warrior');
-  const rage = useAppSelector((state) => state.player.rage);
-  const maxRage = useAppSelector((state) => state.player.maxRage);
+  const equipment = useAppSelector((state) => state.player.equipment as Record<string, any>);
+
   const mana = useAppSelector((state) => state.player.mana);
   const maxMana = useAppSelector((state) => state.player.maxMana);
-  const energy = useAppSelector((state) => state.player.energy);
-  const maxEnergy = useAppSelector((state) => state.player.maxEnergy);
 
   const currentEnemyData = enemiesObj[currentEnemy];
   const dmgDoneObj = currentEnemyData?.dmgLog || [];
@@ -53,18 +50,6 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
 
   const lastTaken = dmgTakenLog.length > 0 ? dmgTakenLog[dmgTakenLog.length - 1] : { dmg: 0 };
   const fadeAnimDmg = useRef(new Animated.Value(1)).current;
-
-  const physicalDmg = (baseDmg: number, str: number, strMod: number) => {
-    return Math.floor(baseDmg + (str / 10) * strMod);
-  };
-
-  const attackRating = (baseAR: number, dex: number, ARperDex: number, attackBonus: number) => {
-    return (baseAR + dex * ARperDex) * (attackBonus + 1);
-  };
-
-  const defenceRating = (baseDef: number, bonusDef: number, dex: number) => {
-    return baseDef * (bonusDef + dex * 0.1);
-  };
 
   const initializeData = async () => {
     const storedData = await AsyncStorage.getItem('characters');
@@ -84,36 +69,29 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
       await AsyncStorage.setItem('characters', JSON.stringify(obj));
     }
 
-    const experience = obj.character.experience;
-    const level = obj.character.level;
+    const experience = Number(obj.character.experience || 0);
+    const level = Number(obj.character.level || 1);
     const baseStats = obj.character.stats;
-    const baseDmg = obj.character.equipment.weapon.stats.damage;
-    const baseAR = obj.character.equipment.weapon.stats.atkSpeed;
-    const baseCrit = baseStats.crit;
-    const weaponCritMod = obj.character.equipment.weapon.stats.critMod || 0;
-    const crit = baseCrit + weaponCritMod;
+    const unspentStatPoints = Math.max(0, Number(obj.character.unspentStatPoints || 0));
+    obj.character.unspentStatPoints = unspentStatPoints;
 
-    const inv = obj.character.inventory || [];
+    const normalizedInventory = normalizeInventoryContainers(
+      obj.character.inventory,
+      obj.character.consumableStash
+    );
+    const inv = normalizedInventory.inventory;
+    const consumableStash = normalizedInventory.consumableStash;
+    obj.character.inventory = inv;
+    obj.character.consumableStash = consumableStash;
     const equipped = obj.character.equipment;
 
-    const armorDef = equipped.armor?.stats?.defence || 0;
-    const ringDef = equipped.ring?.stats?.defence || 0;
-    const offhandDef = equipped.offhand?.stats?.defence || 0;
-    const baseDef = armorDef + ringDef + offhandDef;
-
-    const computedDmg = physicalDmg(baseDmg, baseStats.strength, 3);
-    const playerAR = attackRating(baseAR, baseStats.dexterity, 1, 1);
-    const playerDR = defenceRating(baseDef, 1, baseStats.dexterity);
-
+    dispatch(setEquipment(equipped));
     dispatch(setStats(baseStats));
     dispatch(setHealth(health));
     dispatch(setXP(experience));
     dispatch(setLevel(level));
-    dispatch(setPlayerDmg(computedDmg));
-    dispatch(setAttackRating(playerAR));
-    dispatch(setDefenceRating(playerDR));
-    dispatch(setInventory(inv));
-    dispatch(setCrit(crit));
+    dispatch(setUnspentStatPoints(unspentStatPoints));
+    dispatch(setAllInventory({ inventory: inv, consumableStash }));
     dispatch(fetchEquipment());
     dispatch(
       setClassMeta({
@@ -122,6 +100,8 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
         specialName: obj.character.specialName || 'Crushing Blow',
       })
     );
+
+    await AsyncStorage.setItem('characters', JSON.stringify(obj));
   };
 
   useEffect(() => {
@@ -168,9 +148,12 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
   }, [combatLog.length]);
 
   const hpMax = useMemo(() => {
-    const vitBased = (stats?.vitality || 1) * 10;
-    return Math.max(vitBased, playerHealth, 1);
-  }, [stats, playerHealth]);
+    const derived = computeDerivedPlayerStats(stats || {}, equipment || {}, {
+      classArchetype,
+      level: playerLevel,
+    });
+    return Math.max(derived.maxHealth, playerHealth, 1);
+  }, [stats, equipment, classArchetype, playerLevel, playerHealth]);
 
   const hpPct = Math.max(0, Math.min(1, playerHealth / hpMax));
 
@@ -179,31 +162,13 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
   const xpPct = Math.max(0, Math.min(1, xpIntoLevel / xpToLevel));
 
   const resourceMeta = useMemo(() => {
-    if (classArchetype === 'caster') {
-      return {
-        label: 'MN',
-        value: mana,
-        max: maxMana,
-        color: '#0ea5e9',
-      };
-    }
-
-    if (classArchetype === 'ranger') {
-      return {
-        label: 'EN',
-        value: energy,
-        max: maxEnergy,
-        color: '#f59e0b',
-      };
-    }
-
     return {
-      label: 'RG',
-      value: rage,
-      max: maxRage,
-      color: '#ef4444',
+      label: 'MN',
+      value: mana,
+      max: maxMana,
+      color: '#0ea5e9',
     };
-  }, [classArchetype, rage, maxRage, mana, maxMana, energy, maxEnergy]);
+  }, [mana, maxMana]);
 
   const resourcePct = Math.max(0, Math.min(1, resourceMeta.value / Math.max(resourceMeta.max, 1)));
 

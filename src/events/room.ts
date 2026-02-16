@@ -5,7 +5,8 @@ import { changeRoom } from '../features/room/roomSlice';
 import { emptyCombatLog } from '../features/player/playerSlice';
 import { emptyDmgLog, clearEnemies } from '../features/enemy/enemySlice';
 import { setEnemyCount } from './combatSlice';
-import { pickSpawnEnemyType } from '../features/enemy/enemySpawn';
+import { pickSpawnEnemyTypeForDepth } from '../features/enemy/enemySpawn';
+import { getMapDepth } from '../data/maps/transitions';
 
 export const useRoom = () => {
     const dispatch = useAppDispatch();
@@ -14,9 +15,13 @@ export const useRoom = () => {
     const mapTiles = useAppSelector(state => state.room.mapTiles);
     const mapWidth = useAppSelector(state => state.room.mapWidth);
     const mapHeight = useAppSelector(state => state.room.mapHeight);
+    const currentMapId = useAppSelector(state => state.room.currentMapId);
     const playerX = useAppSelector(state => state.room.posX);
     const playerY = useAppSelector(state => state.room.posY);
     const enemies = useAppSelector(state => state.enemy.enemies);
+    const dungeonDepth = getMapDepth(currentMapId);
+    const enemyStrengthScale = 1 + Math.max(0, dungeonDepth - 1) * 0.5;
+    const rewardScale = 1 + Math.max(0, dungeonDepth - 1) * 0.6;
 
     // Track enemy index for spawning
     const enemyIndexRef = useRef(0);
@@ -59,12 +64,14 @@ export const useRoom = () => {
         const startIndex = Object.keys(enemies).length;
 
         for (let i = 0; i < count; i++) {
-            const enemyType = pickSpawnEnemyType();
+            const enemyType = pickSpawnEnemyTypeForDepth(dungeonDepth);
             dispatch(addEnemy({
                 index: startIndex + i,
                 id: enemyType,
                 positionX: spawnPos.x,
-                positionY: spawnPos.y
+                positionY: spawnPos.y,
+                strengthScale: enemyStrengthScale,
+                rewardScale,
             }));
             console.log(`Enemy pack member ${i} (type ${enemyType}) spawned at (${spawnPos.x}, ${spawnPos.y})`);
         }
@@ -77,13 +84,15 @@ export const useRoom = () => {
     const spawnEnemy = (position?: { x: number; y: number }) => {
         const spawnPos = position || getRandomSpawnPosition();
         const enemyIndex = Object.keys(enemies).length;
-        const enemyType = pickSpawnEnemyType();
+        const enemyType = pickSpawnEnemyTypeForDepth(dungeonDepth);
 
         dispatch(addEnemy({
             index: enemyIndex,
             id: enemyType,
             positionX: spawnPos.x,
-            positionY: spawnPos.y
+            positionY: spawnPos.y,
+            strengthScale: enemyStrengthScale,
+            rewardScale,
         }));
 
         console.log(`Enemy ${enemyIndex} (type ${enemyType}) spawned at (${spawnPos.x}, ${spawnPos.y})`);
@@ -112,12 +121,14 @@ export const useRoom = () => {
 
             // Spawn the pack
             for (let i = 0; i < packSize; i++) {
-                const enemyType = pickSpawnEnemyType();
+                const enemyType = pickSpawnEnemyTypeForDepth(dungeonDepth);
                 dispatch(addEnemy({
                     index: spawned + i,
                     id: enemyType,
                     positionX: spawnPos.x,
-                    positionY: spawnPos.y
+                    positionY: spawnPos.y,
+                    strengthScale: enemyStrengthScale,
+                    rewardScale,
                 }));
                 console.log(`Enemy ${spawned + i} (type ${enemyType}) spawned at (${spawnPos.x}, ${spawnPos.y})`);
             }

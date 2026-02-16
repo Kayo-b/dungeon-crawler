@@ -1,15 +1,14 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { computeDerivedPlayerStats } from './playerStats';
 
 let health = data.character.stats.health;
 let experience = data.character.experience;
-let damage = data.character.equipment.weapon.stats.damage;
-let atkSpeed = data.character.equipment.weapon.stats.atkSpeed;
 let level = data.character.level;
 let stats = data.character.stats;
 let equipment = data.character.equipment;
-let critChance = data.character.stats.crit;
+let unspentStatPoints = Number((data.character as any).unspentStatPoints || 0);
 let combatLog: string[] = [];
 
 async function saveData(nextHealth: number) {
@@ -32,6 +31,8 @@ interface CounterState {
   defenceRating: number;
   equipment: Record<string, any>;
   critChance: number;
+  dodgeChance: number;
+  unspentStatPoints: number;
   combatLog: string[];
   classArchetype: string;
   classLabel: string;
@@ -55,16 +56,8 @@ interface DmgPayload {
 }
 
 const clampResource = (value: number, max: number) => {
-  const safeMax = Math.max(0, Math.floor(max));
-  return Math.max(0, Math.min(Math.floor(value), safeMax));
-};
-
-const getMaxMana = (playerStats: Record<string, any>) => {
-  return Math.max(25, Math.floor(20 + (playerStats?.intelligence || 0) * 3));
-};
-
-const getMaxEnergy = (playerStats: Record<string, any>) => {
-  return Math.max(60, Math.floor(60 + (playerStats?.dexterity || 0) * 1.5));
+  const safeMax = Math.max(0, max);
+  return Math.max(0, Math.min(value, safeMax));
 };
 
 const readRegenFromMods = (mods: unknown, resourceName: 'mana' | 'energy') => {
@@ -114,52 +107,77 @@ const calculateRegenPerTile = (equipmentState: Record<string, any>, resourceName
 };
 
 const syncClassResources = (state: CounterState, refill: boolean) => {
-  state.maxRage = 100;
-  state.maxMana = getMaxMana(state.stats);
-  state.maxEnergy = getMaxEnergy(state.stats);
+  const derived = computeDerivedPlayerStats(state.stats, state.equipment, {
+    classArchetype: state.classArchetype,
+    level: state.level,
+  });
+
+  state.maxRage = 0;
+  state.maxMana = derived.maxMana;
+  state.maxEnergy = 0;
   state.maxComboPoints = 5;
 
-  state.manaRegenPerTile = calculateRegenPerTile(state.equipment, 'mana');
-  state.energyRegenPerTile = Math.max(1, 1 + calculateRegenPerTile(state.equipment, 'energy'));
+  state.manaRegenPerTile = Math.max(1, 1 + calculateRegenPerTile(state.equipment, 'mana'));
+  state.energyRegenPerTile = 0;
 
   if (refill) {
     state.rage = 0;
     state.mana = state.maxMana;
-    state.energy = state.maxEnergy;
+    state.energy = 0;
     state.comboPoints = 0;
     return;
   }
 
-  state.rage = clampResource(state.rage, state.maxRage);
+  state.rage = 0;
   state.mana = clampResource(state.mana, state.maxMana);
-  state.energy = clampResource(state.energy, state.maxEnergy);
+  state.energy = 0;
   state.comboPoints = clampResource(state.comboPoints, state.maxComboPoints);
 };
 
+const syncDerivedCombatState = (state: CounterState) => {
+  const derived = computeDerivedPlayerStats(state.stats, state.equipment, {
+    classArchetype: state.classArchetype,
+    level: state.level,
+  });
+  state.playerDmg = derived.playerDmg;
+  state.attackRating = derived.attackRating;
+  state.defenceRating = derived.defenceRating;
+  state.atkSpeed = derived.atkSpeed;
+  state.critChance = derived.critChance;
+  state.dodgeChance = derived.dodgeChance;
+};
+
+const initialDerived = computeDerivedPlayerStats(stats, equipment, {
+  classArchetype: 'warrior',
+  level,
+});
+
 const initialState: CounterState = {
   health,
-  playerDmg: damage,
+  playerDmg: initialDerived.playerDmg,
   dmgLog: [],
-  atkSpeed,
+  atkSpeed: initialDerived.atkSpeed,
   experience,
   level,
   stats,
-  attackRating: 0,
-  defenceRating: 1,
+  attackRating: initialDerived.attackRating,
+  defenceRating: initialDerived.defenceRating,
   equipment,
-  critChance,
+  critChance: initialDerived.critChance,
+  dodgeChance: initialDerived.dodgeChance,
+  unspentStatPoints,
   combatLog,
   classArchetype: 'warrior',
   classLabel: 'Warrior',
   specialName: 'Crushing Blow',
   rage: 0,
-  maxRage: 100,
-  mana: getMaxMana(stats),
-  maxMana: getMaxMana(stats),
-  manaRegenPerTile: calculateRegenPerTile(equipment as Record<string, any>, 'mana'),
-  energy: getMaxEnergy(stats),
-  maxEnergy: getMaxEnergy(stats),
-  energyRegenPerTile: Math.max(1, 1 + calculateRegenPerTile(equipment as Record<string, any>, 'energy')),
+  maxRage: 0,
+  mana: initialDerived.maxMana,
+  maxMana: initialDerived.maxMana,
+  manaRegenPerTile: Math.max(1, 1 + calculateRegenPerTile(equipment as Record<string, any>, 'mana')),
+  energy: 0,
+  maxEnergy: 0,
+  energyRegenPerTile: 0,
   comboPoints: 0,
   maxComboPoints: 5,
 };
@@ -180,10 +198,6 @@ const playerSlice = createSlice({
     dmg2Player(state, action: PayloadAction<DmgPayload>) {
       state.health -= action.payload.dmg;
       state.dmgLog.push(action.payload);
-
-      if (state.classArchetype === 'warrior' && action.payload.dmg > 0) {
-        state.rage = clampResource(state.rage + 8, state.maxRage);
-      }
 
       saveData(state.health);
     },
@@ -207,9 +221,12 @@ const playerSlice = createSlice({
     },
     setLevel(state, action: PayloadAction<number>) {
       state.level = action.payload;
+      syncDerivedCombatState(state);
+      syncClassResources(state, false);
     },
     setStats(state, action: PayloadAction<Record<string, any>>) {
       state.stats = action.payload;
+      syncDerivedCombatState(state);
       syncClassResources(state, false);
     },
     setAttackRating(state, action: PayloadAction<number>) {
@@ -220,10 +237,20 @@ const playerSlice = createSlice({
     },
     setEquipment(state, action: PayloadAction<Record<string, any>>) {
       state.equipment = action.payload;
+      syncDerivedCombatState(state);
       syncClassResources(state, false);
+    },
+    setAtkSpeed(state, action: PayloadAction<number>) {
+      state.atkSpeed = Math.max(0.25, action.payload);
     },
     setCrit(state, action: PayloadAction<number>) {
       state.critChance = action.payload;
+    },
+    setDodge(state, action: PayloadAction<number>) {
+      state.dodgeChance = Math.max(0, Math.min(0.9, action.payload));
+    },
+    setUnspentStatPoints(state, action: PayloadAction<number>) {
+      state.unspentStatPoints = Math.max(0, Math.floor(action.payload));
     },
     setCombatLog(state, action: PayloadAction<string>) {
       state.combatLog.push(action.payload);
@@ -235,6 +262,7 @@ const playerSlice = createSlice({
       state.classArchetype = action.payload.classArchetype;
       state.classLabel = action.payload.classLabel;
       state.specialName = action.payload.specialName;
+      syncDerivedCombatState(state);
       syncClassResources(state, true);
     },
     gainRage(state, action: PayloadAction<number>) {
@@ -267,15 +295,7 @@ const playerSlice = createSlice({
       state.comboPoints = 0;
     },
     regenResourcesOnTile(state) {
-      if (state.classArchetype === 'warrior') {
-        state.rage = clampResource(state.rage - 10, state.maxRage);
-      }
-
-      if (state.classArchetype === 'ranger') {
-        state.energy = clampResource(state.energy + state.energyRegenPerTile, state.maxEnergy);
-      }
-
-      if (state.classArchetype === 'caster' && state.manaRegenPerTile > 0) {
+      if (state.manaRegenPerTile > 0) {
         state.mana = clampResource(state.mana + state.manaRegenPerTile, state.maxMana);
       }
     },
@@ -283,6 +303,7 @@ const playerSlice = createSlice({
   extraReducers: (builder) => {
     builder.addCase(fetchEquipment.fulfilled, (state, action) => {
       state.equipment = action.payload;
+      syncDerivedCombatState(state);
       syncClassResources(state, false);
     });
   },
@@ -301,7 +322,10 @@ export const {
   setAttackRating,
   setDefenceRating,
   setEquipment,
+  setAtkSpeed,
   setCrit,
+  setDodge,
+  setUnspentStatPoints,
   setCombatLog,
   emptyCombatLog,
   restoreHealth,
