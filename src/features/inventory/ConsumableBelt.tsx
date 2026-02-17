@@ -68,7 +68,7 @@ export const ConsumableBelt = () => {
             style={[styles.slot, !entry && styles.slotEmpty]}
             onPress={() => entry && useConsumable(slotIndex)}
           >
-            {entry ? <ItemIcon type={entry.type} size={20} /> : null}
+            {entry ? <ItemIcon type={entry.type} size={20} itemName={entry.name} itemStats={entry.stats} /> : null}
           </Pressable>
         );
       })}

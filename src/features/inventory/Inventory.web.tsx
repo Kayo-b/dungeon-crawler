@@ -1,5 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { CSSProperties, MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { restoreHealth, restoreMana, setCombatLog, setEquipment, setGold } from '../../features/player/playerSlice';
@@ -19,14 +18,6 @@ interface EquipmentSlot {
   item: any;
 }
 
-interface HeldItem {
-  source: 'bag' | 'stash' | 'equipment';
-  item: any;
-  bagIndex?: number;
-  stashIndex?: number;
-  slotKey?: string;
-}
-
 export const Inventory = () => {
   const dispatch = useAppDispatch();
   const inventory = useAppSelector((state) => state.inventory.inventory as any[]);
@@ -37,16 +28,43 @@ export const Inventory = () => {
 
   const [equipmentOpen, setEquipmentOpen] = useState(true);
   const [bagOpen, setBagOpen] = useState(true);
-  const [heldItem, setHeldItem] = useState<HeldItem | null>(null);
   const [hoveredItem, setHoveredItem] = useState<any | null>(null);
-  const skipNextPressRef = useRef(false);
+  const isShiftDownRef = useRef(false);
+  const bagShiftIntentRef = useRef<Record<number, boolean>>({});
+  const stashShiftIntentRef = useRef<Record<number, boolean>>({});
 
-  const clearHeldItem = () => {
-    setHeldItem(null);
-  };
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        isShiftDownRef.current = true;
+      }
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        isShiftDownRef.current = false;
+      }
+    };
+    const onBlur = () => {
+      isShiftDownRef.current = false;
+    };
 
-  const startHolding = (item: HeldItem) => {
-    setHeldItem(item);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', onKeyDown);
+      window.addEventListener('keyup', onKeyUp);
+      window.addEventListener('blur', onBlur);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('keydown', onKeyDown);
+        window.removeEventListener('keyup', onKeyUp);
+        window.removeEventListener('blur', onBlur);
+      }
+    };
+  }, []);
+
+  const isShiftAction = (event: MouseEvent<HTMLButtonElement>) => {
+    return !!(event.shiftKey || event.nativeEvent?.shiftKey || isShiftDownRef.current);
   };
 
   const slotAcceptsItem = (slotType: string, itemType: string) => {
@@ -212,33 +230,29 @@ export const Inventory = () => {
     }
   };
 
-  const moveBagItemToStash = async (bagIndex: number, stashSlotIndex: number) => {
+  const moveBagConsumableToBelt = async (bagIndex: number) => {
     try {
       const loaded = await loadCharacterState();
       if (!loaded) return;
       const { objChar, bag, stash, equipmentState } = loaded;
       const selectedItem = bag[bagIndex];
+
       if (!selectedItem) return;
       if (selectedItem.type !== 'consumable') {
-        dispatch(setCombatLog('Only consumables can be placed into stash.'));
+        dispatch(setCombatLog('Only consumables can be moved to belt.'));
         return;
       }
       if (stash.length >= CONSUMABLE_STASH_CAPACITY) {
-        dispatch(setCombatLog('Stash is full.'));
-        return;
-      }
-      if (stashSlotIndex < stash.length) {
-        dispatch(setCombatLog('Target stash slot is occupied.'));
+        dispatch(setCombatLog('Belt is full.'));
         return;
       }
 
       bag.splice(bagIndex, 1);
       stash.push(selectedItem);
       await persistCharacterState(objChar, bag, stash, equipmentState);
-      dispatch(setCombatLog(`Moved ${selectedItem.name || 'Consumable'} to stash.`));
-      clearHeldItem();
+      dispatch(setCombatLog(`Moved ${selectedItem.name || 'Consumable'} to belt.`));
     } catch (error) {
-      console.error('Error moving item to stash:', error);
+      console.error('Error moving item to belt:', error);
     }
   };
 
@@ -258,7 +272,6 @@ export const Inventory = () => {
       bag.push(item);
       await persistCharacterState(objChar, bag, stash, equipmentState);
       dispatch(setCombatLog(`Moved ${item.name || 'Consumable'} to bag.`));
-      clearHeldItem();
     } catch (error) {
       console.error('Error moving item to bag:', error);
     }
@@ -280,301 +293,196 @@ export const Inventory = () => {
       equipmentState[slotKey] = { name: '', type: slotKey, stats: {} };
       await persistCharacterState(objChar, bag, stash, equipmentState);
       dispatch(setCombatLog(`Moved ${item.name || 'Item'} to bag.`));
-      clearHeldItem();
     } catch (error) {
       console.error('Error moving equipped item to bag:', error);
     }
   };
 
-  const dropHeldToEquipmentSlot = async (slot: EquipmentSlot) => {
-    if (!heldItem) return;
-    if (heldItem.source === 'stash') {
-      dispatch(setCombatLog('Consumables from stash cannot be equipped.'));
-      return;
-    }
-
-    try {
-      const loaded = await loadCharacterState();
-      if (!loaded) return;
-      const { objChar, bag, stash, equipmentState } = loaded;
-
-      let movingItem: any = null;
-      if (heldItem.source === 'bag') {
-        const idx = Number(heldItem.bagIndex);
-        if (!Number.isInteger(idx) || idx < 0 || idx >= bag.length) return;
-        movingItem = bag[idx];
-      } else if (heldItem.source === 'equipment') {
-        movingItem = equipmentState?.[heldItem.slotKey || ''];
-      }
-      if (!movingItem?.type) return;
-      if (!slotAcceptsItem(slot.type, movingItem.type)) return;
-
-      if (heldItem.source === 'bag') {
-        bag.splice(Number(heldItem.bagIndex), 1);
-      } else if (heldItem.source === 'equipment') {
-        const fromKey = heldItem.slotKey || '';
-        if (fromKey === slot.key) {
-          clearHeldItem();
-          return;
-        }
-        equipmentState[fromKey] = { name: '', type: fromKey, stats: {} };
-      }
-
-      const replaced = equipmentState[slot.key];
-      if (replaced?.name) {
-        if (bag.length >= BAG_CAPACITY) {
-          dispatch(setCombatLog('Bag is full.'));
-          return;
-        }
-        bag.push(replaced);
-      }
-
-      equipmentState[slot.key] = movingItem;
-      await persistCharacterState(objChar, bag, stash, equipmentState);
-      clearHeldItem();
-    } catch (error) {
-      console.error('Error dropping to equipment slot:', error);
-    }
-  };
-
-  const dropHeldToBag = async () => {
-    if (!heldItem) return;
-    if (heldItem.source === 'bag') return;
-
-    if (heldItem.source === 'stash' && Number.isInteger(heldItem.stashIndex)) {
-      await moveStashItemToBag(Number(heldItem.stashIndex));
-      return;
-    }
-    if (heldItem.source === 'equipment' && heldItem.slotKey) {
-      await moveEquipmentItemToBag(heldItem.slotKey);
-    }
-  };
-
   return (
-    <View style={styles.root}>
-      {heldItem?.item ? (
-        <View style={styles.holdBanner}>
-          <Text style={styles.holdBannerText}>Holding: {heldItem.item.name || 'Item'} (drop on target slot)</Text>
-        </View>
-      ) : null}
+    <div style={styles.root}>
       {hoveredItem && (
-        <View style={styles.tooltipOverlay} pointerEvents="none">
-          <Text style={styles.tooltipTitle}>{hoveredItem.name || 'Unknown Item'}</Text>
+        <div style={styles.tooltipOverlay}>
+          <div style={styles.tooltipTitle}>{hoveredItem.name || 'Unknown Item'}</div>
           {buildItemDetails(hoveredItem).map((line, index) => (
-            <Text key={`${line}-${index}`} style={styles.tooltipLine}>{line}</Text>
+            <div key={`${line}-${index}`} style={styles.tooltipLine}>
+              {line}
+            </div>
           ))}
-        </View>
+        </div>
       )}
-      <View style={[styles.section, styles.bagSection]}>
-        <TouchableOpacity style={styles.sectionHeader} onPress={() => setBagOpen((prev) => !prev)}>
-          <Text style={styles.sectionTitle}>
+
+      <div style={{ ...styles.section, ...styles.bagSection }}>
+        <button type="button" style={styles.sectionHeader} onClick={() => setBagOpen((prev) => !prev)}>
+          <span style={styles.sectionTitle}>
             Bag ({Math.min(inventory.length, BAG_CAPACITY)}/{BAG_CAPACITY})
-          </Text>
-          <Text style={styles.toggleText}>{bagOpen ? 'Close' : 'Open'}</Text>
-        </TouchableOpacity>
-        <Text style={styles.goldText}>Gold: {gold}</Text>
-        <Text style={styles.stashMeta}>
-          Consumable Stash: {Math.min(consumableStash.length, CONSUMABLE_STASH_CAPACITY)}/
-          {CONSUMABLE_STASH_CAPACITY}
-        </Text>
-        <View style={styles.stashGrid}>
+          </span>
+          <span style={styles.toggleText}>{bagOpen ? 'Close' : 'Open'}</span>
+        </button>
+
+        <span style={styles.goldText}>Gold: {gold}</span>
+        <span style={styles.stashMeta}>
+          Consumable Belt: {Math.min(consumableStash.length, CONSUMABLE_STASH_CAPACITY)}/{CONSUMABLE_STASH_CAPACITY}
+        </span>
+
+        <div style={styles.stashGrid}>
           {Array.from({ length: CONSUMABLE_STASH_CAPACITY }).map((_, slotIndex) => {
             const item = consumableStash[slotIndex];
             return (
-              <Pressable
+              <button
                 key={`stash-slot-${slotIndex}`}
-                style={[
-                  styles.stashCell,
-                  !item && styles.stashCellEmpty,
-                  heldItem?.source === 'stash' && heldItem.stashIndex === slotIndex && styles.stashCellHeld,
-                ]}
-                onPress={async () => {
-                  if (skipNextPressRef.current) {
-                    skipNextPressRef.current = false;
-                    return;
-                  }
-                  if (heldItem?.source === 'bag' && Number.isInteger(heldItem.bagIndex)) {
-                    await moveBagItemToStash(Number(heldItem.bagIndex), slotIndex);
-                    return;
-                  }
-                  if (heldItem?.source === 'stash') {
-                    if (heldItem.stashIndex === slotIndex) {
-                      clearHeldItem();
+                type="button"
+                style={{
+                  ...styles.stashCell,
+                  ...(!item ? styles.stashCellEmpty : null),
+                }}
+                onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                  if (item) {
+                    const shiftIntent = isShiftAction(event) || !!stashShiftIntentRef.current[slotIndex];
+                    stashShiftIntentRef.current[slotIndex] = false;
+                    if (!shiftIntent) {
+                      dispatch(setCombatLog('Use Shift + Left Click to move from belt to bag.'));
                       return;
                     }
-                    dispatch(setCombatLog('Drop stash item on bag slots to move it.'));
-                    return;
-                  }
-                  if (heldItem?.source === 'equipment') {
-                    dispatch(setCombatLog('Equipment cannot be moved directly into stash.'));
-                    return;
-                  }
-                  if (item) {
-                    await moveStashItemToBag(slotIndex);
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void moveStashItemToBag(slotIndex);
                   }
                 }}
-                onLongPress={() => {
-                  if (!item) return;
-                  skipNextPressRef.current = true;
-                  startHolding({ source: 'stash', stashIndex: slotIndex, item });
+                onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+                  stashShiftIntentRef.current[slotIndex] = isShiftAction(event);
                 }}
-                onHoverIn={() => item && setHoveredItem(item)}
-                onHoverOut={() => setHoveredItem(null)}
+                onMouseEnter={() => item && setHoveredItem(item)}
+                onMouseLeave={() => setHoveredItem(null)}
               >
                 {item ? <ItemIcon type={item.type} size={20} itemName={item.name} itemStats={item.stats} /> : null}
-              </Pressable>
+              </button>
             );
           })}
-        </View>
+        </div>
 
         {bagOpen && (
-          <ScrollView style={styles.bagScroll}>
-            <View style={styles.bagGrid}>
+          <div style={styles.bagScroll}>
+            <div style={styles.bagGrid}>
               {Array.from({ length: BAG_CAPACITY }).map((_, index) => {
                 const item = inventory[index];
                 return (
-                  <Pressable
+                  <button
                     key={`bag-slot-${index}`}
-                    style={[
-                      styles.bagCell,
-                      heldItem?.source === 'bag' && heldItem.bagIndex === index && !!item && styles.bagCellSelected,
-                      !item && styles.bagCellEmpty,
-                    ]}
-                    onPress={async () => {
-                      if (skipNextPressRef.current) {
-                        skipNextPressRef.current = false;
+                    type="button"
+                    style={{
+                      ...styles.bagCell,
+                      ...(!item ? styles.bagCellEmpty : null),
+                    }}
+                    onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                      if (!item) return;
+                      const shiftIntent = isShiftAction(event) || !!bagShiftIntentRef.current[index];
+                      bagShiftIntentRef.current[index] = false;
+                      if (item.type === 'consumable' && shiftIntent) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void moveBagConsumableToBelt(index);
                         return;
                       }
-                      if (heldItem) {
-                        if (heldItem.source !== 'bag') {
-                          await dropHeldToBag();
-                          return;
-                        }
-                        if (heldItem.bagIndex === index) {
-                          clearHeldItem();
-                          return;
-                        }
-                        if (item) {
-                          setHeldItem({ source: 'bag', bagIndex: index, item });
-                        }
-                        return;
-                      }
-                      if (!item) return;
-                      await useOrEquipBagItem(index);
+                      void useOrEquipBagItem(index);
                     }}
-                    onLongPress={() => {
-                      if (!item) return;
-                      skipNextPressRef.current = true;
-                      startHolding({ source: 'bag', bagIndex: index, item });
+                    onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+                      bagShiftIntentRef.current[index] = isShiftAction(event);
                     }}
-                    onHoverIn={() => item && setHoveredItem(item)}
-                    onHoverOut={() => setHoveredItem(null)}
+                    onMouseEnter={() => item && setHoveredItem(item)}
+                    onMouseLeave={() => setHoveredItem(null)}
                   >
                     {item ? <ItemIcon type={item.type} size={20} itemName={item.name} itemStats={item.stats} /> : null}
-                  </Pressable>
+                  </button>
                 );
               })}
-            </View>
-          </ScrollView>
+            </div>
+          </div>
         )}
-        <Text style={styles.helperText}>
-          Long-press an item to pick it up, then tap target slots to drop (equipment, stash, or bag).
-        </Text>
-      </View>
 
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.sectionHeader} onPress={() => setEquipmentOpen((prev) => !prev)}>
-          <Text style={styles.sectionTitle}>Equipped</Text>
-          <Text style={styles.toggleText}>{equipmentOpen ? 'Close' : 'Open'}</Text>
-        </TouchableOpacity>
+        <span style={styles.helperText}>
+          Shift + Left Click moves potions between bag and belt (both directions).
+        </span>
+      </div>
+
+      <div style={styles.section}>
+        <button type="button" style={styles.sectionHeader} onClick={() => setEquipmentOpen((prev) => !prev)}>
+          <span style={styles.sectionTitle}>Equipped</span>
+          <span style={styles.toggleText}>{equipmentOpen ? 'Close' : 'Open'}</span>
+        </button>
 
         {equipmentOpen && (
-          <View style={styles.equipmentGrid}>
+          <div style={styles.equipmentGrid}>
             {slots.map((slot) => {
               const itemName = slot.item?.name || '';
               return (
-                <Pressable
+                <button
                   key={slot.key}
-                  style={[
-                    styles.slotBox,
-                    heldItem?.source === 'equipment' && heldItem.slotKey === slot.key && styles.slotBoxHeld,
-                  ]}
-                  onPress={async () => {
-                    if (skipNextPressRef.current) {
-                      skipNextPressRef.current = false;
-                      return;
-                    }
-                    if (heldItem) {
-                      await dropHeldToEquipmentSlot(slot);
+                  type="button"
+                  style={styles.slotBoxButton}
+                  onClick={() => {
+                    if (slot.item?.name) {
+                      void moveEquipmentItemToBag(slot.key);
                     }
                   }}
-                  onLongPress={() => {
-                    if (!slot.item?.name) return;
-                    skipNextPressRef.current = true;
-                    startHolding({ source: 'equipment', slotKey: slot.key, item: slot.item });
-                  }}
-                  onHoverIn={() => slot.item?.name && setHoveredItem(slot.item)}
-                  onHoverOut={() => setHoveredItem(null)}
+                  onMouseEnter={() => slot.item?.name && setHoveredItem(slot.item)}
+                  onMouseLeave={() => setHoveredItem(null)}
                 >
-                  <ItemIcon
-                    type={slot.item?.type || slot.type}
-                    size={26}
-                    itemName={slot.item?.name}
-                    itemStats={slot.item?.stats}
-                  />
-                  <Text style={styles.slotLabel}>{slot.label}</Text>
-                  <Text numberOfLines={1} style={styles.slotItemName}>{itemName || 'Empty'}</Text>
-                </Pressable>
+                  <div style={styles.slotBox}>
+                    <ItemIcon
+                      type={slot.item?.type || slot.type}
+                      size={26}
+                      itemName={slot.item?.name}
+                      itemStats={slot.item?.stats}
+                    />
+                    <span style={styles.slotLabel}>{slot.label}</span>
+                    <span style={styles.slotItemName}>{itemName || 'Empty'}</span>
+                  </div>
+                </button>
               );
             })}
-          </View>
+          </div>
         )}
-      </View>
-    </View>
+      </div>
+    </div>
   );
 };
 
-const styles = StyleSheet.create({
+const styles: Record<string, CSSProperties> = {
   root: {
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#334155',
+    background: '#111827',
+    border: '1px solid #334155',
     borderRadius: 8,
     padding: 7,
+    display: 'flex',
+    flexDirection: 'column',
     gap: 7,
-  },
-  holdBanner: {
-    borderWidth: 1,
-    borderColor: '#f59e0b',
-    borderRadius: 6,
-    backgroundColor: '#3f2f14',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  holdBannerText: {
-    color: '#fde68a',
-    fontSize: 11,
-    fontWeight: '700',
+    position: 'relative',
   },
   section: {
-    backgroundColor: '#0f172a',
+    background: '#0f172a',
     borderRadius: 6,
     padding: 5,
-    borderWidth: 1,
-    borderColor: '#1e293b',
+    border: '1px solid #1e293b',
+    position: 'relative',
   },
   bagSection: {
     position: 'relative',
   },
   sectionHeader: {
+    display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
+    background: 'transparent',
+    border: 0,
+    padding: 0,
+    width: '100%',
+    cursor: 'pointer',
   },
   sectionTitle: {
     color: '#f8fafc',
-    fontWeight: '700',
+    fontWeight: 700,
     fontSize: 11,
   },
   toggleText: {
@@ -582,40 +490,50 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   equipmentGrid: {
+    display: 'flex',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
+  slotBoxButton: {
+    border: 0,
+    background: 'transparent',
+    padding: 0,
+    margin: 0,
+    cursor: 'pointer',
+  },
   slotBox: {
     width: 70,
     height: 70,
-    backgroundColor: '#1e293b',
+    background: '#1e293b',
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#334155',
+    border: '1px solid #334155',
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  slotBoxHeld: {
-    borderColor: '#f59e0b',
-    borderWidth: 2,
+    padding: '0 2px',
+    boxSizing: 'border-box',
   },
   slotLabel: {
     color: '#cbd5e1',
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: 700,
   },
   slotItemName: {
     color: '#94a3b8',
     fontSize: 8,
     textAlign: 'center',
     maxWidth: 64,
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis',
   },
   bagScroll: {
     maxHeight: 116,
+    overflowY: 'auto',
   },
   bagGrid: {
+    display: 'flex',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
@@ -624,25 +542,26 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#334155',
-    backgroundColor: '#1e293b',
+    border: '1px solid #334155',
+    background: '#1e293b',
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    boxSizing: 'border-box',
+    cursor: 'pointer',
   },
   bagCellEmpty: {
     opacity: 0.45,
-  },
-  bagCellSelected: {
-    borderColor: '#22c55e',
-    borderWidth: 2,
+    cursor: 'default',
   },
   stashMeta: {
     color: '#94a3b8',
     fontSize: 9,
     marginBottom: 4,
+    display: 'block',
   },
   stashGrid: {
+    display: 'flex',
     flexDirection: 'row',
     gap: 4,
     marginBottom: 6,
@@ -651,18 +570,17 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#7c3aed',
-    backgroundColor: '#312e81',
+    border: '1px solid #7c3aed',
+    background: '#312e81',
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    boxSizing: 'border-box',
+    cursor: 'pointer',
   },
   stashCellEmpty: {
     opacity: 0.5,
-  },
-  stashCellHeld: {
-    borderColor: '#f59e0b',
-    borderWidth: 2,
+    cursor: 'default',
   },
   goldText: {
     position: 'absolute',
@@ -670,29 +588,30 @@ const styles = StyleSheet.create({
     right: 6,
     color: '#facc15',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: 700,
     zIndex: 2,
   },
   helperText: {
     color: '#94a3b8',
     fontSize: 8,
     marginTop: 4,
+    display: 'block',
   },
   tooltipOverlay: {
     position: 'absolute',
     right: 8,
     top: -8,
     maxWidth: 210,
-    backgroundColor: 'rgba(2, 6, 23, 0.94)',
-    borderColor: '#475569',
-    borderWidth: 1,
+    background: 'rgba(2, 6, 23, 0.94)',
+    border: '1px solid #475569',
     borderRadius: 8,
     padding: 8,
     zIndex: 20,
+    pointerEvents: 'none',
   },
   tooltipTitle: {
     color: '#f8fafc',
-    fontWeight: '700',
+    fontWeight: 700,
     fontSize: 11,
     marginBottom: 4,
   },
@@ -700,4 +619,4 @@ const styles = StyleSheet.create({
     color: '#cbd5e1',
     fontSize: 10,
   },
-});
+};

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Animated, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { addEnemy, clearEnemies, fetchEnemies, setCurrentEnemy } from '../enemy/enemySlice';
 import { setEnemyCount, setInCombat, setSpecialCooldown } from '../../events/combatSlice';
 import {
   emptyCombatLog,
+  setGold,
   setAtkSpeed,
   setClassMeta,
   setCombatLog,
@@ -23,6 +24,8 @@ import { ConsumableBelt } from '../inventory/ConsumableBelt';
 import { EnemyLootModal } from '../inventory/EnemyLootModal';
 import { Player } from '../player/Player';
 import { StatPointsWindow } from '../player/StatPointsWindow';
+import { MerchantModal } from '../merchant/MerchantModal';
+import { MiniMap } from '../room/MiniMap';
 import { Room } from '../room/Room';
 import { useCombat } from '../../events/combat';
 import { ARCHETYPES, ArchetypeId, buildCharacterFromArchetype } from '../../data/archetypes';
@@ -35,9 +38,18 @@ import { computeDerivedPlayerStats } from '../player/playerStats';
 import {
   BAG_CAPACITY,
   CONSUMABLE_STASH_CAPACITY,
+  isCurrencyItem,
   normalizeInventoryContainers,
+  readCurrencyGoldValue,
   tryStoreItem,
 } from '../inventory/inventoryUtils';
+import {
+  buildMerchantStock,
+  computeMerchantBuyPrice,
+  computeMerchantSellPrice,
+  enrichItemEconomyStats,
+  MerchantStockEntry,
+} from '../merchant/merchantUtils';
 
 const ENEMY_TYPE = {
   SKELETON: 0,
@@ -139,15 +151,20 @@ export const MainScreen = () => {
   const [sessionSeed, setSessionSeed] = useState(0);
   const [revivePending, setRevivePending] = useState(false);
   const [showStatPointsWindow, setShowStatPointsWindow] = useState(false);
+  const [showMerchantModal, setShowMerchantModal] = useState(false);
+  const [merchantMode, setMerchantMode] = useState<'menu' | 'trade'>('menu');
+  const [merchantStock, setMerchantStock] = useState<MerchantStockEntry[]>([]);
 
   const mapTiles = useAppSelector((state) => state.room.mapTiles);
   const mapWidth = useAppSelector((state) => state.room.mapWidth);
   const mapHeight = useAppSelector((state) => state.room.mapHeight);
   const currentMapId = useAppSelector((state) => state.room.currentMapId);
+  const merchantPosition = useAppSelector((state: any) => state.room.merchantPosition as { x: number; y: number } | null);
   const posX = useAppSelector((state) => state.room.posX);
   const posY = useAppSelector((state) => state.room.posY);
   const direction = useAppSelector((state) => state.room.direction);
   const enemies = useAppSelector((state) => state.enemy.enemies);
+  const currentEnemyId = useAppSelector((state) => state.enemy.currentEnemyId);
   const classLabel = useAppSelector((state) => state.player.classLabel);
   const classArchetype = useAppSelector((state) => state.player.classArchetype || 'warrior');
   const playerHealth = useAppSelector((state) => state.player.health);
@@ -156,6 +173,7 @@ export const MainScreen = () => {
   const playerStats = useAppSelector((state) => state.player.stats as Record<string, any>);
   const playerEquipment = useAppSelector((state) => state.player.equipment as Record<string, any>);
   const unspentStatPoints = useAppSelector((state) => state.player.unspentStatPoints);
+  const playerGold = useAppSelector((state) => state.player.gold || 0);
   const bagInventory = useAppSelector((state) => state.inventory.inventory as any[]);
   const consumableStash = useAppSelector((state) => state.inventory.consumableStash as any[]);
   const mana = useAppSelector((state) => state.player.mana);
@@ -165,6 +183,7 @@ export const MainScreen = () => {
   const lastPosRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
   const lastSpawnedMapRef = useRef<string | null>(null);
   const previousUnspentPointsRef = useRef(0);
+  const merchantStockByMapRef = useRef<Record<string, MerchantStockEntry[]>>({});
 
   const {
     startCombat,
@@ -211,6 +230,51 @@ export const MainScreen = () => {
     const mapConfig = getMapConfig(currentMapId);
     return mapConfig?.startPosition || { x: posX, y: posY };
   }, [currentMapId, posX, posY]);
+  const merchantInteractable = useMemo(() => {
+    if (!merchantPosition) return false;
+    const dx = merchantPosition.x - posX;
+    const dy = merchantPosition.y - posY;
+    if (dx === 0 && dy === 0) return true;
+    if (direction === 'N') return dx === 0 && dy === -1;
+    if (direction === 'S') return dx === 0 && dy === 1;
+    if (direction === 'E') return dx === 1 && dy === 0;
+    if (direction === 'W') return dx === -1 && dy === 0;
+    return false;
+  }, [merchantPosition, posX, posY, direction]);
+
+  useEffect(() => {
+    if (menuMode !== 'game') {
+      setShowMerchantModal(false);
+      setMerchantMode('menu');
+      return;
+    }
+    setShowMerchantModal(false);
+    setMerchantMode('menu');
+    if (!currentMapId) return;
+    if (!merchantStockByMapRef.current[currentMapId]) {
+      merchantStockByMapRef.current[currentMapId] = buildMerchantStock(itemData, currentMapId, dungeonDepth);
+    }
+    setMerchantStock(merchantStockByMapRef.current[currentMapId]);
+  }, [menuMode, currentMapId, dungeonDepth]);
+
+  const updateMerchantStockForMap = (nextStock: MerchantStockEntry[]) => {
+    merchantStockByMapRef.current[currentMapId] = nextStock;
+    setMerchantStock(nextStock);
+  };
+
+  const openMerchantMenu = () => {
+    if (!merchantInteractable) return;
+    if (inCombat) return;
+    if (pendingLootItems.length > 0) return;
+    if (showStatPointsWindow) return;
+    setMerchantMode('menu');
+    setShowMerchantModal(true);
+  };
+
+  const closeMerchantModal = () => {
+    setShowMerchantModal(false);
+    setMerchantMode('menu');
+  };
 
   const applyStatPointAllocations = async (allocations: StatAllocationMap) => {
     const spentPoints = Object.values(allocations).reduce((sum, value) => sum + value, 0);
@@ -261,32 +325,43 @@ export const MainScreen = () => {
 
   const applyLootSelection = async (selectedItems: any[]) => {
     if (!selectedItems || selectedItems.length <= 0) {
-      return { storedItems: 0, skippedItems: [] as any[] };
+      return { pickedItems: 0, skippedItems: [] as any[] };
     }
 
     const storedData = await AsyncStorage.getItem('characters');
     const obj = storedData ? JSON.parse(storedData) : null;
     if (!obj?.character) {
-      return { storedItems: 0, skippedItems: selectedItems };
+      return { pickedItems: 0, skippedItems: selectedItems };
     }
 
     let containers = normalizeInventoryContainers(
       obj.character.inventory,
       obj.character.consumableStash
     );
+    let nextGold = Math.max(0, Number(obj.character.gold || 0));
 
     let bagAdded = 0;
-    let stashAdded = 0;
+    let goldAdded = 0;
     let skipped = 0;
+    let pickedItems = 0;
     const skippedItems: any[] = [];
 
     selectedItems.forEach((item) => {
+      if (isCurrencyItem(item)) {
+        const gainedGold = readCurrencyGoldValue(item);
+        if (gainedGold > 0) {
+          nextGold = Number((nextGold + gainedGold).toFixed(2));
+          goldAdded = Number((goldAdded + gainedGold).toFixed(2));
+          pickedItems += 1;
+          return;
+        }
+      }
+
       const result = tryStoreItem(containers, item);
       containers = result.next;
-      if (result.storedIn === 'stash') {
-        stashAdded += 1;
-      } else if (result.storedIn === 'bag') {
+      if (result.storedIn === 'bag') {
         bagAdded += 1;
+        pickedItems += 1;
       } else {
         skipped += 1;
         skippedItems.push(item);
@@ -295,22 +370,26 @@ export const MainScreen = () => {
 
     obj.character.inventory = containers.inventory;
     obj.character.consumableStash = containers.consumableStash;
+    obj.character.gold = nextGold;
     await AsyncStorage.setItem('characters', JSON.stringify(obj));
     dispatch(setAllInventory(containers));
+    dispatch(setGold(nextGold));
 
-    const totalAdded = bagAdded + stashAdded;
-    if (totalAdded > 0) {
+    if (bagAdded > 0) {
       dispatch(
         setCombatLog(
-          `Looted ${totalAdded} item${totalAdded > 1 ? 's' : ''} (${stashAdded} stash, ${bagAdded} bag).`
+          `Looted ${bagAdded} item${bagAdded > 1 ? 's' : ''} into bag.`
         )
       );
+    }
+    if (goldAdded > 0) {
+      dispatch(setCombatLog(`Collected ${goldAdded} gold.`));
     }
     if (skipped > 0) {
       dispatch(setCombatLog(`${skipped} item${skipped > 1 ? 's' : ''} left behind (inventory full).`));
     }
 
-    return { storedItems: totalAdded, skippedItems };
+    return { pickedItems, skippedItems };
   };
 
   const handleLootAll = async () => {
@@ -331,9 +410,107 @@ export const MainScreen = () => {
     const item = pendingLootItems[index];
     if (!item) return;
     const result = await applyLootSelection([item]);
-    if (result.storedItems > 0) {
+    if (result.pickedItems > 0) {
       setPendingLootItems((prev) => prev.filter((_, lootIndex) => lootIndex !== index));
     }
+  };
+
+  const handleMerchantTalk = () => {
+    dispatch(setCombatLog('Merchant: "The deeper you go, the pricier survival becomes."'));
+    closeMerchantModal();
+  };
+
+  const handleMerchantBuy = async (merchantIndex: number) => {
+    const offer = merchantStock[merchantIndex];
+    if (!offer) return;
+
+    const storedData = await AsyncStorage.getItem('characters');
+    const obj = storedData ? JSON.parse(storedData) : null;
+    if (!obj?.character) return;
+
+    const containers = normalizeInventoryContainers(
+      obj.character.inventory,
+      obj.character.consumableStash
+    );
+    const nextBag = [...containers.inventory];
+    const nextStash = [...containers.consumableStash];
+    const currentGold = Math.max(0, Number(obj.character.gold || 0));
+    const buyPrice = Math.max(1, Number(offer.buyPrice || computeMerchantBuyPrice(offer.item)));
+
+    if (nextBag.length >= BAG_CAPACITY) {
+      dispatch(setCombatLog('Bag is full. Cannot buy item.'));
+      return;
+    }
+    if (currentGold < buyPrice) {
+      dispatch(setCombatLog('Not enough gold.'));
+      return;
+    }
+
+    const purchasedItem = enrichItemEconomyStats(offer.item);
+    nextBag.push({ ...purchasedItem });
+    const nextGold = Number((currentGold - buyPrice).toFixed(2));
+
+    const nextStock = [...merchantStock];
+    const target = nextStock[merchantIndex];
+    if (target) {
+      target.stock = Math.max(0, target.stock - 1);
+    }
+    const filteredStock = nextStock.filter((entry) => entry.stock > 0);
+
+    obj.character.inventory = nextBag;
+    obj.character.consumableStash = nextStash;
+    obj.character.gold = nextGold;
+    await AsyncStorage.setItem('characters', JSON.stringify(obj));
+    dispatch(setAllInventory({ inventory: nextBag, consumableStash: nextStash }));
+    dispatch(setGold(nextGold));
+    dispatch(setCombatLog(`Bought ${purchasedItem.name || 'item'} for ${buyPrice} gold.`));
+    updateMerchantStockForMap(filteredStock);
+  };
+
+  const handleMerchantSell = async (bagIndex: number) => {
+    const item = bagInventory[bagIndex];
+    if (!item) return;
+    if (isCurrencyItem(item)) {
+      dispatch(setCombatLog('Currency cannot be sold to merchant.'));
+      return;
+    }
+
+    const storedData = await AsyncStorage.getItem('characters');
+    const obj = storedData ? JSON.parse(storedData) : null;
+    if (!obj?.character) return;
+
+    const containers = normalizeInventoryContainers(
+      obj.character.inventory,
+      obj.character.consumableStash
+    );
+    const nextBag = [...containers.inventory];
+    const nextStash = [...containers.consumableStash];
+    const selected = nextBag[bagIndex];
+    if (!selected) return;
+
+    const enrichedItem = enrichItemEconomyStats(selected);
+    const sellPrice = Math.max(1, computeMerchantSellPrice(enrichedItem));
+    const nextGold = Number((Math.max(0, Number(obj.character.gold || 0)) + sellPrice).toFixed(2));
+
+    nextBag.splice(bagIndex, 1);
+
+    const soldEntry: MerchantStockEntry = {
+      id: `player-sold-${Date.now()}-${bagIndex}`,
+      item: enrichedItem,
+      stock: 1,
+      buyPrice: Math.max(1, computeMerchantBuyPrice(enrichedItem)),
+    };
+
+    const nextStock = [soldEntry, ...merchantStock].slice(0, 28);
+
+    obj.character.inventory = nextBag;
+    obj.character.consumableStash = nextStash;
+    obj.character.gold = nextGold;
+    await AsyncStorage.setItem('characters', JSON.stringify(obj));
+    dispatch(setAllInventory({ inventory: nextBag, consumableStash: nextStash }));
+    dispatch(setGold(nextGold));
+    dispatch(setCombatLog(`Sold ${enrichedItem.name || 'item'} for ${sellPrice} gold.`));
+    updateMerchantStockForMap(nextStock);
   };
 
   const isInLineOfSight = (x: number, y: number) => {
@@ -354,6 +531,13 @@ export const MainScreen = () => {
   const isWalkableTile = (x: number, y: number): boolean => {
     if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) return false;
     return !!mapTiles[y] && mapTiles[y][x] > 0;
+  };
+
+  const isSpawnBlockedTile = (x: number, y: number): boolean => {
+    const tile = mapTiles?.[y]?.[x] ?? 0;
+    if (tile === 5 || tile === 6 || tile === 7) return true;
+    if (merchantPosition && merchantPosition.x === x && merchantPosition.y === y) return true;
+    return false;
   };
 
   const getCorridorKey = (x: number, y: number): string => {
@@ -427,6 +611,7 @@ export const MainScreen = () => {
 
   const isSpawnSafe = (x: number, y: number, ignoreAliveEnemyCheck: boolean = false) => {
     if (!mapTiles[y] || mapTiles[y][x] <= 0) return false;
+    if (isSpawnBlockedTile(x, y)) return false;
     if (x === posX && y === posY) return false;
     if (x === roomEntryPosition.x && y === roomEntryPosition.y) return false;
     if (x === posX || y === posY) return false;
@@ -458,6 +643,7 @@ export const MainScreen = () => {
     for (let y = 0; y < mapHeight; y++) {
       for (let x = 0; x < mapWidth; x++) {
         if (!isWalkableTile(x, y)) continue;
+        if (isSpawnBlockedTile(x, y)) continue;
         if (x === posX && y === posY) continue;
         if (x === roomEntryPosition.x && y === roomEntryPosition.y) continue;
         const occupied = aliveEnemies.some((enemy) => enemy.positionX === x && enemy.positionY === y);
@@ -716,6 +902,10 @@ export const MainScreen = () => {
   ]);
 
   const continueGame = () => {
+    merchantStockByMapRef.current = {};
+    setMerchantStock([]);
+    setShowMerchantModal(false);
+    setMerchantMode('menu');
     setMenuMode('game');
   };
 
@@ -724,8 +914,13 @@ export const MainScreen = () => {
     await AsyncStorage.setItem('characters', JSON.stringify(saveData));
     await AsyncStorage.setItem('items', JSON.stringify(itemData));
     dispatch(emptyCombatLog());
+    dispatch(setGold(Math.max(0, Number(saveData.character.gold || 0))));
     setPendingLootItems([]);
     setShowStatPointsWindow(false);
+    merchantStockByMapRef.current = {};
+    setMerchantStock([]);
+    setShowMerchantModal(false);
+    setMerchantMode('menu');
     setCanContinue(true);
     setInitialized(false);
     setMenuMode('game');
@@ -798,6 +993,84 @@ export const MainScreen = () => {
   const secondaryText =
     specialCooldownFrames > 0 ? `${skillHud.secondaryLabel} (${specialCooldownFrames})` : skillHud.secondaryLabel;
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || menuMode !== 'game') return;
+
+    const handleCombatHotkeys = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      const isEditable = !!target?.isContentEditable || tag === 'input' || tag === 'textarea';
+      if (isEditable) return;
+      if (event.repeat) return;
+
+      const key = event.key.toLowerCase();
+
+      if (key === 'c') {
+        event.preventDefault();
+        setShowStatPointsWindow((prev) => !prev);
+        return;
+      }
+
+      if (showMerchantModal) {
+        return;
+      }
+
+      if (showStatPointsWindow || pendingLootItems.length > 0) {
+        return;
+      }
+
+      if (key === 'q') {
+        event.preventDefault();
+        performPrimarySkill();
+        return;
+      }
+
+      if (key === 'e') {
+        event.preventDefault();
+        performSecondarySkill();
+        return;
+      }
+
+      if (key === ' ' || key === 'spacebar') {
+        event.preventDefault();
+        if (merchantInteractable) {
+          openMerchantMenu();
+          return;
+        }
+        const aliveEnemyIds = Object.entries(enemies)
+          .filter(([, enemy]) => !!enemy && enemy.health > 0)
+          .map(([id]) => Number(id))
+          .sort((a, b) => a - b);
+
+        if (aliveEnemyIds.length <= 0) return;
+        const preferred = Number(currentEnemyId);
+        const targetId = aliveEnemyIds.includes(preferred) ? preferred : aliveEnemyIds[0];
+
+        if (!inCombat) {
+          startCombat(targetId);
+        }
+        engagePlayerAttack(targetId);
+      }
+    };
+
+    document.addEventListener('keydown', handleCombatHotkeys);
+    return () => document.removeEventListener('keydown', handleCombatHotkeys);
+  }, [
+    menuMode,
+    enemies,
+    currentEnemyId,
+    inCombat,
+    pendingLootItems.length,
+    merchantInteractable,
+    showMerchantModal,
+    showStatPointsWindow,
+    openMerchantMenu,
+    startCombat,
+    engagePlayerAttack,
+    performPrimarySkill,
+    performSecondarySkill,
+  ]);
+
   const restartAfterDeath = async () => {
     const storedData = await AsyncStorage.getItem('characters');
     const obj = storedData ? JSON.parse(storedData) : null;
@@ -831,6 +1104,7 @@ export const MainScreen = () => {
     dispatch(setCrit(derived.critChance));
     dispatch(setDodge(derived.dodgeChance));
     dispatch(setUnspentStatPoints(unspentPoints));
+    dispatch(setGold(Math.max(0, Number(saveData.character.gold || 0))));
     dispatch(setAllInventory(normalizedInventory));
     dispatch(
       setClassMeta({
@@ -850,6 +1124,10 @@ export const MainScreen = () => {
     setInitialized(false);
     setShowDeathOverlay(false);
     setShowStatPointsWindow(false);
+    merchantStockByMapRef.current = {};
+    setMerchantStock([]);
+    setShowMerchantModal(false);
+    setMerchantMode('menu');
     deathOpacity.setValue(0);
     setSessionSeed((prev) => prev + 1);
     setMenuMode('game');
@@ -921,49 +1199,57 @@ export const MainScreen = () => {
 
   return (
     <View style={styles.mainScreen}>
-      <Room
-        key={`room-${sessionSeed}`}
-        startCombat={startCombat}
-        engagePlayerAttack={engagePlayerAttack}
-        skillOverlay={
-          <View style={styles.skillBar}>
-            <TouchableOpacity
-              testID="skill-primary-button"
-              style={[
-                styles.skillButton,
-                primaryDisabled && styles.skillButtonDisabled,
-                primaryResourceLocked && styles.skillButtonFaded,
-              ]}
-              onPress={performPrimarySkill}
-              disabled={primaryDisabled}
-            >
-              <Text style={styles.skillButtonText}>{primaryText}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="skill-secondary-button"
-              style={[
-                styles.skillButtonSecondary,
-                secondaryDisabled && styles.skillButtonDisabled,
-                secondaryResourceLocked && styles.skillButtonFaded,
-              ]}
-              onPress={performSecondarySkill}
-              disabled={secondaryDisabled}
-            >
-              <Text style={styles.skillButtonText}>{secondaryText}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="skill-stats-button"
-              style={[styles.skillButtonMeta, unspentStatPoints > 0 && styles.skillButtonMetaReady]}
-              onPress={() => setShowStatPointsWindow((prev) => !prev)}
-            >
-              <Text style={styles.skillButtonText}>
-                Stats {unspentStatPoints > 0 ? `[${unspentStatPoints}]` : ''}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        }
-        rightOverlay={<ConsumableBelt />}
-      />
+      <View style={styles.roomFrame}>
+        <Room
+          key={`room-${sessionSeed}`}
+          startCombat={startCombat}
+          engagePlayerAttack={engagePlayerAttack}
+          onMerchantInteract={openMerchantMenu}
+          skillOverlay={
+            <View style={styles.skillBar}>
+              <TouchableOpacity
+                testID="skill-primary-button"
+                style={[
+                  styles.skillButton,
+                  primaryDisabled && styles.skillButtonDisabled,
+                  primaryResourceLocked && styles.skillButtonFaded,
+                ]}
+                onPress={performPrimarySkill}
+                disabled={primaryDisabled}
+              >
+                <Text style={styles.skillButtonText}>{primaryText}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="skill-secondary-button"
+                style={[
+                  styles.skillButtonSecondary,
+                  secondaryDisabled && styles.skillButtonDisabled,
+                  secondaryResourceLocked && styles.skillButtonFaded,
+                ]}
+                onPress={performSecondarySkill}
+                disabled={secondaryDisabled}
+              >
+                <Text style={styles.skillButtonText}>{secondaryText}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="skill-stats-button"
+                style={[styles.skillButtonMeta, unspentStatPoints > 0 && styles.skillButtonMetaReady]}
+                onPress={() => setShowStatPointsWindow((prev) => !prev)}
+              >
+                <Text style={styles.skillButtonText}>
+                  Stats {unspentStatPoints > 0 ? `[${unspentStatPoints}]` : ''}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          }
+          rightOverlay={
+            <View style={styles.roomRightHud}>
+              <MiniMap size={10} />
+              <ConsumableBelt />
+            </View>
+          }
+        />
+      </View>
       <Player
         key={`player-${sessionSeed}`}
         classLabel={classLabel}
@@ -991,6 +1277,18 @@ export const MainScreen = () => {
         onDontLoot={handleDontLoot}
         onLootSingle={handleLootSingle}
       />
+      <MerchantModal
+        visible={showMerchantModal}
+        mode={merchantMode}
+        gold={playerGold}
+        merchantStock={merchantStock}
+        playerBag={bagInventory}
+        onClose={closeMerchantModal}
+        onTalk={handleMerchantTalk}
+        onTrade={() => setMerchantMode('trade')}
+        onBuy={handleMerchantBuy}
+        onSell={handleMerchantSell}
+      />
       {showDeathOverlay && (
         <Animated.View style={[styles.deathOverlay, { opacity: deathOpacity }]}>
           <Text style={styles.deathTitle}>YOU DIED</Text>
@@ -1006,11 +1304,14 @@ export const MainScreen = () => {
 const styles = StyleSheet.create({
   mainScreen: {
     width: 800,
-    height: 600,
-    justifyContent: 'center',
+    height: 768,
+    justifyContent: 'flex-start',
     alignItems: 'center',
     position: 'relative',
-    marginBottom: 150,
+  },
+  roomFrame: {
+    width: 800,
+    height: 600,
   },
   menuRoot: {
     width: 800,
@@ -1124,25 +1425,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   skillBar: {
-    width: 210,
-    gap: 6,
+    width: 188,
+    gap: 5,
   },
   skillButton: {
     backgroundColor: '#1d4ed8',
     borderRadius: 6,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 8,
   },
   skillButtonSecondary: {
     backgroundColor: '#0f766e',
     borderRadius: 6,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 8,
   },
   skillButtonMeta: {
     backgroundColor: '#475569',
     borderRadius: 6,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 8,
   },
   skillButtonMetaReady: {
@@ -1156,8 +1457,12 @@ const styles = StyleSheet.create({
   },
   skillButtonText: {
     color: '#f8fafc',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  roomRightHud: {
+    alignItems: 'flex-end',
+    gap: 6,
   },
 });

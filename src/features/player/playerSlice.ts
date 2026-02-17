@@ -9,6 +9,7 @@ let level = data.character.level;
 let stats = data.character.stats;
 let equipment = data.character.equipment;
 let unspentStatPoints = Number((data.character as any).unspentStatPoints || 0);
+let gold = Number((data.character as any).gold || 0);
 let combatLog: string[] = [];
 
 async function saveData(nextHealth: number) {
@@ -47,6 +48,7 @@ interface CounterState {
   energyRegenPerTile: number;
   comboPoints: number;
   maxComboPoints: number;
+  gold: number;
 }
 
 interface DmgPayload {
@@ -180,6 +182,7 @@ const initialState: CounterState = {
   energyRegenPerTile: 0,
   comboPoints: 0,
   maxComboPoints: 5,
+  gold: Math.max(0, gold),
 };
 
 export const fetchEquipment = createAsyncThunk('counter/fetchEquipment', async () => {
@@ -265,6 +268,13 @@ const playerSlice = createSlice({
       syncDerivedCombatState(state);
       syncClassResources(state, true);
     },
+    setGold(state, action: PayloadAction<number>) {
+      state.gold = Math.max(0, Number(action.payload || 0));
+    },
+    addGold(state, action: PayloadAction<number>) {
+      const increment = Math.max(0, Number(action.payload || 0));
+      state.gold = Math.max(0, Number((state.gold + increment).toFixed(2)));
+    },
     gainRage(state, action: PayloadAction<number>) {
       if (state.classArchetype !== 'warrior') return;
       state.rage = clampResource(state.rage + action.payload, state.maxRage);
@@ -330,6 +340,8 @@ export const {
   emptyCombatLog,
   restoreHealth,
   setClassMeta,
+  setGold,
+  addGold,
   gainRage,
   spendRage,
   restoreMana,

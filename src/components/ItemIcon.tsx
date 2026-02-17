@@ -4,11 +4,22 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 interface ItemIconProps {
   type?: string;
   size?: number;
+  itemName?: string;
+  itemStats?: Record<string, any> | null;
 }
 
 const iconStroke = '#111827';
 
-export const ItemIcon: React.FC<ItemIconProps> = ({ type = 'unknown', size = 24 }) => {
+export const ItemIcon: React.FC<ItemIconProps> = ({
+  type = 'unknown',
+  size = 24,
+  itemName,
+  itemStats,
+}) => {
+  const isManaConsumable =
+    type === 'consumable' &&
+    (Number(itemStats?.mana || 0) > 0 || (itemName || '').toLowerCase().includes('mana'));
+
   switch (type) {
     case 'weapon':
     case 'sword':
@@ -66,7 +77,7 @@ export const ItemIcon: React.FC<ItemIconProps> = ({ type = 'unknown', size = 24 
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Rect x="9" y="3" width="6" height="4" fill="#6b7280" stroke={iconStroke} />
-          <Path d="M7 7H17L16 20H8L7 7Z" fill="#ef4444" stroke={iconStroke} />
+          <Path d="M7 7H17L16 20H8L7 7Z" fill={isManaConsumable ? '#2563eb' : '#ef4444'} stroke={iconStroke} />
         </Svg>
       );
     case 'currency':

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ImageBackground, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   computeDerivedPlayerStats,
   getClassArchetype,
@@ -113,10 +113,14 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
   onApplyAllocations,
 }) => {
   const [allocations, setAllocations] = useState<StatAllocationMap>(EMPTY_ALLOCATIONS);
+  const [focusedControlIndex, setFocusedControlIndex] = useState(0);
+  const interactiveRefs = useRef<Array<any>>([]);
+  const tabProps = useMemo(() => (Platform.OS === 'web' ? ({ tabIndex: 0 } as any) : {}), []);
 
   useEffect(() => {
     if (!visible) return;
     setAllocations(EMPTY_ALLOCATIONS);
+    setFocusedControlIndex(0);
   }, [visible, unspentStatPoints, stats]);
 
   const spentPoints = useMemo(() => {
@@ -126,6 +130,10 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
   const classId = getClassArchetype(classArchetype);
   const classProfile = useMemo(() => getClassProgressionProfile(classId), [classId]);
   const classLabel = classId === 'caster' ? 'Mage' : classId === 'ranger' ? 'Rogue' : 'Warrior';
+  const xpToLevel = Math.max(1, nextLevelXp);
+  const xpIntoLevel = ((experience % xpToLevel) + xpToLevel) % xpToLevel;
+  const xpPct = Math.max(0, Math.min(1, xpIntoLevel / xpToLevel));
+  const targetPct = Math.max(0, Math.min(1, experience / xpToLevel));
 
   const remainingPoints = Math.max(0, unspentStatPoints - spentPoints);
 
@@ -160,6 +168,68 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
     setAllocations(EMPTY_ALLOCATIONS);
   };
 
+  const totalFocusTargets = 1 + STAT_META.length * 2 + 2;
+
+  const getMinusButtonIndex = (statIndex: number) => 1 + statIndex * 2;
+  const getPlusButtonIndex = (statIndex: number) => 1 + statIndex * 2 + 1;
+  const resetButtonIndex = totalFocusTargets - 2;
+  const applyButtonIndex = totalFocusTargets - 1;
+
+  const focusByIndex = (index: number) => {
+    const clamped = Math.max(0, Math.min(index, totalFocusTargets - 1));
+    setFocusedControlIndex(clamped);
+    const node = interactiveRefs.current[clamped];
+    if (node?.focus) {
+      node.focus();
+    }
+  };
+
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'web') return;
+    const timer = setTimeout(() => focusByIndex(0), 0);
+    return () => clearTimeout(timer);
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'web') return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
+
+      if (event.key === 'Escape' || event.key.toLowerCase() === 'c') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        focusByIndex((focusedControlIndex + 1) % Math.max(1, totalFocusTargets));
+        return;
+      }
+
+      if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        const nextIndex = focusedControlIndex - 1 < 0 ? totalFocusTargets - 1 : focusedControlIndex - 1;
+        focusByIndex(nextIndex);
+        return;
+      }
+
+      if (event.key === 'Enter' || event.key === ' ') {
+        const node = interactiveRefs.current[focusedControlIndex];
+        if (node?.click) {
+          event.preventDefault();
+          node.click();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [visible, focusedControlIndex, totalFocusTargets, onClose]);
+
   if (!visible) {
     return null;
   }
@@ -169,9 +239,38 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
       <View style={styles.panel}>
         <View style={styles.headerRow}>
           <Text style={styles.panelTitle}>Skill Points</Text>
-          <Pressable style={styles.closeButton} onPress={onClose}>
+          <Pressable
+            ref={(node) => {
+              interactiveRefs.current[0] = node;
+            }}
+            style={[styles.closeButton, focusedControlIndex === 0 && styles.focusedButton]}
+            onPress={onClose}
+            onFocus={() => setFocusedControlIndex(0)}
+            focusable
+            {...tabProps}
+          >
             <Text style={styles.closeButtonText}>Close</Text>
           </Pressable>
+        </View>
+
+        <View style={styles.profileRow}>
+          <ImageBackground source={require('../../resources/portrait.png')} style={styles.profilePortrait} />
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileTitle}>{classLabel} Profile</Text>
+            <Text style={styles.profileMeta}>Level {level}</Text>
+            <View style={styles.xpBarTrack}>
+              <View style={[styles.xpBarFill, { width: `${xpPct * 100}%` }]} />
+            </View>
+            <Text style={styles.profileMeta}>
+              XP {xpIntoLevel}/{xpToLevel}
+            </Text>
+            <View style={styles.xpBarTrack}>
+              <View style={[styles.xpTargetFill, { width: `${targetPct * 100}%` }]} />
+            </View>
+            <Text style={styles.profileMeta}>
+              Total XP {experience}/{xpToLevel}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.summaryGrid}>
@@ -204,7 +303,7 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
         </View>
 
         <ScrollView style={styles.scrollRegion}>
-          {STAT_META.map((meta) => {
+          {STAT_META.map((meta, index) => {
             const baseValue = readStat(stats || {}, meta.key);
             const pending = allocations[meta.key];
             const draftValue = baseValue + pending;
@@ -224,16 +323,36 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
                   </Text>
                   <View style={styles.buttonsRow}>
                     <Pressable
-                      style={[styles.actionButton, pending <= 0 && styles.actionButtonDisabled]}
+                      ref={(node) => {
+                        interactiveRefs.current[getMinusButtonIndex(index)] = node;
+                      }}
+                      style={[
+                        styles.actionButton,
+                        pending <= 0 && styles.actionButtonDisabled,
+                        focusedControlIndex === getMinusButtonIndex(index) && styles.focusedButton,
+                      ]}
                       onPress={() => removePoint(meta.key)}
+                      onFocus={() => setFocusedControlIndex(getMinusButtonIndex(index))}
                       disabled={pending <= 0}
+                      focusable
+                      {...tabProps}
                     >
                       <Text style={styles.actionButtonText}>-</Text>
                     </Pressable>
                     <Pressable
-                      style={[styles.actionButton, remainingPoints <= 0 && styles.actionButtonDisabled]}
+                      ref={(node) => {
+                        interactiveRefs.current[getPlusButtonIndex(index)] = node;
+                      }}
+                      style={[
+                        styles.actionButton,
+                        remainingPoints <= 0 && styles.actionButtonDisabled,
+                        focusedControlIndex === getPlusButtonIndex(index) && styles.focusedButton,
+                      ]}
                       onPress={() => addPoint(meta.key)}
+                      onFocus={() => setFocusedControlIndex(getPlusButtonIndex(index))}
                       disabled={remainingPoints <= 0}
+                      focusable
+                      {...tabProps}
                     >
                       <Text style={styles.actionButtonText}>+</Text>
                     </Pressable>
@@ -312,13 +431,32 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
         </ScrollView>
 
         <View style={styles.footerRow}>
-          <Pressable style={styles.resetButton} onPress={() => setAllocations(EMPTY_ALLOCATIONS)}>
+          <Pressable
+            ref={(node) => {
+              interactiveRefs.current[resetButtonIndex] = node;
+            }}
+            style={[styles.resetButton, focusedControlIndex === resetButtonIndex && styles.focusedButton]}
+            onPress={() => setAllocations(EMPTY_ALLOCATIONS)}
+            onFocus={() => setFocusedControlIndex(resetButtonIndex)}
+            focusable
+            {...tabProps}
+          >
             <Text style={styles.resetButtonText}>Reset Draft</Text>
           </Pressable>
           <Pressable
-            style={[styles.applyButton, spentPoints <= 0 && styles.applyButtonDisabled]}
+            ref={(node) => {
+              interactiveRefs.current[applyButtonIndex] = node;
+            }}
+            style={[
+              styles.applyButton,
+              spentPoints <= 0 && styles.applyButtonDisabled,
+              focusedControlIndex === applyButtonIndex && styles.focusedButton,
+            ]}
             onPress={handleApply}
+            onFocus={() => setFocusedControlIndex(applyButtonIndex)}
             disabled={spentPoints <= 0}
+            focusable
+            {...tabProps}
           >
             <Text style={styles.applyButtonText}>Apply {spentPoints > 0 ? `(${spentPoints})` : ''}</Text>
           </Pressable>
@@ -377,6 +515,54 @@ const styles = StyleSheet.create({
     color: '#f5f5f4',
     fontWeight: '600',
     fontSize: 12,
+  },
+  focusedButton: {
+    borderColor: '#93c5fd',
+    borderWidth: 2,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#675f55',
+    borderRadius: 6,
+    backgroundColor: '#10100f',
+    padding: 8,
+  },
+  profilePortrait: {
+    width: 72,
+    height: 72,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  profileInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  profileTitle: {
+    color: '#f8ede0',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  profileMeta: {
+    color: '#cbd5e1',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  xpBarTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#334155',
+    overflow: 'hidden',
+  },
+  xpBarFill: {
+    height: '100%',
+    backgroundColor: '#2563eb',
+  },
+  xpTargetFill: {
+    height: '100%',
+    backgroundColor: '#0ea5e9',
   },
   summaryGrid: {
     flexDirection: 'row',

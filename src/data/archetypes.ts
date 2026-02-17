@@ -163,6 +163,7 @@ export const buildCharacterFromArchetype = (archetypeId: ArchetypeId, characterN
   cloned.character.experience = 0;
   cloned.character.xptolvlup = 16;
   cloned.character.unspentStatPoints = 0;
+  cloned.character.gold = 0;
   cloned.character.stats = { ...archetype.stats };
   const startingInventory: Array<{
     ID: number;
@@ -170,6 +171,8 @@ export const buildCharacterFromArchetype = (archetypeId: ArchetypeId, characterN
     type: string;
     stats: Record<string, number>;
   }> = [
+    { ID: 1, name: 'Minor Healing Potion', type: 'consumable', stats: { amount: 8 } },
+    { ID: 2, name: 'Minor Mana Flask', type: 'consumable', stats: { mana: 14 } },
     { ID: 1, name: 'Scout Sash', type: 'belt', stats: { defence: 2, consumableSlotsBonus: 1 } },
   ];
   const startingConsumableStash: Array<{
@@ -177,10 +180,7 @@ export const buildCharacterFromArchetype = (archetypeId: ArchetypeId, characterN
     name: string;
     type: string;
     stats: Record<string, number>;
-  }> = [
-    { ID: 1, name: 'Minor Healing Potion', type: 'consumable', stats: { amount: 8 } },
-    { ID: 2, name: 'Minor Mana Flask', type: 'consumable', stats: { mana: 14 } },
-  ];
+  }> = [];
   cloned.character.inventory = startingInventory;
   cloned.character.consumableStash = startingConsumableStash;
 

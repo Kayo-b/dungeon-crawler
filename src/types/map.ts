@@ -65,6 +65,7 @@ export interface MapConfig {
     theme?: string;
     author?: string;
     version?: number;
+    merchantPosition?: Position;
   };
 }
 

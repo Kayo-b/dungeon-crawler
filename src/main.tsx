@@ -37,8 +37,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Platform.select({
       web: {
-        width: 480, // Fixed width for web
-        height: 640, // Fixed height for web
+        width: 800,
+        maxWidth: '100%',
+        height: 800,
       },
       default: {
         width: '90%', // Percentage width for mobile

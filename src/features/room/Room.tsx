@@ -101,20 +101,24 @@ let display = 0;
 interface RoomProps {
     startCombat: (id: number) => void;
     engagePlayerAttack: (id: number) => void;
+    onMerchantInteract?: () => void;
     skillOverlay?: ReactNode;
     rightOverlay?: ReactNode;
 }
 
-export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverlay }: RoomProps) => {
+export const Room = ({ startCombat, engagePlayerAttack, onMerchantInteract, skillOverlay, rightOverlay }: RoomProps) => {
     const dispatch = useAppDispatch(); 
     // const enemyHealth = useAppSelector(state => state.enemy.enemies[0].stats.health); 
     const inCombat = useAppSelector(state => state.combat.inCombat);
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
     const playerHealth = useAppSelector(state => state.player.health);
-    const playerDodgeChance = useAppSelector(state => state.player.dodgeChance || 0);
+    const playerMana = useAppSelector(state => state.player.mana);
+    const playerMaxMana = useAppSelector(state => state.player.maxMana);
     const playerStats = useAppSelector(state => state.player.stats as Record<string, any>);
+    const playerEquipment = useAppSelector(state => state.player.equipment as Record<string, any>);
     const playerLevel = useAppSelector(state => state.player.level);
+    const playerDodgeChance = useAppSelector(state => state.player.dodgeChance || 0);
     const currentEnemy = useAppSelector(state => state.enemy.currentEnemyId);
     const currentDir = useAppSelector(state => state.room.direction);
     const verticalResources = useAppSelector(state => state.room.verticalRes);
@@ -127,6 +131,7 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
 
     // Map data from Redux (new)
     const currentMapId = useAppSelector(state => state.room.currentMapId);
+    const merchantPosition = useAppSelector((state: any) => state.room.merchantPosition as { x: number; y: number } | null);
     const dungeonDepth = getMapDepth(currentMapId);
     const mapWidth = useAppSelector(state => state.room.mapWidth);
     const mapHeight = useAppSelector(state => state.room.mapHeight);
@@ -136,13 +141,16 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
     // Use Redux map data instead of hardcoded - dg_map now references Redux state
     const dg_map = mapTiles;
     const playerClass = useAppSelector(state => state.player.classArchetype || 'warrior');
-    const effectiveStamina = useMemo(() => {
-        const derived = computeDerivedPlayerStats(playerStats || {}, {}, {
+    const maxHealth = useMemo(() => {
+        const derived = computeDerivedPlayerStats(playerStats || {}, playerEquipment || {}, {
             classArchetype: playerClass,
             level: playerLevel,
         });
-        return Number(derived.maxStamina || 0);
-    }, [playerStats, playerClass, playerLevel]);
+        return Math.max(1, Number(derived.maxHealth || 1));
+    }, [playerStats, playerEquipment, playerClass, playerLevel]);
+    const healthPct = Math.max(0, Math.min(1, playerHealth / Math.max(1, maxHealth)));
+    const manaPct = Math.max(0, Math.min(1, playerMana / Math.max(1, playerMaxMana || 1)));
+    const merchantSprite = require('../../resources/vecteezy_an-8-bit-retro-styled-pixel-art-illustration-of-a-merchant_26547538.png');
 
     // Get current tile type at player position for special tile interactions
     const currentTileType = mapTiles?.[positionY]?.[positionX] ?? 0;
@@ -243,7 +251,6 @@ export const Room = ({ startCombat, engagePlayerAttack, skillOverlay, rightOverl
     const [use3DRendering, setUse3DRendering] = useState(true);
     const rangedShotCooldownRef = useRef<{ [key: number]: number }>({});
     const lastPlayerTileRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
-    const lastMoveFrameAtRef = useRef(0);
 
     const getDoorOverlaySources = (tileSprite: NodeRequire, distanceIndex: number): NodeRequire[] => {
         const useFar = distanceIndex >= 4;
@@ -2415,16 +2422,6 @@ const turn = (turnDir:string) => {
         return hasNonAmbushEnemy;
     };
 
-    const consumeMovementFrame = () => {
-        const now = Date.now();
-        const frameCooldownMs = effectiveStamina <= 0 ? 1000 : 250;
-        if (now - lastMoveFrameAtRef.current < frameCooldownMs) {
-            return false;
-        }
-        lastMoveFrameAtRef.current = now;
-        return true;
-    };
-
     const guardedForward = () => {
         if (inCombat) {
             console.log('Cannot move away while in combat.');
@@ -2449,20 +2446,12 @@ const turn = (turnDir:string) => {
             return;
         }
 
-        if (!consumeMovementFrame()) {
-            return;
-        }
-
         activeForward();
     };
 
     const guardedReverse = () => {
         if (inCombat) {
             console.log('Cannot move away while in combat.');
-            return;
-        }
-
-        if (!consumeMovementFrame()) {
             return;
         }
 
@@ -2475,15 +2464,27 @@ const turn = (turnDir:string) => {
             return;
         }
 
-        if (!consumeMovementFrame()) {
-            return;
-        }
-
         activeTurn(dir);
     };
 
     const handleKeyPress = useCallback((event: KeyboardEvent) => {
-        switch (event.key.toLowerCase()) {
+        const key = event.key.toLowerCase();
+        const isDirectionalKey =
+            key === 'w' ||
+            key === 'arrowup' ||
+            key === 's' ||
+            key === 'arrowdown' ||
+            key === 'a' ||
+            key === 'arrowleft' ||
+            key === 'd' ||
+            key === 'arrowright';
+
+        // Prevent key-hold repeat from triggering continuous movement.
+        if (isDirectionalKey && event.repeat) {
+            return;
+        }
+
+        switch (key) {
             case 'w':
             case 'arrowup':
             guardedForward();
@@ -2676,6 +2677,19 @@ const turn = (turnDir:string) => {
             );
         });
     };
+
+    const merchantDistance = useMemo(() => {
+        if (!merchantPosition) return null;
+        return getEnemyDistanceInFacingDirection(
+            positionX,
+            positionY,
+            currentDir as FacingDirection,
+            merchantPosition.x,
+            merchantPosition.y
+        );
+    }, [merchantPosition, positionX, positionY, currentDir]);
+    const merchantVisible = !inCombat && merchantDistance !== null && merchantDistance <= 1;
+    const merchantScale = merchantDistance === 0 ? 0.95 : 0.78;
 
     return (
         <View style={styles.roomRoot}>
@@ -2903,6 +2917,23 @@ const turn = (turnDir:string) => {
         </ImageBackground>
             )}
             {renderVisibleEnemies()}
+            {merchantVisible ? (
+                <View
+                    pointerEvents="box-none"
+                    style={styles.merchantWrap}
+                >
+                    <TouchableOpacity
+                        onPress={() => onMerchantInteract?.()}
+                        style={[styles.merchantButton, { transform: [{ scale: merchantScale }] }]}
+                    >
+                        <Image
+                            source={merchantSprite}
+                            resizeMode="contain"
+                            style={styles.merchantSprite}
+                        />
+                    </TouchableOpacity>
+                </View>
+            ) : null}
             {skillOverlay ? (
                 <View style={styles.skillOverlayWrap}>
                     {skillOverlay}
@@ -2913,6 +2944,14 @@ const turn = (turnDir:string) => {
                     {rightOverlay}
                 </View>
             ) : null}
+            <View pointerEvents="none" style={styles.bottomResourceBars}>
+                <View style={styles.resourceTrack}>
+                    <View style={[styles.healthBarFill, { width: `${healthPct * 100}%` }]} />
+                </View>
+                <View style={styles.resourceTrack}>
+                    <View style={[styles.manaBarFill, { width: `${manaPct * 100}%` }]} />
+                </View>
+            </View>
             </View>
         </View>
     );
@@ -2969,6 +3008,25 @@ const styles = StyleSheet.create({
     enemiesContainer: {
         flexDirection: 'row',
     },
+    merchantWrap: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 82,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 220,
+    },
+    merchantButton: {
+        width: 130,
+        height: 130,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    merchantSprite: {
+        width: 120,
+        height: 120,
+    },
     skillOverlayWrap: {
         position: 'absolute',
         left: 10,
@@ -2978,13 +3036,34 @@ const styles = StyleSheet.create({
     rightOverlayWrap: {
         position: 'absolute',
         right: 10,
-        bottom: 10,
+        top: 42,
         zIndex: 250,
+    },
+    bottomResourceBars: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 320,
+    },
+    resourceTrack: {
+        width: '100%',
+        height: 2,
+        backgroundColor: '#111827',
+        overflow: 'hidden',
+    },
+    healthBarFill: {
+        height: 2,
+        backgroundColor: '#dc2626',
+    },
+    manaBarFill: {
+        height: 2,
+        backgroundColor: '#2563eb',
     },
     depthIndicator: {
         position: 'absolute',
         top: 10,
-        right: 10,
+        left: 10,
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderWidth: 1,

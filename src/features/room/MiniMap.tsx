@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useAppSelector } from '../../app/hooks';
 
 interface MiniMapProps {
     size?: number; // Size of each tile in pixels
 }
 
-export const MiniMap: React.FC<MiniMapProps> = ({ size = 18 }) => {
+export const MiniMap: React.FC<MiniMapProps> = ({ size = 12 }) => {
     const positionX = useAppSelector(state => state.room.posX);
     const positionY = useAppSelector(state => state.room.posY);
     const currentDir = useAppSelector(state => state.room.direction);
@@ -15,14 +15,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({ size = 18 }) => {
     const mapHeight = useAppSelector(state => state.room.mapHeight);
     const exploredTiles = useAppSelector(state => state.room.exploredTiles);
 
-    if (!mapTiles || mapTiles.length === 0) {
-        return (
-            <View style={styles.container}>
-                <Text style={styles.title}>MAP</Text>
-                <Text style={styles.noMap}>No map loaded</Text>
-            </View>
-        );
-    }
+    if (!mapTiles || mapTiles.length === 0) return null;
 
     // Direction arrow for player marker
     const getDirectionArrow = () => {
@@ -36,101 +29,93 @@ export const MiniMap: React.FC<MiniMapProps> = ({ size = 18 }) => {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>MAP</Text>
-            <View style={[
-                styles.mapContainer,
-                {
-                    width: mapWidth * size + 4,
-                    height: mapHeight * size + 4,
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.mapContainer,
+            {
+              width: mapWidth * size + 2,
+              height: mapHeight * size + 2,
+            },
+          ]}
+        >
+          {mapTiles.map((row, y) => (
+            <View key={y} style={styles.mapRow}>
+              {row.map((tile, x) => {
+                const isExplored = exploredTiles[`${x},${y}`];
+                const isPlayer = x === positionX && y === positionY;
+
+                if (!isExplored && !isPlayer) {
+                  return (
+                    <View
+                      key={`${x}-${y}`}
+                      style={[
+                        styles.mapTile,
+                        styles.hiddenTile,
+                        { width: size, height: size },
+                      ]}
+                    />
+                  );
                 }
-            ]}>
-                {mapTiles.map((row, y) => (
-                    <View key={y} style={styles.mapRow}>
-                        {row.map((tile, x) => {
-                            const isExplored = exploredTiles[`${x},${y}`];
-                            const isPlayer = x === positionX && y === positionY;
 
-                            // If not explored and not player, show nothing (black)
-                            if (!isExplored && !isPlayer) {
-                                return (
-                                    <View
-                                        key={`${x}-${y}`}
-                                        style={[
-                                            styles.mapTile,
-                                            styles.hiddenTile,
-                                            { width: size, height: size },
-                                        ]}
-                                    />
-                                );
-                            }
+                const getTileStyle = () => {
+                  switch (tile) {
+                    case 0:
+                      return styles.wallTile;
+                    case 1:
+                      return styles.corridorTile;
+                    case 2:
+                      return styles.turnTile;
+                    case 3:
+                      return styles.threeWayTile;
+                    case 4:
+                      return styles.fourWayTile;
+                    case 5:
+                      return styles.doorTile;
+                    case 6:
+                      return styles.stairsUpTile;
+                    case 7:
+                      return styles.stairsDownTile;
+                    case 8:
+                      return styles.deadEndTile;
+                    default:
+                      return styles.corridorTile;
+                  }
+                };
 
-                            // Get tile style based on type
-                            const getTileStyle = () => {
-                                switch (tile) {
-                                    case 0: return styles.wallTile;
-                                    case 1: return styles.corridorTile;
-                                    case 2: return styles.turnTile;
-                                    case 3: return styles.threeWayTile;
-                                    case 4: return styles.fourWayTile;
-                                    case 5: return styles.doorTile;
-                                    case 6: return styles.stairsUpTile;
-                                    case 7: return styles.stairsDownTile;
-                                    case 8: return styles.deadEndTile;
-                                    default: return styles.corridorTile;
-                                }
-                            };
-
-                            return (
-                                <View
-                                    key={`${x}-${y}`}
-                                    style={[
-                                        styles.mapTile,
-                                        { width: size, height: size },
-                                        getTileStyle(),
-                                        isPlayer && styles.playerTile,
-                                    ]}
-                                >
-                                    {isPlayer && (
-                                        <Text style={[styles.playerMarker, { fontSize: size - 4 }]}>
-                                            {getDirectionArrow()}
-                                        </Text>
-                                    )}
-                                </View>
-                            );
-                        })}
-                    </View>
-                ))}
+                return (
+                  <View
+                    key={`${x}-${y}`}
+                    style={[
+                      styles.mapTile,
+                      { width: size, height: size },
+                      getTileStyle(),
+                      isPlayer && styles.playerTile,
+                    ]}
+                  >
+                    {isPlayer && (
+                      <Text style={[styles.playerMarker, { fontSize: Math.max(8, size - 4) }]}>
+                        {getDirectionArrow()}
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
             </View>
+          ))}
         </View>
+      </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: 'rgba(20, 20, 30, 0.95)',
-        padding: 10,
-        borderRadius: 8,
+        padding: 0,
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#444',
-    },
-    title: {
-        color: '#ffcc00',
-        fontFamily: 'monospace',
-        fontWeight: 'bold',
-        fontSize: 12,
-        marginBottom: 8,
-    },
-    noMap: {
-        color: '#666',
-        fontFamily: 'monospace',
-        fontSize: 10,
     },
     mapContainer: {
         backgroundColor: '#000',
-        borderWidth: 2,
-        borderColor: '#555',
+        borderWidth: 0,
         alignItems: 'center',
         justifyContent: 'center',
     },

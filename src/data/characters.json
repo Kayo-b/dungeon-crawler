@@ -16,11 +16,12 @@
   "experience": 0,
   "xptolvlup": 16,
   "unspentStatPoints": 0,
-  "inventory": [],
-  "consumableStash": [
+  "gold": 0,
+  "inventory": [
     { "ID": 1, "name": "Minor Healing Potion", "type": "consumable", "stats": { "amount": 8 } },
     { "ID": 2, "name": "Minor Mana Flask", "type": "consumable", "stats": { "mana": 14 } }
   ],
+  "consumableStash": [],
   "equipment": {
     "weapon": {
       "name": "Rusty Sword",

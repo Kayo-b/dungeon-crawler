@@ -3,9 +3,42 @@ import data from '../../data/rooms.json';
 import { MapConfig, TileType, Direction, Position } from '../../types/map';
 import { getDefaultMap, getMap } from '../../data/maps';
 import { transposeMap } from '../../utils/mapLoader';
+import { carveMerchantDent, MerchantPosition } from '../merchant/merchantUtils';
 
 // Load default map
 const defaultMapState = getDefaultMap();
+const resolveMerchantFromConfig = (config: MapConfig): MerchantPosition | null => {
+    const pos = config?.metadata?.merchantPosition;
+    if (!pos) return null;
+    if (
+        typeof pos.x !== 'number' ||
+        typeof pos.y !== 'number' ||
+        pos.x < 0 ||
+        pos.y < 0 ||
+        pos.y >= config.tiles.length ||
+        pos.x >= (config.tiles[0]?.length || 0)
+    ) {
+        return null;
+    }
+    return { x: pos.x, y: pos.y };
+};
+
+const resolveMapMerchantLayout = (
+    mapTiles: TileType[][],
+    config: MapConfig
+): { tiles: TileType[][]; merchantPosition: MerchantPosition | null } => {
+    const merchantFromConfig = resolveMerchantFromConfig(config);
+    if (merchantFromConfig) {
+        const tiles = mapTiles.map((row) => [...row]) as TileType[][];
+        tiles[merchantFromConfig.y][merchantFromConfig.x] = 8;
+        return { tiles, merchantPosition: merchantFromConfig };
+    }
+    return carveMerchantDent(mapTiles, config.startPosition);
+};
+const defaultMerchantLayout = resolveMapMerchantLayout(
+    defaultMapState.horizontalArray,
+    defaultMapState.config
+);
 
 interface RoomState {
     // Legacy fields (kept for compatibility)
@@ -31,6 +64,7 @@ interface RoomState {
 
     // Explored tiles tracking for minimap
     exploredTiles: { [key: string]: boolean }; // "x,y" -> true if explored
+    merchantPosition: MerchantPosition | null;
 }
 
 const roomInitialState: RoomState = {
@@ -52,13 +86,14 @@ const roomInitialState: RoomState = {
     currentMapId: defaultMapState.config.id,
     mapWidth: defaultMapState.config.width,
     mapHeight: defaultMapState.config.height,
-    mapTiles: defaultMapState.horizontalArray,
-    verticalTiles: defaultMapState.verticalArray,
+    mapTiles: defaultMerchantLayout.tiles,
+    verticalTiles: transposeMap(defaultMerchantLayout.tiles),
 
     // Explored tiles - start with the initial position explored
     exploredTiles: {
         [`${defaultMapState.config.startPosition.x},${defaultMapState.config.startPosition.y}`]: true
     },
+    merchantPosition: defaultMerchantLayout.merchantPosition,
 }
 
 const roomSlice = createSlice ({
@@ -69,11 +104,16 @@ const roomSlice = createSlice ({
         loadMap(state, action: PayloadAction<string>) {
             try {
                 const mapState = getMap(action.payload);
+                const merchantLayout = resolveMapMerchantLayout(
+                    mapState.horizontalArray,
+                    mapState.config
+                );
                 state.currentMapId = mapState.config.id;
                 state.mapWidth = mapState.config.width;
                 state.mapHeight = mapState.config.height;
-                state.mapTiles = mapState.horizontalArray;
-                state.verticalTiles = mapState.verticalArray;
+                state.mapTiles = merchantLayout.tiles;
+                state.verticalTiles = transposeMap(merchantLayout.tiles);
+                state.merchantPosition = merchantLayout.merchantPosition;
 
                 // Reset position to map's start
                 state.posX = mapState.config.startPosition.x;
@@ -97,11 +137,13 @@ const roomSlice = createSlice ({
         // Load map from raw config (for custom/generated maps)
         loadMapConfig(state, action: PayloadAction<MapConfig>) {
             const config = action.payload;
+            const merchantLayout = resolveMapMerchantLayout(config.tiles, config);
             state.currentMapId = config.id;
             state.mapWidth = config.width;
             state.mapHeight = config.height;
-            state.mapTiles = config.tiles;
-            state.verticalTiles = transposeMap(config.tiles);
+            state.mapTiles = merchantLayout.tiles;
+            state.verticalTiles = transposeMap(merchantLayout.tiles);
+            state.merchantPosition = merchantLayout.merchantPosition;
 
             // Reset position
             state.posX = config.startPosition.x;

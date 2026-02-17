@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ItemIcon } from '../../components/ItemIcon';
 
 interface EnemyLootModalProps {
@@ -24,6 +25,64 @@ export const EnemyLootModal: React.FC<EnemyLootModalProps> = ({
   onDontLoot,
   onLootSingle,
 }) => {
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const interactiveRefs = useRef<Array<any>>([]);
+  const tabProps = useMemo(() => (Platform.OS === 'web' ? ({ tabIndex: 0 } as any) : {}), []);
+  const totalFocusTargets = lootItems.length + 2;
+
+  const focusByIndex = (index: number) => {
+    const clamped = Math.max(0, Math.min(index, totalFocusTargets - 1));
+    setFocusedIndex(clamped);
+    const node = interactiveRefs.current[clamped];
+    if (node?.focus) {
+      node.focus();
+    }
+  };
+
+  useEffect(() => {
+    if (!visible) return;
+    setFocusedIndex(0);
+    if (Platform.OS !== 'web') return;
+    const timer = setTimeout(() => {
+      focusByIndex(0);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [visible, lootItems.length]);
+
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'web') return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
+
+      if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        focusByIndex((focusedIndex + 1) % Math.max(1, totalFocusTargets));
+        return;
+      }
+
+      if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        const nextIndex = focusedIndex - 1 < 0 ? totalFocusTargets - 1 : focusedIndex - 1;
+        focusByIndex(nextIndex);
+        return;
+      }
+
+      if (event.key === 'Enter' || event.key === ' ') {
+        const node = interactiveRefs.current[focusedIndex];
+        if (node?.click) {
+          event.preventDefault();
+          node.click();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [visible, focusedIndex, totalFocusTargets]);
+
   if (!visible) return null;
 
   return (
@@ -36,9 +95,24 @@ export const EnemyLootModal: React.FC<EnemyLootModalProps> = ({
 
         <ScrollView style={styles.scrollArea}>
           {lootItems.map((item, index) => (
-            <Pressable key={`loot-item-${index}`} style={styles.lootRow} onPress={() => onLootSingle(index)}>
+            <Pressable
+              key={`loot-item-${index}`}
+              ref={(node) => {
+                interactiveRefs.current[index] = node;
+              }}
+              style={[styles.lootRow, focusedIndex === index && styles.lootRowFocused]}
+              onPress={() => onLootSingle(index)}
+              onFocus={() => setFocusedIndex(index)}
+              focusable
+              {...tabProps}
+            >
               <View style={styles.lootMain}>
-                <ItemIcon type={item?.type || 'misc'} size={22} />
+                <ItemIcon
+                  type={item?.type || 'misc'}
+                  size={22}
+                  itemName={item?.name}
+                  itemStats={item?.stats}
+                />
                 <View style={styles.nameWrap}>
                   <Text style={styles.lootName}>{item?.name || 'Unknown item'}</Text>
                   <Text style={styles.lootType}>{item?.type || 'unknown'}</Text>
@@ -50,10 +124,34 @@ export const EnemyLootModal: React.FC<EnemyLootModalProps> = ({
         </ScrollView>
 
         <View style={styles.actionsRow}>
-          <Pressable style={styles.actionMuted} onPress={onDontLoot}>
+          <Pressable
+            ref={(node) => {
+              interactiveRefs.current[lootItems.length] = node;
+            }}
+            style={[
+              styles.actionMuted,
+              focusedIndex === lootItems.length && styles.actionFocused,
+            ]}
+            onPress={onDontLoot}
+            onFocus={() => setFocusedIndex(lootItems.length)}
+            focusable
+            {...tabProps}
+          >
             <Text style={styles.actionText}>Don&apos;t Loot</Text>
           </Pressable>
-          <Pressable style={styles.actionPrimary} onPress={onLootAll}>
+          <Pressable
+            ref={(node) => {
+              interactiveRefs.current[lootItems.length + 1] = node;
+            }}
+            style={[
+              styles.actionPrimary,
+              focusedIndex === lootItems.length + 1 && styles.actionFocused,
+            ]}
+            onPress={onLootAll}
+            onFocus={() => setFocusedIndex(lootItems.length + 1)}
+            focusable
+            {...tabProps}
+          >
             <Text style={styles.actionText}>Loot All</Text>
           </Pressable>
         </View>
@@ -110,6 +208,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  lootRowFocused: {
+    borderColor: '#93c5fd',
+    borderWidth: 2,
+  },
   lootMain: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -153,5 +255,9 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontWeight: '600',
     fontSize: 12,
+  },
+  actionFocused: {
+    borderColor: '#bfdbfe',
+    borderWidth: 2,
   },
 });

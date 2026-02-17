@@ -2,6 +2,8 @@ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EnemyAttackStyle, EnemyDisposition, EnemyVisibilityMode, getEnemyBehaviorForType } from './enemyPerception';
+import itemData from '../../data/items.json';
+import { enrichItemEconomyStats } from '../merchant/merchantUtils';
 
 const enemyHealth = data.enemies[0].stats.health;
 const enemyDmg = data.enemies[0].stats.attack;
@@ -106,6 +108,140 @@ interface DmgPayload {
  dmg: number;
  crit: boolean;
 }
+
+interface ItemCatalogEntry {
+  category: string;
+  id: number;
+  type: string;
+  tier: number;
+}
+
+const RARITY_TIER_BONUS: Record<string, number> = {
+  common: 0,
+  uncommon: 3,
+  magic: 6,
+  rare: 10,
+  unique: 16,
+};
+
+const ITEM_CATALOG: ItemCatalogEntry[] = (() => {
+  const catalog: ItemCatalogEntry[] = [];
+  const groups = (itemData as any)?.items || {};
+
+  Object.entries(groups).forEach(([category, group]) => {
+    if (!group || typeof group !== 'object') return;
+    Object.entries(group as Record<string, any>).forEach(([idKey, item]) => {
+      if (!item || typeof item !== 'object' || !item.type) return;
+      const parsedId = Number(idKey);
+      if (!Number.isFinite(parsedId)) return;
+
+      const enriched = enrichItemEconomyStats(item);
+      const rarityBonus = RARITY_TIER_BONUS[String(enriched.rarity || 'common')] || 0;
+      const tier =
+        enriched.levelRequirement * 1.9 +
+        enriched.quality * 0.38 +
+        (enriched.affixes?.length || 0) * 2.5 +
+        rarityBonus;
+
+      catalog.push({
+        category,
+        id: parsedId,
+        type: String(item.type).toLowerCase(),
+        tier,
+      });
+    });
+  });
+
+  return catalog;
+})();
+
+const getCurrencyDrop = (enemyPower: number, rewardScale: number): LootItem => {
+  if (enemyPower >= 22) {
+    return { name: 'Gold Coin', type: 'currency', ID: 3, dropChance: Math.min(0.85, 0.35 + (rewardScale - 1) * 0.12), amount: 1 };
+  }
+  if (enemyPower >= 13) {
+    return { name: 'Silver Coin', type: 'currency', ID: 2, dropChance: Math.min(0.9, 0.52 + (rewardScale - 1) * 0.14), amount: 1 };
+  }
+  return { name: 'Copper Coin', type: 'currency', ID: 1, dropChance: Math.min(0.95, 0.7 + (rewardScale - 1) * 0.1), amount: 1 };
+};
+
+const pickTieredItems = (pool: ItemCatalogEntry[], count: number): ItemCatalogEntry[] => {
+  if (pool.length <= 0 || count <= 0) return [];
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+};
+
+const buildScaledLootTable = (
+  enemyId: number,
+  scaledLevel: number,
+  combatScale: number,
+  rewardScale: number
+): LootItem[] => {
+  const enemyPower = scaledLevel + (combatScale - 1) * 7 + enemyId * 1.8;
+  const maxTier = 8 + enemyPower * 1.75;
+  const minTier = Math.max(0, maxTier - 24);
+
+  const consumables = ITEM_CATALOG.filter((entry) => entry.category === 'consumable');
+  const gearCandidates = ITEM_CATALOG.filter((entry) => {
+    if (entry.type === 'currency' || entry.type === 'consumable') return false;
+    return entry.tier >= minTier && entry.tier <= maxTier + 10;
+  });
+
+  const highTierCandidates = ITEM_CATALOG.filter((entry) => {
+    if (entry.type === 'currency' || entry.type === 'consumable') return false;
+    return entry.tier > maxTier && entry.tier <= maxTier + 26;
+  });
+
+  const selectedGearCount = Math.max(1, Math.min(3, 1 + Math.floor((rewardScale - 1) * 1.3)));
+  const selectedGear = pickTieredItems(gearCandidates.length > 0 ? gearCandidates : highTierCandidates, selectedGearCount);
+
+  const loot: LootItem[] = [];
+  loot.push(getCurrencyDrop(enemyPower, rewardScale));
+
+  const healPotion = consumables.find((entry) => entry.id === 1);
+  const manaPotion = consumables.find((entry) => entry.id === 2);
+
+  if (healPotion) {
+    loot.push({
+      name: 'Minor Healing Potion',
+      type: healPotion.category,
+      ID: healPotion.id,
+      dropChance: Math.min(0.9, 0.28 + (rewardScale - 1) * 0.11),
+    });
+  }
+  if (manaPotion) {
+    loot.push({
+      name: 'Minor Mana Flask',
+      type: manaPotion.category,
+      ID: manaPotion.id,
+      dropChance: Math.min(0.9, 0.24 + (rewardScale - 1) * 0.12),
+    });
+  }
+
+  selectedGear.forEach((entry, index) => {
+    const baseChance = 0.16 + index * 0.08 + (rewardScale - 1) * 0.06;
+    loot.push({
+      name: '',
+      type: entry.category,
+      ID: entry.id,
+      dropChance: Math.min(0.88, Math.max(0.08, baseChance)),
+    });
+  });
+
+  if (enemyPower >= 18 && highTierCandidates.length > 0) {
+    const bonus = pickTieredItems(highTierCandidates, 1)[0];
+    if (bonus) {
+      loot.push({
+        name: '',
+        type: bonus.category,
+        ID: bonus.id,
+        dropChance: Math.min(0.45, 0.12 + (rewardScale - 1) * 0.07),
+      });
+    }
+  }
+
+  return loot;
+};
 // const enemyInitialState: EnemyState = {
 //     currentEnemyIndex: 1,
 //     enemies: data.enemies,
@@ -204,14 +340,7 @@ const enemySlice = createSlice({
             };
             const scaledLevel = baseInfo.level + Math.max(0, Math.floor(combatScale - 1));
             const scaledXp = Math.max(1, Math.floor(baseInfo.xp * lootAndXpScale));
-            const scaledLoot = (baseEnemy.loot || []).map((lootItem: LootItem) => ({
-                ...lootItem,
-                dropChance: Math.min(1.95, Math.max(0.01, lootItem.dropChance * lootAndXpScale)),
-                amount:
-                    typeof lootItem.amount === 'number'
-                        ? Math.max(1, Math.floor(lootItem.amount * lootAndXpScale))
-                        : lootItem.amount,
-            }));
+            const scaledLoot = buildScaledLootTable(id, scaledLevel, combatScale, lootAndXpScale);
             console.log(index, id, positionX, positionY, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<,,")
             state.enemies[index] = {
                 id: id,

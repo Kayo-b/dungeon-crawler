@@ -28,11 +28,14 @@ import {
   tickSpecialCooldown,
 } from './combatSlice';
 import { computeDerivedPlayerStats, getClassProgressionProfile } from '../features/player/playerStats';
+import itemData from '../data/items.json';
 
 interface LootObject {
   dropChance: number;
   type: string;
   ID: number;
+  amount?: number;
+  amout?: number;
 }
 
 type HitVariant = 'pow' | 'slash' | 'fire' | 'crush' | 'mutilate';
@@ -298,10 +301,22 @@ export const useCombat = () => {
       return;
     }
     const itemsData = await AsyncStorage.getItem('items');
-    const itemsObj = itemsData ? JSON.parse(itemsData) : {};
+    const itemsObj = itemsData ? JSON.parse(itemsData) : itemData;
+
+    if (!itemsData) {
+      await AsyncStorage.setItem('items', JSON.stringify(itemData));
+    }
 
     const resolvedDroppedItems = pendingLootDropsRef.current
-      .map((drop) => itemsObj.items?.[drop.type]?.[`${drop.ID}`])
+      .map((drop) => {
+        const baseItem = itemsObj.items?.[drop.type]?.[`${drop.ID}`];
+        if (!baseItem) return null;
+        const quantity = Number(drop.amount ?? drop.amout ?? 1);
+        if (!Number.isFinite(quantity) || quantity <= 1) {
+          return { ...baseItem };
+        }
+        return { ...baseItem, amount: Math.max(1, Math.floor(quantity)) };
+      })
       .filter(Boolean);
 
     if (resolvedDroppedItems.length > 0) {
