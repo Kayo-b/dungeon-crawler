@@ -4,9 +4,9 @@ import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
-import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, invertInitialDirection, setLastTurnDir, setInitialDirection, loadMap, resetPosition } from '../../features/room/roomSlice';
+import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, invertInitialDirection, setLastTurnDir, setInitialDirection, loadMap, loadMapConfig, resetPosition } from '../../features/room/roomSlice';
 import { dmg2Player, regenResourcesOnTile } from '../player/playerSlice';
-import { getMapList, MapInfo } from '../../data/maps';
+import { getMapConfig, getMapList, MapInfo } from '../../data/maps';
 import { ImageSourcePropType } from 'react-native';
 import { ReactNode, useCallback, useDebugValue, useEffect, useMemo, useRef, useState } from 'react';
 import { current } from '@reduxjs/toolkit';
@@ -16,7 +16,7 @@ import { useMovement } from '../../systems/movement/useMovement';
 import { useMovementWithRender, TileImages } from '../../systems/movement/useMovementWithRender';
 import { isBlocked } from '../../systems/movement/TileNavigator';
 import { Room3D } from './Room3D';
-import { Direction as FacingDirection } from '../../types/map';
+import { Direction as FacingDirection, MapConfig } from '../../types/map';
 import { registerEnemyAttack } from '../../events/combatSlice';
 import { getDoorTargetMap, getMapDepth, getStairsTargetMap } from '../../data/maps/transitions';
 import {
@@ -29,6 +29,47 @@ import { computeDerivedPlayerStats } from '../player/playerStats';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 
 const ROOM_VIEWPORT_SIZE = 512;
+
+const resolveDoorEntryInMap = (
+    config: MapConfig
+): { x: number; y: number; direction: FacingDirection } | null => {
+    const tiles = config.tiles || [];
+    if (tiles.length <= 0) return null;
+    const height = tiles.length;
+    const width = tiles[0]?.length || 0;
+    const doors: Array<{ x: number; y: number }> = [];
+
+    for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+            if (tiles[y]?.[x] === 5) {
+                doors.push({ x, y });
+            }
+        }
+    }
+
+    if (doors.length <= 0) return null;
+
+    const boundaryDoor = doors.find((door) => {
+        return door.x === 0 || door.y === 0 || door.x === width - 1 || door.y === height - 1;
+    });
+    const targetDoor = boundaryDoor || doors[0];
+
+    const isOut = (x: number, y: number) => x < 0 || y < 0 || x >= width || y >= height;
+    const isWall = (x: number, y: number) => !isOut(x, y) && (tiles[y]?.[x] ?? 0) === 0;
+    const { x, y } = targetDoor;
+
+    let direction: FacingDirection = config.startDirection;
+    if (isOut(x, y - 1)) direction = 'N';
+    else if (isOut(x, y + 1)) direction = 'S';
+    else if (isOut(x - 1, y)) direction = 'W';
+    else if (isOut(x + 1, y)) direction = 'E';
+    else if (isWall(x, y - 1)) direction = 'N';
+    else if (isWall(x, y + 1)) direction = 'S';
+    else if (isWall(x - 1, y)) direction = 'W';
+    else if (isWall(x + 1, y)) direction = 'E';
+
+    return { x, y, direction };
+};
 
 /**
  * Calculate the correct array position directly from player coordinates
@@ -188,7 +229,25 @@ export const Room = ({ startCombat, engagePlayerAttack, onMerchantInteract, skil
         }
 
         console.log(`[Room] Door transition: ${currentMapId} -> ${targetMap}`);
-        dispatch(loadMap(targetMap));
+        const targetConfig = getMapConfig(targetMap);
+        if (!targetConfig) {
+            dispatch(loadMap(targetMap));
+            return;
+        }
+
+        const doorEntry = resolveDoorEntryInMap(targetConfig);
+        if (!doorEntry) {
+            dispatch(loadMap(targetMap));
+            return;
+        }
+
+        dispatch(
+            loadMapConfig({
+                ...targetConfig,
+                startPosition: { x: doorEntry.x, y: doorEntry.y },
+                startDirection: doorEntry.direction,
+            })
+        );
     };
 
     // New movement system hook
@@ -218,14 +277,14 @@ export const Room = ({ startCombat, engagePlayerAttack, onMerchantInteract, skil
     const corridorTile = require('../../resources/dung-corridor.png');
     const facingWallTile = require('../../resources/brickwall.png');
     const turnThreeWay = require('../../resources/dung-threeway.png');
-    const doorFrontLeft = require('../../resources/door_parts/door_front_left.png');
-    const doorFrontRight = require('../../resources/door_parts/door_front_right.png');
-    const doorSideLeft = require('../../resources/door_parts/door_side_left.png');
-    const doorSideRight = require('../../resources/door_parts/door_side_right.png');
-    const doorFrontLeftFar = require('../../resources/door_parts/door_front_left_far.png');
-    const doorFrontRightFar = require('../../resources/door_parts/door_front_right_far.png');
-    const doorSideLeftFar = require('../../resources/door_parts/door_side_left_far.png');
-    const doorSideRightFar = require('../../resources/door_parts/door_side_right_far.png');
+    const doorFrontLeft = require('../../resources/door_parts/door_cut.png');
+    const doorFrontRight = require('../../resources/door_parts/door_cut.png');
+    const doorSideLeft = require('../../resources/door_parts/door_cut.png');
+    const doorSideRight = require('../../resources/door_parts/door_cut.png');
+    const doorFrontLeftFar = require('../../resources/door_parts/door_cut.png');
+    const doorFrontRightFar = require('../../resources/door_parts/door_cut.png');
+    const doorSideLeftFar = require('../../resources/door_parts/door_cut.png');
+    const doorSideRightFar = require('../../resources/door_parts/door_cut.png');
 
     // Tile images for new movement system
     // Note: door, stairs, deadEnd, and fourWay use placeholders until custom images are added
@@ -252,8 +311,73 @@ export const Room = ({ startCombat, engagePlayerAttack, onMerchantInteract, skil
     const rangedShotCooldownRef = useRef<{ [key: number]: number }>({});
     const lastPlayerTileRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
 
-    const getDoorOverlaySources = (tileSprite: NodeRequire, distanceIndex: number): NodeRequire[] => {
+    const getDoorOverlaySources = (
+        tileSprite: NodeRequire,
+        distanceIndex: number,
+        tileIndex: number
+    ): NodeRequire[] => {
         const useFar = distanceIndex >= 4;
+        const facing = currentDir as FacingDirection;
+        const step = Math.max(0, tileIndex);
+        const dirVector =
+            facing === 'N'
+                ? { x: 0, y: -1 }
+                : facing === 'S'
+                    ? { x: 0, y: 1 }
+                    : facing === 'E'
+                        ? { x: 1, y: 0 }
+                        : { x: -1, y: 0 };
+        const tilePos = {
+            x: positionX + dirVector.x * step,
+            y: positionY + dirVector.y * step,
+        };
+        const leftVector =
+            facing === 'N'
+                ? { x: -1, y: 0 }
+                : facing === 'S'
+                    ? { x: 1, y: 0 }
+                    : facing === 'E'
+                        ? { x: 0, y: -1 }
+                        : { x: 0, y: 1 };
+        const rightVector = { x: -leftVector.x, y: -leftVector.y };
+        const isOutOfBounds = (x: number, y: number) => {
+            return x < 0 || y < 0 || x >= mapWidth || y >= mapHeight;
+        };
+        const isWallTile = (x: number, y: number) => {
+            if (isOutOfBounds(x, y)) return false;
+            return (mapTiles?.[y]?.[x] ?? 0) === 0;
+        };
+
+        let preferredSide: 'left' | 'right' | 'both' = 'both';
+        if ((mapTiles?.[tilePos.y]?.[tilePos.x] ?? 0) === 5) {
+            const leftX = tilePos.x + leftVector.x;
+            const leftY = tilePos.y + leftVector.y;
+            const rightX = tilePos.x + rightVector.x;
+            const rightY = tilePos.y + rightVector.y;
+            const leftOut = isOutOfBounds(leftX, leftY);
+            const rightOut = isOutOfBounds(rightX, rightY);
+
+            if (leftOut && !rightOut) {
+                preferredSide = 'left';
+            } else if (rightOut && !leftOut) {
+                preferredSide = 'right';
+            } else {
+                const leftWall = isWallTile(leftX, leftY);
+                const rightWall = isWallTile(rightX, rightY);
+                if (leftWall && !rightWall) {
+                    preferredSide = 'left';
+                } else if (rightWall && !leftWall) {
+                    preferredSide = 'right';
+                }
+            }
+        }
+
+        if (preferredSide === 'left') {
+            return [useFar ? doorSideLeftFar : doorSideLeft];
+        }
+        if (preferredSide === 'right') {
+            return [useFar ? doorSideRightFar : doorSideRight];
+        }
         if (tileSprite === turnTileLeft) {
             return [useFar ? doorSideLeftFar : doorSideLeft];
         }
@@ -2797,6 +2921,7 @@ const turn = (turnDir:string) => {
                     mapWidth={mapWidth}
                     mapHeight={mapHeight}
                     viewDistance={5}
+                    onDoorInteract={handleDoorInteraction}
                 />
             ) : (
             <ImageBackground
@@ -2817,7 +2942,7 @@ const turn = (turnDir:string) => {
                     const isStairsDown = tileType === 7;
                     const isSpecialTile = isStairsUp || isStairsDown;
                     const tileSprite = activePathTileArr[index] as NodeRequire;
-                    const doorOverlays = isDoor ? getDoorOverlaySources(tileSprite, index) : [];
+                    const doorOverlays = isDoor ? getDoorOverlaySources(tileSprite, index, index) : [];
 
                     // Get label for special tiles
                     const getSpecialTileLabel = () => {
@@ -3053,11 +3178,11 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     healthBarFill: {
-        height: 2,
+        height: 4,
         backgroundColor: '#dc2626',
     },
     manaBarFill: {
-        height: 2,
+        height: 4,
         backgroundColor: '#2563eb',
     },
     depthIndicator: {

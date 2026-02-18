@@ -200,18 +200,21 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
 
       if (event.key === 'Escape' || event.key.toLowerCase() === 'c') {
         event.preventDefault();
+        event.stopPropagation();
         onClose();
         return;
       }
 
       if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
         event.preventDefault();
+        event.stopPropagation();
         focusByIndex((focusedControlIndex + 1) % Math.max(1, totalFocusTargets));
         return;
       }
 
       if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
         event.preventDefault();
+        event.stopPropagation();
         const nextIndex = focusedControlIndex - 1 < 0 ? totalFocusTargets - 1 : focusedControlIndex - 1;
         focusByIndex(nextIndex);
         return;
@@ -221,13 +224,14 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
         const node = interactiveRefs.current[focusedControlIndex];
         if (node?.click) {
           event.preventDefault();
+          event.stopPropagation();
           node.click();
         }
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [visible, focusedControlIndex, totalFocusTargets, onClose]);
 
   if (!visible) {

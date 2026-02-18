@@ -144,6 +144,7 @@ export const MainScreen = () => {
   const [initialized, setInitialized] = useState(false);
   const [menuMode, setMenuMode] = useState<'start' | 'create' | 'game'>('start');
   const [canContinue, setCanContinue] = useState(false);
+  const [startMenuFocusIndex, setStartMenuFocusIndex] = useState(0);
   const [selectedArchetype, setSelectedArchetype] = useState<ArchetypeId>('warrior');
   const [characterName, setCharacterName] = useState('');
   const [showDeathOverlay, setShowDeathOverlay] = useState(false);
@@ -203,6 +204,11 @@ export const MainScreen = () => {
     };
     checkSave();
   }, []);
+
+  useEffect(() => {
+    if (menuMode !== 'start') return;
+    setStartMenuFocusIndex(canContinue ? 0 : 1);
+  }, [menuMode, canContinue]);
 
   useEffect(() => {
     if (menuMode !== 'game') {
@@ -1011,6 +1017,15 @@ export const MainScreen = () => {
         return;
       }
 
+      if (key === 'i') {
+        if (showMerchantModal || showStatPointsWindow || pendingLootItems.length > 0) {
+          return;
+        }
+        event.preventDefault();
+        window.dispatchEvent(new Event('dungeon:focus-bag'));
+        return;
+      }
+
       if (showMerchantModal) {
         return;
       }
@@ -1070,6 +1085,54 @@ export const MainScreen = () => {
     performPrimarySkill,
     performSecondarySkill,
   ]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || menuMode !== 'start') return;
+
+    const enabledIndexes = canContinue ? [0, 1] : [1];
+    if (enabledIndexes.length <= 0) return;
+
+    const handleStartMenuKeys = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      const isEditable = !!target?.isContentEditable || tag === 'input' || tag === 'textarea';
+      if (isEditable) return;
+
+      const key = event.key;
+      if (
+        key !== 'ArrowUp' &&
+        key !== 'ArrowDown' &&
+        key !== 'ArrowLeft' &&
+        key !== 'ArrowRight' &&
+        key !== 'Enter' &&
+        key !== ' '
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (key === 'Enter' || key === ' ') {
+        if (startMenuFocusIndex === 0 && canContinue) {
+          continueGame();
+          return;
+        }
+        if (startMenuFocusIndex === 1) {
+          setMenuMode('create');
+        }
+        return;
+      }
+
+      const currentPos = enabledIndexes.indexOf(startMenuFocusIndex);
+      const safePos = currentPos >= 0 ? currentPos : 0;
+      const direction = key === 'ArrowUp' || key === 'ArrowLeft' ? -1 : 1;
+      const nextPos = (safePos + direction + enabledIndexes.length) % enabledIndexes.length;
+      setStartMenuFocusIndex(enabledIndexes[nextPos]);
+    };
+
+    document.addEventListener('keydown', handleStartMenuKeys, true);
+    return () => document.removeEventListener('keydown', handleStartMenuKeys, true);
+  }, [menuMode, canContinue, startMenuFocusIndex]);
 
   const restartAfterDeath = async () => {
     const storedData = await AsyncStorage.getItem('characters');
@@ -1142,14 +1205,23 @@ export const MainScreen = () => {
           <Text style={styles.subtitle}>Delve deeper. Survive longer.</Text>
 
           <TouchableOpacity
-            style={[styles.menuButton, !canContinue && styles.menuButtonDisabled]}
+            style={[
+              styles.menuButton,
+              !canContinue && styles.menuButtonDisabled,
+              startMenuFocusIndex === 0 && styles.menuButtonFocused,
+            ]}
             disabled={!canContinue}
             onPress={continueGame}
+            onFocus={() => setStartMenuFocusIndex(0)}
           >
             <Text style={styles.menuButtonText}>{canContinue ? 'Continue Game' : 'No Save Found'}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuButton} onPress={() => setMenuMode('create')}>
+          <TouchableOpacity
+            style={[styles.menuButton, startMenuFocusIndex === 1 && styles.menuButtonFocused]}
+            onPress={() => setMenuMode('create')}
+            onFocus={() => setStartMenuFocusIndex(1)}
+          >
             <Text style={styles.menuButtonText}>New Game</Text>
           </TouchableOpacity>
         </View>
@@ -1344,6 +1416,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  menuButtonFocused: {
+    borderColor: '#93c5fd',
   },
   menuButtonDisabled: {
     backgroundColor: '#334155',

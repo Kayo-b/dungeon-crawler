@@ -1,4 +1,4 @@
-import { CSSProperties, MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { restoreHealth, restoreMana, setCombatLog, setEquipment, setGold } from '../../features/player/playerSlice';
@@ -32,6 +32,48 @@ export const Inventory = () => {
   const isShiftDownRef = useRef(false);
   const bagShiftIntentRef = useRef<Record<number, boolean>>({});
   const stashShiftIntentRef = useRef<Record<number, boolean>>({});
+  const bagButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const stashButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const equipmentButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [activeNav, setActiveNav] = useState<{ group: 'bag' | 'stash' | 'equipment'; index: number } | null>(null);
+
+  const BAG_COLUMNS = 4;
+  const STASH_COLUMNS = 4;
+  const EQUIPMENT_COLUMNS = 4;
+
+  const focusNavTarget = (group: 'bag' | 'stash' | 'equipment', nextIndex: number) => {
+    const refs =
+      group === 'bag' ? bagButtonRefs.current : group === 'stash' ? stashButtonRefs.current : equipmentButtonRefs.current;
+    const total = refs.length;
+    if (total <= 0) return;
+    const wrapped = ((nextIndex % total) + total) % total;
+    setActiveNav({ group, index: wrapped });
+    const node = refs[wrapped];
+    if (node?.focus) {
+      node.focus();
+    }
+  };
+
+  const moveNavByKey = (key: string) => {
+    if (!activeNav) return false;
+    const { group, index } = activeNav;
+    const refs =
+      group === 'bag' ? bagButtonRefs.current : group === 'stash' ? stashButtonRefs.current : equipmentButtonRefs.current;
+    const total = refs.length;
+    if (total <= 0) return false;
+
+    const columns = group === 'bag' ? BAG_COLUMNS : group === 'stash' ? STASH_COLUMNS : EQUIPMENT_COLUMNS;
+    let nextIndex = index;
+
+    if (key === 'ArrowRight') nextIndex += 1;
+    else if (key === 'ArrowLeft') nextIndex -= 1;
+    else if (key === 'ArrowDown') nextIndex += columns;
+    else if (key === 'ArrowUp') nextIndex -= columns;
+    else return false;
+
+    focusNavTarget(group, nextIndex);
+    return true;
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -61,6 +103,18 @@ export const Inventory = () => {
         window.removeEventListener('blur', onBlur);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onFocusBag = () => {
+      setBagOpen(true);
+      setTimeout(() => focusNavTarget('bag', 0), 0);
+    };
+
+    window.addEventListener('dungeon:focus-bag', onFocusBag as EventListener);
+    return () => window.removeEventListener('dungeon:focus-bag', onFocusBag as EventListener);
   }, []);
 
   const isShiftAction = (event: MouseEvent<HTMLButtonElement>) => {
@@ -299,7 +353,16 @@ export const Inventory = () => {
   };
 
   return (
-    <div style={styles.root}>
+    <div
+      style={styles.root}
+      data-nav-scope="ui"
+      onKeyDownCapture={(event: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (moveNavByKey(event.key)) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
+    >
       {hoveredItem && (
         <div style={styles.tooltipOverlay}>
           <div style={styles.tooltipTitle}>{hoveredItem.name || 'Unknown Item'}</div>
@@ -331,10 +394,14 @@ export const Inventory = () => {
               <button
                 key={`stash-slot-${slotIndex}`}
                 type="button"
+                ref={(node) => {
+                  stashButtonRefs.current[slotIndex] = node;
+                }}
                 style={{
                   ...styles.stashCell,
                   ...(!item ? styles.stashCellEmpty : null),
                 }}
+                tabIndex={0}
                 onClick={(event: MouseEvent<HTMLButtonElement>) => {
                   if (item) {
                     const shiftIntent = isShiftAction(event) || !!stashShiftIntentRef.current[slotIndex];
@@ -348,6 +415,7 @@ export const Inventory = () => {
                     void moveStashItemToBag(slotIndex);
                   }
                 }}
+                onFocus={() => setActiveNav({ group: 'stash', index: slotIndex })}
                 onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
                   stashShiftIntentRef.current[slotIndex] = isShiftAction(event);
                 }}
@@ -369,10 +437,14 @@ export const Inventory = () => {
                   <button
                     key={`bag-slot-${index}`}
                     type="button"
+                    ref={(node) => {
+                      bagButtonRefs.current[index] = node;
+                    }}
                     style={{
                       ...styles.bagCell,
                       ...(!item ? styles.bagCellEmpty : null),
                     }}
+                    tabIndex={0}
                     onClick={(event: MouseEvent<HTMLButtonElement>) => {
                       if (!item) return;
                       const shiftIntent = isShiftAction(event) || !!bagShiftIntentRef.current[index];
@@ -385,6 +457,7 @@ export const Inventory = () => {
                       }
                       void useOrEquipBagItem(index);
                     }}
+                    onFocus={() => setActiveNav({ group: 'bag', index })}
                     onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
                       bagShiftIntentRef.current[index] = isShiftAction(event);
                     }}
@@ -412,18 +485,23 @@ export const Inventory = () => {
 
         {equipmentOpen && (
           <div style={styles.equipmentGrid}>
-            {slots.map((slot) => {
+            {slots.map((slot, index) => {
               const itemName = slot.item?.name || '';
               return (
                 <button
                   key={slot.key}
                   type="button"
+                  ref={(node) => {
+                    equipmentButtonRefs.current[index] = node;
+                  }}
                   style={styles.slotBoxButton}
+                  tabIndex={0}
                   onClick={() => {
                     if (slot.item?.name) {
                       void moveEquipmentItemToBag(slot.key);
                     }
                   }}
+                  onFocus={() => setActiveNav({ group: 'equipment', index })}
                   onMouseEnter={() => slot.item?.name && setHoveredItem(slot.item)}
                   onMouseLeave={() => setHoveredItem(null)}
                 >

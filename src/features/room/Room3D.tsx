@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, Platform, Image, TouchableOpacity } from 'react-native';
 
 /**
  * Room3D - 3D dungeon renderer
@@ -16,18 +16,12 @@ interface Room3DProps {
     mapWidth: number;
     mapHeight: number;
     viewDistance?: number;
+    onDoorInteract?: () => void;
 }
 
 const brickLarge = require('../../resources/Brick_Large.png');
 const brickSmall = require('../../resources/Brick_Small.png');
-const doorFrontLeft = require('../../resources/door_parts/door_front_left.png');
-const doorFrontRight = require('../../resources/door_parts/door_front_right.png');
-const doorSideLeft = require('../../resources/door_parts/door_side_left.png');
-const doorSideRight = require('../../resources/door_parts/door_side_right.png');
-const doorFrontLeftFar = require('../../resources/door_parts/door_front_left_far.png');
-const doorFrontRightFar = require('../../resources/door_parts/door_front_right_far.png');
-const doorSideLeftFar = require('../../resources/door_parts/door_side_left_far.png');
-const doorSideRightFar = require('../../resources/door_parts/door_side_right_far.png');
+const doorSprite = require('../../resources/door_parts/door_cut.png');
 
 const VIEWPORT_WIDTH = 512;
 const VIEWPORT_HEIGHT = 512;
@@ -42,7 +36,10 @@ export const Room3D: React.FC<Room3DProps> = ({
     mapWidth,
     mapHeight,
     viewDistance = 5,
+    onDoorInteract,
 }) => {
+    type DoorPlacement = 'none' | 'front' | 'left' | 'right';
+
     const getTileTypeAt = (x: number, y: number) => {
         if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) return 0;
         return mapTiles[y]?.[x] ?? 0;
@@ -60,22 +57,36 @@ export const Room3D: React.FC<Room3DProps> = ({
         return { x, y };
     };
 
-    const getSideTileType = (distance: number, side: 'left' | 'right') => {
-        const forward = getForwardTilePos(distance);
-        let sx = forward.x;
-        let sy = forward.y;
+    const getFacingVectors = () => {
+        if (direction === 'N') return { forward: { x: 0, y: -1 }, left: { x: -1, y: 0 } };
+        if (direction === 'S') return { forward: { x: 0, y: 1 }, left: { x: 1, y: 0 } };
+        if (direction === 'E') return { forward: { x: 1, y: 0 }, left: { x: 0, y: -1 } };
+        return { forward: { x: -1, y: 0 }, left: { x: 0, y: 1 } };
+    };
 
-        if (direction === 'N') {
-            sx += side === 'left' ? -1 : 1;
-        } else if (direction === 'S') {
-            sx += side === 'left' ? 1 : -1;
-        } else if (direction === 'E') {
-            sy += side === 'left' ? -1 : 1;
-        } else {
-            sy += side === 'left' ? 1 : -1;
-        }
+    const getDoorPlacement = (tileX: number, tileY: number): DoorPlacement => {
+        const vectors = getFacingVectors();
+        const right = { x: -vectors.left.x, y: -vectors.left.y };
 
-        return getTileTypeAt(sx, sy);
+        const isOutOfBounds = (x: number, y: number) => x < 0 || y < 0 || x >= mapWidth || y >= mapHeight;
+        const tileState = (x: number, y: number): 'out' | 'wall' | 'open' => {
+            if (isOutOfBounds(x, y)) return 'out';
+            return (mapTiles[y]?.[x] ?? 0) === 0 ? 'wall' : 'open';
+        };
+
+        const leftState = tileState(tileX + vectors.left.x, tileY + vectors.left.y);
+        const rightState = tileState(tileX + right.x, tileY + right.y);
+        const frontState = tileState(tileX + vectors.forward.x, tileY + vectors.forward.y);
+
+        if (leftState === 'out' && rightState !== 'out') return 'left';
+        if (rightState === 'out' && leftState !== 'out') return 'right';
+        if (frontState === 'out') return 'front';
+
+        if (leftState === 'wall' && rightState !== 'wall') return 'left';
+        if (rightState === 'wall' && leftState !== 'wall') return 'right';
+        if (frontState === 'wall') return 'front';
+
+        return 'none';
     };
 
     const getTilesAhead = () => {
@@ -105,6 +116,8 @@ export const Room3D: React.FC<Room3DProps> = ({
     };
 
     const tilesAhead = getTilesAhead();
+    const isOnDoorTile = getTileTypeAt(positionX, positionY) === 5;
+    const currentTileDoorPlacement = isOnDoorTile ? getDoorPlacement(positionX, positionY) : 'none';
 
     // Get corridor opening at each distance
     const getFrameDimensions = (distance: number) => {
@@ -142,8 +155,9 @@ export const Room3D: React.FC<Room3DProps> = ({
     };
 
     const getBrightness = (distance: number) => {
-        return 1;
-        // return Math.max(0.3, 1 - distance * 0.12);
+        
+        // return 1;
+        return Math.max(0.3, 1 - distance * 0.12);
     };
 
     const isWeb = Platform.OS === 'web';
@@ -164,9 +178,7 @@ export const Room3D: React.FC<Room3DProps> = ({
 
             const isWall = tile.type === 0;
             const isDoorAhead = tile.type === 5;
-            const hasLeftDoor = getSideTileType(d, 'left') === 5;
-            const hasRightDoor = getSideTileType(d, 'right') === 5;
-            const useFarDoor = d >= 3;
+            const doorPlacement = isDoorAhead ? getDoorPlacement(tile.x, tile.y) : 'none';
 
             // Front wall face
             if (isWall) {
@@ -190,7 +202,11 @@ export const Room3D: React.FC<Room3DProps> = ({
                 );
             }
 
-            if (isDoorAhead) {
+            const renderDoorOnFrontWall =
+                (isDoorAhead && doorPlacement === 'front') ||
+                (d === 1 && isWall && currentTileDoorPlacement === 'front');
+
+            if (renderDoorOnFrontWall) {
                 frames.push(
                     <View
                         key={`door-front-${d}`}
@@ -203,20 +219,25 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 height: far.height,
                                 zIndex: 101 - d,
                             },
+                            isWeb && {
+                                // @ts-ignore
+                                perspective: '300px',
+                            }
                         ]}
                     >
-                        <Image
-                            testID={`door-front-left-${d}`}
-                            source={useFarDoor ? doorFrontLeftFar : doorFrontLeft}
-                            style={styles.doorPlane}
-                            resizeMode="contain"
-                        />
-                        <Image
-                            testID={`door-front-right-${d}`}
-                            source={useFarDoor ? doorFrontRightFar : doorFrontRight}
-                            style={styles.doorPlane}
-                            resizeMode="contain"
-                        />
+                        <TouchableOpacity
+                            activeOpacity={0.9}
+                            onPress={onDoorInteract}
+                            disabled={!isOnDoorTile || !onDoorInteract}
+                            style={styles.doorInteractWrap}
+                        >
+                            <Image
+                                testID={`door-front-${d}`}
+                                source={doorSprite}
+                                style={[styles.doorPlane, styles.doorFrontCentered]}
+                                resizeMode="contain"
+                            />
+                        </TouchableOpacity>
                     </View>
                 );
             }
@@ -262,11 +283,11 @@ export const Room3D: React.FC<Room3DProps> = ({
                             ]}
                         >
                             <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
-                            {hasLeftDoor && (
+                            {doorPlacement === 'left' && (
                                 <Image
                                     testID={`door-side-left-${d}`}
-                                    source={useFarDoor ? doorSideLeftFar : doorSideLeft}
-                                    style={styles.doorPlane}
+                                    source={doorSprite}
+                                    style={[styles.doorPlane, styles.doorLeftCentered]}
                                     resizeMode="contain"
                                 />
                             )}
@@ -312,11 +333,11 @@ export const Room3D: React.FC<Room3DProps> = ({
                             ]}
                         >
                             <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
-                            {hasRightDoor && (
+                            {doorPlacement === 'right' && (
                                 <Image
                                     testID={`door-side-right-${d}`}
-                                    source={useFarDoor ? doorSideRightFar : doorSideRight}
-                                    style={styles.doorPlane}
+                                    source={doorSprite}
+                                    style={[styles.doorPlane, styles.doorRightCentered, {height:`${120 + d * 5}%`}]}
                                     resizeMode="contain"
                                 />
                             )}
@@ -467,6 +488,38 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
+        height: 500,
+    },
+    doorInteractWrap: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    doorFrontCentered: {
+        width: '42%',
+        height: '120%',
+        left: '29%',
+        top: '5%',
+        right: 'auto',
+        bottom: 'auto',
+    },
+    doorLeftCentered: {
+        width: '30%',
+        height: '120%',
+        left: '10%',
+        top: '8%',
+        right: 'auto',
+        bottom: 'auto',
+    },
+    doorRightCentered: {
+        width: '150%',
+        height: '122%',
+        left: 'auto',
+        top: '8%',
+        right: '20%',
+        bottom: 'auto',
     },
     debugOverlay: {
         position: 'absolute',
