@@ -44,9 +44,18 @@
       "stats": {}
     },
     "belt": {
-      "name": "",
+      "name": "Starter Belt",
       "type": "belt",
-      "stats": {}
+      "stats": {
+        "consumableSlots": 2
+      }
+    },
+    "bag": {
+      "name": "Small Pouch",
+      "type": "bag",
+      "stats": {
+        "bagSlots": 4
+      }
     },
     "ring": {
       "name": "",

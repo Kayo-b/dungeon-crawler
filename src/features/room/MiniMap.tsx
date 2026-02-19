@@ -1,10 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useAppSelector } from '../../app/hooks';
 
 interface MiniMapProps {
     size?: number; // Size of each tile in pixels
 }
+const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
 
 export const MiniMap: React.FC<MiniMapProps> = ({ size = 12 }) => {
     const positionX = useAppSelector(state => state.room.posX);
@@ -110,12 +111,16 @@ export const MiniMap: React.FC<MiniMapProps> = ({ size = 12 }) => {
 
 const styles = StyleSheet.create({
     container: {
-        padding: 0,
+        padding: 2,
         alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#d7d7d7',
+        backgroundColor: '#050505',
     },
     mapContainer: {
         backgroundColor: '#000',
-        borderWidth: 0,
+        borderWidth: 1,
+        borderColor: '#d7d7d7',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -130,58 +135,59 @@ const styles = StyleSheet.create({
         backgroundColor: '#000',
     },
     wallTile: {
-        backgroundColor: '#3a3a3a',
+        backgroundColor: '#24262f',
         borderWidth: 0.5,
-        borderColor: '#222',
+        borderColor: '#111',
     },
     corridorTile: {
-        backgroundColor: '#5a5a4a',
+        backgroundColor: '#4e4e4e',
         borderWidth: 0.5,
-        borderColor: '#333',
+        borderColor: '#2a2a2a',
     },
     turnTile: {
-        backgroundColor: '#6a5a3a',
+        backgroundColor: '#595959',
         borderWidth: 0.5,
-        borderColor: '#333',
+        borderColor: '#333333',
     },
     threeWayTile: {
-        backgroundColor: '#3a6a5a',
+        backgroundColor: '#666666',
         borderWidth: 0.5,
-        borderColor: '#333',
+        borderColor: '#3a3a3a',
     },
     fourWayTile: {
-        backgroundColor: '#5a3a6a',
+        backgroundColor: '#737373',
         borderWidth: 0.5,
-        borderColor: '#333',
+        borderColor: '#444444',
     },
     doorTile: {
-        backgroundColor: '#8a6a3a',
+        backgroundColor: '#888888',
         borderWidth: 0.5,
-        borderColor: '#333',
+        borderColor: '#555555',
     },
     stairsUpTile: {
-        backgroundColor: '#3a8a5a',
+        backgroundColor: '#9a9a9a',
         borderWidth: 0.5,
-        borderColor: '#333',
+        borderColor: '#606060',
     },
     stairsDownTile: {
-        backgroundColor: '#5a3a8a',
+        backgroundColor: '#adadad',
         borderWidth: 0.5,
-        borderColor: '#333',
+        borderColor: '#717171',
     },
     deadEndTile: {
-        backgroundColor: '#6a4a4a',
+        backgroundColor: '#7d7d7d',
         borderWidth: 0.5,
-        borderColor: '#333',
+        borderColor: '#4e4e4e',
     },
     playerTile: {
-        backgroundColor: '#0077ff',
-        borderColor: '#00aaff',
+        backgroundColor: '#ffffff',
+        borderColor: '#000000',
         borderWidth: 1.5,
     },
     playerMarker: {
-        color: '#ffffff',
+        color: '#000000',
         fontWeight: 'bold',
+        fontFamily: RETRO_FONT,
     },
 });
 

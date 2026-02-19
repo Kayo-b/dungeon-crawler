@@ -419,6 +419,35 @@
       "Quality Level": 18
       }
     },
+    "bags": {
+      "1": {
+      "ID": 1,
+      "type": "bag",
+      "name": "Small Pouch",
+      "stats": {
+        "bagSlots": 4
+      },
+      "Quality Level": 1
+      },
+      "2": {
+      "ID": 2,
+      "type": "bag",
+      "name": "Traveller Backpack",
+      "stats": {
+        "bagSlots": 8
+      },
+      "Quality Level": 8
+      },
+      "3": {
+      "ID": 3,
+      "type": "bag",
+      "name": "Expedition Pack",
+      "stats": {
+        "bagSlots": 12
+      },
+      "Quality Level": 15
+      }
+    },
     "boots": {
       "1": {
       "ID": 1,

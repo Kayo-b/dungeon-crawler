@@ -5,14 +5,15 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { ItemIcon } from '../../components/ItemIcon';
 import { restoreHealth, restoreMana, setCombatLog } from '../player/playerSlice';
 import { setAllInventory } from './inventorySlice';
-import { CONSUMABLE_STASH_CAPACITY, normalizeInventoryContainers } from './inventoryUtils';
+import { getInventoryCapacities, normalizeInventoryContainers } from './inventoryUtils';
 
 export const ConsumableBelt = () => {
   const dispatch = useAppDispatch();
   const consumableStash = useAppSelector((state) => state.inventory.consumableStash as any[]);
   const playerHealth = useAppSelector((state) => state.player.health);
+  const equipment = useAppSelector((state) => state.player.equipment as Record<string, any>);
 
-  const slotCount = CONSUMABLE_STASH_CAPACITY;
+  const slotCount = getInventoryCapacities(equipment).beltCapacity;
 
   const beltEntries = useMemo(() => {
     return (consumableStash || []).slice(0, slotCount);
@@ -32,7 +33,8 @@ export const ConsumableBelt = () => {
 
     const normalized = normalizeInventoryContainers(
       obj.character.inventory,
-      obj.character.consumableStash
+      obj.character.consumableStash,
+      getInventoryCapacities(obj.character.equipment || equipment)
     );
 
     if (hpAmount > 0) {
@@ -78,22 +80,26 @@ export const ConsumableBelt = () => {
 
 const styles = StyleSheet.create({
   grid: {
-    width: 60,
+    alignSelf: 'flex-end',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
+    flexWrap: 'nowrap',
+    gap: 2,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    backgroundColor: '#050505',
   },
   slot: {
-    width: 28,
-    height: 28,
-    borderRadius: 4,
+    width: 26,
+    height: 20,
     borderWidth: 1,
-    borderColor: '#334155',
-    backgroundColor: '#1e293b',
+    borderColor: '#d7d7d7',
+    backgroundColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
   },
   slotEmpty: {
-    backgroundColor: 'rgba(30, 41, 59, 0.35)',
+    backgroundColor: '#1b1b1b',
   },
 });

@@ -38,6 +38,16 @@ export const Room3D: React.FC<Room3DProps> = ({
     viewDistance = 5,
     onDoorInteract,
 }) => {
+    const resolveAssetUri = (asset: any) => {
+        if (typeof asset === 'string') return asset;
+        if (asset?.uri) return asset.uri;
+        if (asset?.default) return asset.default;
+        if (typeof (Image as any).resolveAssetSource === 'function') {
+            return (Image as any).resolveAssetSource(asset)?.uri;
+        }
+        return '';
+    };
+    const brickLargeUri = resolveAssetUri(brickLarge);
     type DoorPlacement = 'none' | 'front' | 'left' | 'right';
 
     const getTileTypeAt = (x: number, y: number) => {
@@ -122,8 +132,8 @@ export const Room3D: React.FC<Room3DProps> = ({
     // Get corridor opening at each distance
     const getFrameDimensions = (distance: number) => {
         const scale = 1 / (distance * 0.4 + 0.5);
-        const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance/2));
-        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance/4));
+        const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance / 2));
+        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance / 4));
         const left = CENTER_X - width / 1.8;
         const top = CENTER_Y - height / 1.8;
         const right = CENTER_X + width / 1.8;
@@ -155,18 +165,25 @@ export const Room3D: React.FC<Room3DProps> = ({
     };
 
     const getBrightness = (distance: number) => {
-        
+
         // return 1;
         return Math.max(0.3, 1 - distance * 0.12);
     };
 
     const isWeb = Platform.OS === 'web';
+    const wallFrontTextureStyle = isWeb
+        ? ({
+            backgroundImage: brickLargeUri ? `url(${brickLargeUri})` : undefined,
+            backgroundRepeat: 'repeat',
+            backgroundSize: 'auto',
+        } as any)
+        : null;
 
     const renderFrames = () => {
         const frames: React.ReactNode[] = [];
 
         // Render from far to near
-        for (let i = tilesAhead.length - 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ; i >= 0; i--) {
+        for (let i = tilesAhead.length - 1; i >= 0; i--) {
             const tile = tilesAhead[i];
             const d = tile.distance;
             const brightness = getBrightness(d);
@@ -188,16 +205,19 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: far.left,
+                                left: far.left + 20,
                                 top: far.top,
                                 width: far.width,
-                                height: far.height,
+                                height: far.height - 40,
                                 opacity: brightness,
-                                zIndex: 100 - d,
-                            }
+                                zIndex: 90 - d,
+                            },
+                            wallFrontTextureStyle,
                         ]}
                     >
-                        <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
+                        {!isWeb && (
+                            <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
+                        )}
                     </View>
                 );
             }
@@ -245,7 +265,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             // Wall rotation - moderate angle for visibility while creating depth
             const wallRotation = 59.8 + (d - 1) * 4;
             const floorRotation = 60;
-            const ceilingRotation= 100;
+            const ceilingRotation = 100;
 
             // LEFT WALL - full height from near.top to near.bottom
             const leftWidth = far.left - near.left;
@@ -337,7 +357,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 <Image
                                     testID={`door-side-right-${d}`}
                                     source={doorSprite}
-                                    style={[styles.doorPlane, styles.doorRightCentered, {height:`${120 + d * 5}%`}]}
+                                    style={[styles.doorPlane, styles.doorRightCentered, { height: `${120 + d * 5}%` }]}
                                     resizeMode="contain"
                                 />
                             )}
@@ -356,14 +376,14 @@ export const Room3D: React.FC<Room3DProps> = ({
                             styles.segment,
                             {
                                 left: near.left - 20,
-                                top: far.bottom,
+                                top: far.bottom - 80,
                                 width: near.right - near.left + 40,
-                                height: floorHeight + 20,
-                                zIndex: 98 - d,
+                                height: floorHeight + 10,
+                                zIndex: 89 - d,
                             },
                             isWeb && {
                                 // @ts-ignore
-                                perspective: '300px',
+                                perspective: '400px',
                             }
                         ]}
                     >

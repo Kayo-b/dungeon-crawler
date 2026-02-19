@@ -95,25 +95,36 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false }) => 
   const enemySprite = resources[enemy.id] || resources[0];
   const isRat = enemy.id === 1;
 
-  const maxHealth = Math.max(enemy.stats.health || 1, 1);
-  const healthPct = Math.max(0, Math.min(1, enemy.health / maxHealth));
-  const healthColor = healthPct > 0.6 ? '#22c55e' : healthPct > 0.3 ? '#f59e0b' : '#ef4444';
+  const maxHealth = Math.max(Math.floor((enemy as any)?.stats?.health || enemy.health || 1), 1);
+  const currentHealth = Math.max(0, Math.min(maxHealth, Math.floor(enemy.health || 0)));
+  const hpTrackWidth = Math.floor((isRat ? 84 : 110) * 0.65);
+  const hpGap = maxHealth > 34 ? 0 : 1;
+  const desiredSegmentSize = isRat ? 3 : 4;
+  const desiredTotalWidth = maxHealth * desiredSegmentSize + Math.max(0, maxHealth - 1) * hpGap;
+  const fitScale = desiredTotalWidth > hpTrackWidth ? hpTrackWidth / desiredTotalWidth : 1;
+  const hpSegmentSize = Math.max(0.75, desiredSegmentSize * fitScale);
+  const hpSegments = Array.from({ length: maxHealth }, (_, index) => index < currentHealth);
 
   return (
     <View style={[styles.enemyRoot, isRat && styles.enemyRootRat]}>
       <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: ambushJumpAnim }, { translateX: attackAnim }] }}>
         <View style={styles.enemyFrame}>
           <View style={[styles.healthBarWrap, isRat && styles.healthBarWrapRat]}>
-            <View style={styles.healthBarTrack}>
-              <View
-                style={[
-                  styles.healthBarFill,
-                  {
-                    width: `${healthPct * 100}%`,
-                    backgroundColor: healthColor,
-                  },
-                ]}
-              />
+            <View style={[styles.healthBarTrack, { minHeight: hpSegmentSize + 2, width: hpTrackWidth }]}>
+              {hpSegments.map((filled, index) => (
+                <View
+                  key={`hp-segment-${index}`}
+                  style={[
+                    styles.healthSegment,
+                    {
+                      width: hpSegmentSize,
+                      height: hpSegmentSize,
+                      marginRight: index === maxHealth - 1 ? 0 : hpGap,
+                    },
+                    filled ? styles.healthSegmentFilled : styles.healthSegmentEmpty,
+                  ]}
+                />
+              ))}
             </View>
           </View>
           <ImageBackground
@@ -176,16 +187,25 @@ const styles = StyleSheet.create({
     right: 12,
   },
   healthBarTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: '#334155',
+    backgroundColor: '#0b0b0b',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#0f172a',
+    borderColor: '#d7d7d7',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 1,
+    paddingVertical: 1,
   },
-  healthBarFill: {
-    height: '100%',
-    borderRadius: 999,
+  healthSegment: {
+    borderWidth: 1,
+    borderColor: '#000000',
+  },
+  healthSegmentFilled: {
+    backgroundColor: '#dc2626',
+  },
+  healthSegmentEmpty: {
+    backgroundColor: '#301010',
   },
   hitEffectWrap: {
     position: 'absolute',

@@ -173,7 +173,6 @@ export const buildCharacterFromArchetype = (archetypeId: ArchetypeId, characterN
   }> = [
     { ID: 1, name: 'Minor Healing Potion', type: 'consumable', stats: { amount: 8 } },
     { ID: 2, name: 'Minor Mana Flask', type: 'consumable', stats: { mana: 14 } },
-    { ID: 1, name: 'Scout Sash', type: 'belt', stats: { defence: 2, consumableSlotsBonus: 1 } },
   ];
   const startingConsumableStash: Array<{
     ID: number;
@@ -192,7 +191,14 @@ export const buildCharacterFromArchetype = (archetypeId: ArchetypeId, characterN
     cloned.character.equipment.helmet = { name: '', type: 'helmet', stats: {} };
   }
   if (!cloned.character.equipment.belt) {
-    cloned.character.equipment.belt = { name: '', type: 'belt', stats: {} };
+    cloned.character.equipment.belt = { name: 'Starter Belt', type: 'belt', stats: { consumableSlots: 2 } };
+  } else if (!cloned.character.equipment.belt?.name) {
+    cloned.character.equipment.belt = { name: 'Starter Belt', type: 'belt', stats: { consumableSlots: 2 } };
+  }
+  if (!cloned.character.equipment.bag) {
+    cloned.character.equipment.bag = { name: 'Small Pouch', type: 'bag', stats: { bagSlots: 4 } };
+  } else if (!cloned.character.equipment.bag?.name) {
+    cloned.character.equipment.bag = { name: 'Small Pouch', type: 'bag', stats: { bagSlots: 4 } };
   }
   if (!cloned.character.equipment.boots) {
     cloned.character.equipment.boots = { name: '', type: 'boots', stats: {} };

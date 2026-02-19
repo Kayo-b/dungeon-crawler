@@ -159,6 +159,7 @@ export const EnemyLootModal: React.FC<EnemyLootModalProps> = ({
     </View>
   );
 };
+const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
 
 const styles = StyleSheet.create({
   overlay: {
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     zIndex: 1000,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.84)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -177,30 +178,32 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 440,
     maxHeight: '86%',
-    backgroundColor: '#0f172a',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
+    backgroundColor: '#080808',
+    borderWidth: 4,
+    borderColor: '#d7d7d7',
     padding: 12,
     gap: 8,
   },
   title: {
-    color: '#f8fafc',
+    color: '#ffffff',
     fontWeight: '700',
-    fontSize: 22,
+    fontSize: 20,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontFamily: RETRO_FONT,
   },
   meta: {
-    color: '#94a3b8',
-    fontSize: 12,
+    color: '#d0d0d0',
+    fontSize: 11,
+    fontFamily: RETRO_FONT,
   },
   scrollArea: {
     maxHeight: 280,
   },
   lootRow: {
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 8,
-    backgroundColor: '#111827',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    backgroundColor: '#121212',
     paddingHorizontal: 10,
     paddingVertical: 8,
     marginBottom: 6,
@@ -209,8 +212,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   lootRowFocused: {
-    borderColor: '#93c5fd',
+    borderColor: '#ffffff',
     borderWidth: 2,
+    backgroundColor: '#252525',
   },
   lootMain: {
     flexDirection: 'row',
@@ -221,18 +225,23 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   lootName: {
-    color: '#f8fafc',
+    color: '#ffffff',
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 12,
+    fontFamily: RETRO_FONT,
   },
   lootType: {
-    color: '#94a3b8',
-    fontSize: 10,
+    color: '#d0d0d0',
+    fontSize: 9,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
   },
   takeText: {
-    color: '#22c55e',
+    color: '#f0f0f0',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -240,24 +249,28 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionMuted: {
-    backgroundColor: '#475569',
-    borderRadius: 6,
-    paddingVertical: 8,
+    backgroundColor: '#262626',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    paddingVertical: 7,
     paddingHorizontal: 10,
   },
   actionPrimary: {
-    backgroundColor: '#1d4ed8',
-    borderRadius: 6,
-    paddingVertical: 8,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    paddingVertical: 7,
     paddingHorizontal: 10,
   },
   actionText: {
-    color: '#f8fafc',
-    fontWeight: '600',
-    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
   },
   actionFocused: {
-    borderColor: '#bfdbfe',
+    borderColor: '#ffffff',
     borderWidth: 2,
   },
 });

@@ -22,6 +22,7 @@ import {
 import { setAllInventory } from '../inventory/inventorySlice';
 import { ConsumableBelt } from '../inventory/ConsumableBelt';
 import { EnemyLootModal } from '../inventory/EnemyLootModal';
+import { Inventory } from '../inventory/Inventory';
 import { Player } from '../player/Player';
 import { StatPointsWindow } from '../player/StatPointsWindow';
 import { MerchantModal } from '../merchant/MerchantModal';
@@ -36,8 +37,9 @@ import { getEnemyBehaviorForType } from '../enemy/enemyPerception';
 import { getMapDepth } from '../../data/maps/transitions';
 import { computeDerivedPlayerStats } from '../player/playerStats';
 import {
-  BAG_CAPACITY,
-  CONSUMABLE_STASH_CAPACITY,
+  getCarryLoadSummary,
+  getInventoryCapacities,
+  getItemWeight,
   isCurrencyItem,
   normalizeInventoryContainers,
   readCurrencyGoldValue,
@@ -56,6 +58,7 @@ const ENEMY_TYPE = {
   RAT: 1,
   ARCHER: 2,
 } as const;
+const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
 
 type EnemyTypeId = (typeof ENEMY_TYPE)[keyof typeof ENEMY_TYPE];
 type PackKind = 'rats' | 'skeletons' | 'mixed';
@@ -155,6 +158,7 @@ export const MainScreen = () => {
   const [showMerchantModal, setShowMerchantModal] = useState(false);
   const [merchantMode, setMerchantMode] = useState<'menu' | 'trade'>('menu');
   const [merchantStock, setMerchantStock] = useState<MerchantStockEntry[]>([]);
+  const [showLootModal, setShowLootModal] = useState(false);
 
   const mapTiles = useAppSelector((state) => state.room.mapTiles);
   const mapWidth = useAppSelector((state) => state.room.mapWidth);
@@ -179,6 +183,7 @@ export const MainScreen = () => {
   const consumableStash = useAppSelector((state) => state.inventory.consumableStash as any[]);
   const mana = useAppSelector((state) => state.player.mana);
   const comboPoints = useAppSelector((state) => state.player.comboPoints);
+  const inventoryCapacities = useMemo(() => getInventoryCapacities(playerEquipment), [playerEquipment]);
   const [spawnPoints, setSpawnPoints] = useState<SpawnAnchor[]>([]);
   const stepCounterRef = useRef(0);
   const lastPosRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
@@ -193,8 +198,13 @@ export const MainScreen = () => {
     performSecondarySkill,
     specialCooldownFrames,
     inCombat,
+    floorLootBags,
+    activeLootBagId,
+    openLootBag,
+    closeLootBag,
+    clearFloorLootBags,
+    setActiveLootBagItems,
     pendingLootItems,
-    setPendingLootItems,
   } = useCombat();
 
   useEffect(() => {
@@ -213,7 +223,8 @@ export const MainScreen = () => {
   useEffect(() => {
     if (menuMode !== 'game') {
       setShowStatPointsWindow(false);
-      setPendingLootItems([]);
+      setShowLootModal(false);
+      clearFloorLootBags();
       previousUnspentPointsRef.current = unspentStatPoints;
       return;
     }
@@ -223,7 +234,13 @@ export const MainScreen = () => {
       setShowStatPointsWindow(true);
     }
     previousUnspentPointsRef.current = unspentStatPoints;
-  }, [menuMode, unspentStatPoints]);
+  }, [menuMode, unspentStatPoints, clearFloorLootBags]);
+
+  useEffect(() => {
+    if (!pendingLootItems || pendingLootItems.length <= 0) {
+      setShowLootModal(false);
+    }
+  }, [pendingLootItems]);
 
   const isSmallMap = mapWidth * mapHeight <= SMALL_MAP_MAX_TILES;
   const dungeonDepth = getMapDepth(currentMapId);
@@ -271,7 +288,6 @@ export const MainScreen = () => {
   const openMerchantMenu = () => {
     if (!merchantInteractable) return;
     if (inCombat) return;
-    if (pendingLootItems.length > 0) return;
     if (showStatPointsWindow) return;
     setMerchantMode('menu');
     setShowMerchantModal(true);
@@ -342,7 +358,8 @@ export const MainScreen = () => {
 
     let containers = normalizeInventoryContainers(
       obj.character.inventory,
-      obj.character.consumableStash
+      obj.character.consumableStash,
+      getInventoryCapacities(obj.character.equipment || playerEquipment || {})
     );
     let nextGold = Math.max(0, Number(obj.character.gold || 0));
 
@@ -363,7 +380,25 @@ export const MainScreen = () => {
         }
       }
 
-      const result = tryStoreItem(containers, item);
+      const carrySummary = getCarryLoadSummary({
+        classArchetype: obj.character.classArchetype || classArchetype,
+        stats: obj.character.stats || playerStats || {},
+        inventory: containers.inventory,
+        consumableStash: containers.consumableStash,
+        equipment: obj.character.equipment || playerEquipment || {},
+      });
+      const projectedWeight = Number((carrySummary.used + getItemWeight(item)).toFixed(2));
+      if (projectedWeight > carrySummary.max) {
+        skipped += 1;
+        skippedItems.push(item);
+        return;
+      }
+
+      const result = tryStoreItem(
+        containers,
+        item,
+        getInventoryCapacities(obj.character.equipment || playerEquipment || {})
+      );
       containers = result.next;
       if (result.storedIn === 'bag') {
         bagAdded += 1;
@@ -392,7 +427,7 @@ export const MainScreen = () => {
       dispatch(setCombatLog(`Collected ${goldAdded} gold.`));
     }
     if (skipped > 0) {
-      dispatch(setCombatLog(`${skipped} item${skipped > 1 ? 's' : ''} left behind (inventory full).`));
+      dispatch(setCombatLog(`${skipped} item${skipped > 1 ? 's' : ''} left behind (inventory/load full).`));
     }
 
     return { pickedItems, skippedItems };
@@ -401,15 +436,17 @@ export const MainScreen = () => {
   const handleLootAll = async () => {
     if (!pendingLootItems || pendingLootItems.length <= 0) return;
     const result = await applyLootSelection(pendingLootItems);
-    setPendingLootItems(result.skippedItems);
+    setActiveLootBagItems(result.skippedItems);
+    setShowLootModal(result.skippedItems.length > 0);
   };
 
   const handleDontLoot = () => {
     const count = pendingLootItems.length;
     if (count > 0) {
-      dispatch(setCombatLog(`Ignored ${count} dropped item${count > 1 ? 's' : ''}.`));
+      dispatch(setCombatLog(`Left ${count} dropped item${count > 1 ? 's' : ''} on the floor.`));
     }
-    setPendingLootItems([]);
+    setShowLootModal(false);
+    closeLootBag();
   };
 
   const handleLootSingle = async (index: number) => {
@@ -417,8 +454,19 @@ export const MainScreen = () => {
     if (!item) return;
     const result = await applyLootSelection([item]);
     if (result.pickedItems > 0) {
-      setPendingLootItems((prev) => prev.filter((_, lootIndex) => lootIndex !== index));
+      setActiveLootBagItems((prev) => {
+        const next = prev.filter((_, lootIndex) => lootIndex !== index);
+        if (next.length <= 0) {
+          setShowLootModal(false);
+        }
+        return next;
+      });
     }
+  };
+
+  const handleFloorLootBagPress = (bagId: string) => {
+    openLootBag(bagId);
+    setShowLootModal(true);
   };
 
   const handleMerchantTalk = () => {
@@ -436,14 +484,16 @@ export const MainScreen = () => {
 
     const containers = normalizeInventoryContainers(
       obj.character.inventory,
-      obj.character.consumableStash
+      obj.character.consumableStash,
+      getInventoryCapacities(obj.character.equipment || playerEquipment || {})
     );
     const nextBag = [...containers.inventory];
     const nextStash = [...containers.consumableStash];
     const currentGold = Math.max(0, Number(obj.character.gold || 0));
     const buyPrice = Math.max(1, Number(offer.buyPrice || computeMerchantBuyPrice(offer.item)));
 
-    if (nextBag.length >= BAG_CAPACITY) {
+    const bagCapacity = getInventoryCapacities(obj.character.equipment || playerEquipment || {}).bagCapacity;
+    if (nextBag.length >= bagCapacity) {
       dispatch(setCombatLog('Bag is full. Cannot buy item.'));
       return;
     }
@@ -453,6 +503,18 @@ export const MainScreen = () => {
     }
 
     const purchasedItem = enrichItemEconomyStats(offer.item);
+    const carrySummary = getCarryLoadSummary({
+      classArchetype: obj.character.classArchetype || classArchetype,
+      stats: obj.character.stats || playerStats || {},
+      inventory: nextBag,
+      consumableStash: nextStash,
+      equipment: obj.character.equipment || playerEquipment || {},
+    });
+    const projectedWeight = Number((carrySummary.used + getItemWeight(purchasedItem)).toFixed(2));
+    if (projectedWeight > carrySummary.max) {
+      dispatch(setCombatLog('You are over your carry limit.'));
+      return;
+    }
     nextBag.push({ ...purchasedItem });
     const nextGold = Number((currentGold - buyPrice).toFixed(2));
 
@@ -487,7 +549,8 @@ export const MainScreen = () => {
 
     const containers = normalizeInventoryContainers(
       obj.character.inventory,
-      obj.character.consumableStash
+      obj.character.consumableStash,
+      getInventoryCapacities(obj.character.equipment || playerEquipment || {})
     );
     const nextBag = [...containers.inventory];
     const nextStash = [...containers.consumableStash];
@@ -921,7 +984,7 @@ export const MainScreen = () => {
     await AsyncStorage.setItem('items', JSON.stringify(itemData));
     dispatch(emptyCombatLog());
     dispatch(setGold(Math.max(0, Number(saveData.character.gold || 0))));
-    setPendingLootItems([]);
+    clearFloorLootBags();
     setShowStatPointsWindow(false);
     merchantStockByMapRef.current = {};
     setMerchantStock([]);
@@ -1018,7 +1081,7 @@ export const MainScreen = () => {
       }
 
       if (key === 'i') {
-        if (showMerchantModal || showStatPointsWindow || pendingLootItems.length > 0) {
+        if (showMerchantModal || showStatPointsWindow) {
           return;
         }
         event.preventDefault();
@@ -1030,7 +1093,7 @@ export const MainScreen = () => {
         return;
       }
 
-      if (showStatPointsWindow || pendingLootItems.length > 0) {
+      if (showStatPointsWindow) {
         return;
       }
 
@@ -1075,7 +1138,6 @@ export const MainScreen = () => {
     enemies,
     currentEnemyId,
     inCombat,
-    pendingLootItems.length,
     merchantInteractable,
     showMerchantModal,
     showStatPointsWindow,
@@ -1148,7 +1210,8 @@ export const MainScreen = () => {
     const equipment = saveData.character.equipment;
     const normalizedInventory = normalizeInventoryContainers(
       saveData.character.inventory,
-      saveData.character.consumableStash
+      saveData.character.consumableStash,
+      getInventoryCapacities(saveData.character.equipment)
     );
     saveData.character.inventory = normalizedInventory.inventory;
     saveData.character.consumableStash = normalizedInventory.consumableStash;
@@ -1181,7 +1244,7 @@ export const MainScreen = () => {
     dispatch(clearEnemies());
     dispatch(setInCombat(false));
     dispatch(setSpecialCooldown(0));
-    setPendingLootItems([]);
+    clearFloorLootBags();
 
     setRevivePending(true);
     setInitialized(false);
@@ -1237,7 +1300,7 @@ export const MainScreen = () => {
           <TextInput
             style={styles.input}
             placeholder="Character name"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9c9c9c"
             value={characterName}
             onChangeText={setCharacterName}
           />
@@ -1277,47 +1340,54 @@ export const MainScreen = () => {
           startCombat={startCombat}
           engagePlayerAttack={engagePlayerAttack}
           onMerchantInteract={openMerchantMenu}
+          floorLootBags={floorLootBags}
+          onLootBagPress={handleFloorLootBagPress}
           skillOverlay={
-            <View style={styles.skillBar}>
-              <TouchableOpacity
-                testID="skill-primary-button"
-                style={[
-                  styles.skillButton,
-                  primaryDisabled && styles.skillButtonDisabled,
-                  primaryResourceLocked && styles.skillButtonFaded,
-                ]}
-                onPress={performPrimarySkill}
-                disabled={primaryDisabled}
-              >
-                <Text style={styles.skillButtonText}>{primaryText}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                testID="skill-secondary-button"
-                style={[
-                  styles.skillButtonSecondary,
-                  secondaryDisabled && styles.skillButtonDisabled,
-                  secondaryResourceLocked && styles.skillButtonFaded,
-                ]}
-                onPress={performSecondarySkill}
-                disabled={secondaryDisabled}
-              >
-                <Text style={styles.skillButtonText}>{secondaryText}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                testID="skill-stats-button"
-                style={[styles.skillButtonMeta, unspentStatPoints > 0 && styles.skillButtonMetaReady]}
-                onPress={() => setShowStatPointsWindow((prev) => !prev)}
-              >
-                <Text style={styles.skillButtonText}>
-                  Stats {unspentStatPoints > 0 ? `[${unspentStatPoints}]` : ''}
-                </Text>
-              </TouchableOpacity>
+            <View style={styles.leftHud}>
+              <View style={styles.skillBar}>
+                <TouchableOpacity
+                  testID="skill-primary-button"
+                  style={[
+                    styles.skillButton,
+                    primaryDisabled && styles.skillButtonDisabled,
+                    primaryResourceLocked && styles.skillButtonFaded,
+                  ]}
+                  onPress={performPrimarySkill}
+                  disabled={primaryDisabled}
+                >
+                  <Text style={styles.skillButtonText}>{primaryText}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  testID="skill-secondary-button"
+                  style={[
+                    styles.skillButtonSecondary,
+                    secondaryDisabled && styles.skillButtonDisabled,
+                    secondaryResourceLocked && styles.skillButtonFaded,
+                  ]}
+                  onPress={performSecondarySkill}
+                  disabled={secondaryDisabled}
+                >
+                  <Text style={styles.skillButtonText}>{secondaryText}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  testID="skill-stats-button"
+                  style={[styles.skillButtonMeta, unspentStatPoints > 0 && styles.skillButtonMetaReady]}
+                  onPress={() => setShowStatPointsWindow((prev) => !prev)}
+                >
+                  <Text style={styles.skillButtonText}>
+                    Stats {unspentStatPoints > 0 ? `[${unspentStatPoints}]` : ''}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           }
           rightOverlay={
             <View style={styles.roomRightHud}>
-              <MiniMap size={10} />
-              <ConsumableBelt />
+              <View style={styles.roomRightTop}>
+                <MiniMap size={8} />
+                <ConsumableBelt />
+              </View>
+              <Inventory />
             </View>
           }
         />
@@ -1339,12 +1409,12 @@ export const MainScreen = () => {
         onApplyAllocations={applyStatPointAllocations}
       />
       <EnemyLootModal
-        visible={pendingLootItems.length > 0}
+        visible={showLootModal && !!activeLootBagId && pendingLootItems.length > 0}
         lootItems={pendingLootItems}
-        bagCount={Math.min(bagInventory.length, BAG_CAPACITY)}
-        bagCapacity={BAG_CAPACITY}
-        stashCount={Math.min(consumableStash.length, CONSUMABLE_STASH_CAPACITY)}
-        stashCapacity={CONSUMABLE_STASH_CAPACITY}
+        bagCount={Math.min(bagInventory.length, inventoryCapacities.bagCapacity)}
+        bagCapacity={inventoryCapacities.bagCapacity}
+        stashCount={Math.min(consumableStash.length, inventoryCapacities.beltCapacity)}
+        stashCapacity={inventoryCapacities.beltCapacity}
         onLootAll={handleLootAll}
         onDontLoot={handleDontLoot}
         onLootSingle={handleLootSingle}
@@ -1355,6 +1425,7 @@ export const MainScreen = () => {
         gold={playerGold}
         merchantStock={merchantStock}
         playerBag={bagInventory}
+        bagCapacity={inventoryCapacities.bagCapacity}
         onClose={closeMerchantModal}
         onTalk={handleMerchantTalk}
         onTrade={() => setMerchantMode('trade')}
@@ -1380,90 +1451,116 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'center',
     position: 'relative',
+    backgroundColor: '#000000',
   },
   roomFrame: {
-    width: 800,
-    height: 600,
+    width: '100%',
+    maxWidth: 800,
+    aspectRatio: 4 / 3,
+    position: 'relative',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   menuRoot: {
     width: 800,
     height: 600,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#05070d',
+    backgroundColor: '#000000',
   },
   menuCard: {
-    width: 540,
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 12,
-    padding: 20,
-    gap: 10,
+    width: 560,
+    backgroundColor: '#080808',
+    borderWidth: 4,
+    borderColor: '#d7d7d7',
+    padding: 16,
+    gap: 8,
+    shadowColor: '#050505',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
   },
   title: {
-    color: '#f8fafc',
+    color: '#ffffff',
     fontSize: 30,
     fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
   },
   subtitle: {
-    color: '#94a3b8',
-    fontSize: 14,
+    color: '#d0d0d0',
+    fontSize: 13,
+    fontFamily: RETRO_FONT,
     marginBottom: 6,
   },
   menuButton: {
-    backgroundColor: '#1d4ed8',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#121212',
+    paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: '#d7d7d7',
   },
   menuButtonFocused: {
-    borderColor: '#93c5fd',
+    borderColor: '#ffffff',
+    backgroundColor: '#222222',
   },
   menuButtonDisabled: {
-    backgroundColor: '#334155',
+    backgroundColor: '#191919',
+    borderColor: '#696969',
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: '#475569',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#1f1f1f',
+    paddingVertical: 10,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
   },
   menuButtonText: {
-    color: '#f8fafc',
-    fontWeight: '600',
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 8,
-    color: '#f8fafc',
-    backgroundColor: '#0f172a',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    color: '#ffffff',
+    backgroundColor: '#101010',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 9,
+    fontSize: 12,
+    fontFamily: RETRO_FONT,
   },
   archetypeCard: {
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#808080',
     padding: 10,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#121212',
   },
   archetypeCardSelected: {
-    borderColor: '#22c55e',
-    backgroundColor: '#052e1a',
+    borderColor: '#ffffff',
+    backgroundColor: '#232323',
   },
   archetypeName: {
-    color: '#f8fafc',
+    color: '#ffffff',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 14,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
   },
   archetypeDesc: {
-    color: '#94a3b8',
-    fontSize: 12,
+    color: '#d0d0d0',
+    fontSize: 11,
+    fontFamily: RETRO_FONT,
   },
   createButtonsRow: {
     flexDirection: 'row',
@@ -1482,49 +1579,63 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   deathTitle: {
-    color: '#f8fafc',
-    fontSize: 58,
+    color: '#ffffff',
+    fontSize: 54,
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
     marginBottom: 20,
   },
   restartButton: {
-    backgroundColor: '#b91c1c',
+    backgroundColor: '#1f1f1f',
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ef4444',
+    paddingVertical: 10,
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
   },
   restartButtonText: {
     color: '#ffffff',
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 14,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
+  },
+  leftHud: {
+    gap: 4,
+    alignItems: 'flex-start',
   },
   skillBar: {
-    width: 188,
-    gap: 5,
+    width: 192,
+    gap: 4,
+    padding: 5,
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    backgroundColor: '#050505',
   },
   skillButton: {
-    backgroundColor: '#1d4ed8',
-    borderRadius: 6,
-    paddingVertical: 7,
+    backgroundColor: '#131313',
+    borderWidth: 1,
+    borderColor: '#d7d7d7',
+    paddingVertical: 6,
     paddingHorizontal: 8,
   },
   skillButtonSecondary: {
-    backgroundColor: '#0f766e',
-    borderRadius: 6,
-    paddingVertical: 7,
+    backgroundColor: '#1c1c1c',
+    borderWidth: 1,
+    borderColor: '#d7d7d7',
+    paddingVertical: 6,
     paddingHorizontal: 8,
   },
   skillButtonMeta: {
-    backgroundColor: '#475569',
-    borderRadius: 6,
-    paddingVertical: 7,
+    backgroundColor: '#2a2a2a',
+    borderWidth: 1,
+    borderColor: '#d7d7d7',
+    paddingVertical: 6,
     paddingHorizontal: 8,
   },
   skillButtonMetaReady: {
-    backgroundColor: '#b91c1c',
+    backgroundColor: '#3a3a3a',
   },
   skillButtonDisabled: {
     opacity: 0.65,
@@ -1533,13 +1644,22 @@ const styles = StyleSheet.create({
     opacity: 0.38,
   },
   skillButtonText: {
-    color: '#f8fafc',
+    color: '#ffffff',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
     textAlign: 'center',
   },
   roomRightHud: {
+    width: 140,
     alignItems: 'flex-end',
-    gap: 6,
+    justifyContent: 'flex-start',
+    gap: 2,
+  },
+  roomRightTop: {
+    alignItems: 'flex-end',
+    gap: 2,
+    marginBottom: 2,
   },
 });

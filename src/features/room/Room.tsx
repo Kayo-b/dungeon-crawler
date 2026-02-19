@@ -29,6 +29,7 @@ import { computeDerivedPlayerStats } from '../player/playerStats';
 // import { incremented, amoutAdded } from '.main-screen/room/counterSlice';
 
 const ROOM_VIEWPORT_SIZE = 512;
+const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
 
 const resolveDoorEntryInMap = (
     config: MapConfig
@@ -145,9 +146,19 @@ interface RoomProps {
     onMerchantInteract?: () => void;
     skillOverlay?: ReactNode;
     rightOverlay?: ReactNode;
+    floorLootBags?: Array<{ id: string; mapId: string; x: number; y: number; items: any[] }>;
+    onLootBagPress?: (bagId: string) => void;
 }
 
-export const Room = ({ startCombat, engagePlayerAttack, onMerchantInteract, skillOverlay, rightOverlay }: RoomProps) => {
+export const Room = ({
+    startCombat,
+    engagePlayerAttack,
+    onMerchantInteract,
+    skillOverlay,
+    rightOverlay,
+    floorLootBags = [],
+    onLootBagPress,
+}: RoomProps) => {
     const dispatch = useAppDispatch(); 
     // const enemyHealth = useAppSelector(state => state.enemy.enemies[0].stats.health); 
     const inCombat = useAppSelector(state => state.combat.inCombat);
@@ -192,6 +203,7 @@ export const Room = ({ startCombat, engagePlayerAttack, onMerchantInteract, skil
     const healthPct = Math.max(0, Math.min(1, playerHealth / Math.max(1, maxHealth)));
     const manaPct = Math.max(0, Math.min(1, playerMana / Math.max(1, playerMaxMana || 1)));
     const merchantSprite = require('../../resources/vecteezy_an-8-bit-retro-styled-pixel-art-illustration-of-a-merchant_26547538.png');
+    const floorLootSprite = require('../../../RainbowTreasureBag.gif');
 
     // Get current tile type at player position for special tile interactions
     const currentTileType = mapTiles?.[positionY]?.[positionX] ?? 0;
@@ -2770,13 +2782,14 @@ const turn = (turnDir:string) => {
                                 position: 'absolute',
                                 top: -20,
                                 right: -20,
-                                backgroundColor: '#ff4444',
-                                borderRadius: 12,
+                                backgroundColor: '#1f1f1f',
+                                borderWidth: 2,
+                                borderColor: '#d7d7d7',
                                 paddingHorizontal: 8,
                                 paddingVertical: 2,
                                 zIndex: 999,
                             }}>
-                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
+                                <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 10, fontFamily: RETRO_FONT }}>
                                     x{enemyGroup.length}
                                 </Text>
                             </View>
@@ -2802,6 +2815,123 @@ const turn = (turnDir:string) => {
         });
     };
 
+    const renderVisibleFloorLoot = () => {
+        if (!floorLootBags || floorLootBags.length <= 0) return null;
+        const facingDirection = currentDir as FacingDirection;
+        const mapBags = floorLootBags.filter((bag) => {
+            return bag && bag.mapId === currentMapId && Array.isArray(bag.items) && bag.items.length > 0;
+        });
+        if (mapBags.length <= 0) return null;
+
+        const bagsByPosition: Record<string, typeof mapBags> = {};
+        mapBags.forEach((bag) => {
+            const key = `${bag.x},${bag.y}`;
+            if (!bagsByPosition[key]) {
+                bagsByPosition[key] = [];
+            }
+            bagsByPosition[key].push(bag);
+        });
+
+        const groupedEntries = Object.entries(bagsByPosition).sort(([, leftBags], [, rightBags]) => {
+            const left = leftBags[0];
+            const right = rightBags[0];
+            const leftDistance = getEnemyDistanceInFacingDirection(
+                positionX,
+                positionY,
+                facingDirection,
+                left.x,
+                left.y
+            );
+            const rightDistance = getEnemyDistanceInFacingDirection(
+                positionX,
+                positionY,
+                facingDirection,
+                right.x,
+                right.y
+            );
+            return (rightDistance ?? -1) - (leftDistance ?? -1);
+        });
+
+        return groupedEntries.map(([posKey, bagsAtPos]) => {
+            const firstBag = bagsAtPos[0];
+            const distance = getEnemyDistanceInFacingDirection(
+                positionX,
+                positionY,
+                facingDirection,
+                firstBag.x,
+                firstBag.y
+            );
+
+            if (distance === null) return null;
+
+            const pseudoTarget = {
+                positionX: firstBag.x,
+                positionY: firstBag.y,
+                health: 1,
+                visibilityMode: 'distance',
+                visibilityRange: 99,
+            };
+
+            if (!isEnemyVisibleToPlayer(pseudoTarget as any, positionX, positionY, facingDirection)) {
+                return null;
+            }
+
+            const perspectiveScale = distance === 0 ? 0.9 :
+                                    distance === 1 ? 0.76 :
+                                    distance === 2 ? 0.62 :
+                                    distance === 3 ? 0.54 :
+                                    0.38 / distance + 0.08;
+            const fogPerTile = 0.12;
+            const fogOpacity = Math.min(0.7, distance * fogPerTile);
+            const totalItems = bagsAtPos.reduce((sum, bag) => sum + (bag.items?.length || 0), 0);
+
+            return (
+                <View
+                    key={`floor-loot-${posKey}`}
+                    pointerEvents="box-none"
+                    style={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 95 - distance,
+                    }}
+                >
+                    <View style={{ transform: [{ scale: perspectiveScale }], alignItems: 'center' }}>
+                        <TouchableOpacity
+                            testID={`floor-loot-bag-${firstBag.id}`}
+                            style={styles.floorLootInRoomButton}
+                            onPress={() => !inCombat && onLootBagPress?.(firstBag.id)}
+                            disabled={inCombat}
+                        >
+                            <Image source={floorLootSprite} resizeMode="contain" style={styles.floorLootInRoomSprite} />
+                        </TouchableOpacity>
+                        {totalItems > 1 ? (
+                            <View style={styles.floorLootCountWrap}>
+                                <Text style={styles.floorLootCountText}>x{totalItems}</Text>
+                            </View>
+                        ) : null}
+                        {fogOpacity > 0 ? (
+                            <View
+                                pointerEvents="none"
+                                style={{
+                                    position: 'absolute',
+                                    top: -34,
+                                    left: -34,
+                                    right: -34,
+                                    bottom: -34,
+                                    backgroundColor: '#0a0a12',
+                                    opacity: fogOpacity,
+                                }}
+                            />
+                        ) : null}
+                    </View>
+                </View>
+            );
+        });
+    };
+
     const merchantDistance = useMemo(() => {
         if (!merchantPosition) return null;
         return getEnemyDistanceInFacingDirection(
@@ -2819,7 +2949,7 @@ const turn = (turnDir:string) => {
         <View style={styles.roomRoot}>
             {/* DEBUG OVERLAY */}
             <DebugOverlay
-                visible={true}
+                visible={false}
                 mapArray={activeMapArray}
                 pathTileArr={activePathTileArr}
                 verticalTileArr={verticalTileArr}
@@ -2829,86 +2959,69 @@ const turn = (turnDir:string) => {
                 <Text style={styles.depthIndicatorText}>{`Depth ${dungeonDepth} · ${currentMapId}`}</Text>
             </View>
 
-            {/* Movement System Toggle */}
-            <TouchableOpacity
-            style={{...styles.button, backgroundColor: useNewMovement ? '#00aa00' : '#aa0000', opacity: 1}}
-            onPress={() => setUseNewMovement(!useNewMovement)}>
-               <Text style={{color: '#fff', fontSize: 10}}>{useNewMovement ? 'NEW' : 'OLD'}</Text>
-            </TouchableOpacity>
+            <View style={styles.movementHud}>
+                <View style={styles.movementRow}>
+                    <TouchableOpacity
+                        style={[styles.button, styles.compactButton]}
+                        onPress={() => setUseNewMovement(!useNewMovement)}
+                    >
+                        <Text style={styles.buttonText}>{useNewMovement ? 'NEW' : 'OLD'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.button, styles.movementButton]}
+                        onPress={guardedForward}
+                    >
+                        <Text style={styles.buttonText}>UP</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.button, styles.movementButton]}
+                        onPress={guardedReverse}
+                    >
+                        <Text style={styles.buttonText}>DN</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.button, styles.movementButton]}
+                        onPress={() => guardedTurn('L')}
+                    >
+                        <Text style={styles.buttonText}>LT</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.button, styles.movementButton]}
+                        onPress={() => guardedTurn('R')}
+                    >
+                        <Text style={styles.buttonText}>RT</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.button, styles.compactButton]}
+                        onPress={() => setUse3DRendering(!use3DRendering)}
+                    >
+                        <Text style={styles.buttonText}>{use3DRendering ? '3D' : '2D'}</Text>
+                    </TouchableOpacity>
+                </View>
 
-            <TouchableOpacity
-            style={{...styles.button, opacity: 1}}
-            onPress={guardedForward}>
-               <Text>Move ↑</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-            style={{...styles.button, opacity: 1}}
-            onPress={guardedReverse}>
-               <Text>Move ↓</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-            style={{...styles.button, opacity: 1}}
-            onPress={ () => guardedTurn('R') }>
-               <Text>Right</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-            style={{...styles.button, opacity: 1}}
-            onPress={ () => guardedTurn('L') }>
-               <Text>Left</Text>
-            </TouchableOpacity>
-
-            {/* Stairs Interaction Button - appears when standing on stairs */}
-            {(isOnStairsUp || isOnStairsDown) && (
-                <TouchableOpacity
-                    style={{
-                        ...styles.button,
-                        backgroundColor: '#4a4a8a',
-                        borderColor: '#6a6aaa',
-                        borderWidth: 2,
-                        paddingHorizontal: 20,
-                        paddingVertical: 10,
-                    }}
-                    onPress={handleStairsInteraction}
-                >
-                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                        {isOnStairsUp ? '↑ GO UP' : '↓ GO DOWN'}
-                    </Text>
-                </TouchableOpacity>
-            )}
-
-            {/* Door Interaction Button - appears when standing on doors */}
-            {isOnDoor && (
-                <TouchableOpacity
-                    style={{
-                        ...styles.button,
-                        backgroundColor: '#8B4513',
-                        borderColor: '#D2691E',
-                        borderWidth: 2,
-                        paddingHorizontal: 20,
-                        paddingVertical: 10,
-                    }}
-                    onPress={handleDoorInteraction}
-                >
-                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                        ENTER DOOR
-                    </Text>
-                </TouchableOpacity>
-            )}
-
-            {/* 3D Rendering Mode Toggle */}
-            <TouchableOpacity
-                style={{
-                    ...styles.button,
-                    backgroundColor: use3DRendering ? '#0088ff' : '#555',
-                    opacity: 1,
-                    marginLeft: 10,
-                }}
-                onPress={() => setUse3DRendering(!use3DRendering)}
-            >
-                <Text style={{ color: '#fff', fontSize: 10 }}>
-                    {use3DRendering ? '3D' : '2D'}
-                </Text>
-            </TouchableOpacity>
+                {(isOnStairsUp || isOnStairsDown || isOnDoor) ? (
+                    <View style={styles.interactionRow}>
+                        {(isOnStairsUp || isOnStairsDown) && (
+                            <TouchableOpacity
+                                style={[styles.button, styles.interactionButton]}
+                                onPress={handleStairsInteraction}
+                            >
+                                <Text style={styles.buttonText}>
+                                    {isOnStairsUp ? 'GO UP' : 'GO DN'}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                        {isOnDoor && (
+                            <TouchableOpacity
+                                style={[styles.button, styles.interactionButton]}
+                                onPress={handleDoorInteraction}
+                            >
+                                <Text style={styles.buttonText}>DOOR</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                ) : null}
+            </View>
 
             {/* Conditional rendering: 3D CSS mode or classic 2D tiles */}
             <View style={styles.gameViewport}>
@@ -2993,20 +3106,20 @@ const turn = (turnDir:string) => {
                                     }}
                                 >
                                     <View style={{
-                                        backgroundColor: '#4a4a8a',
+                                        backgroundColor: '#141414',
                                         paddingHorizontal: 16,
                                         paddingVertical: 8,
-                                        borderRadius: 8,
                                         borderWidth: 2,
-                                        borderColor: '#6a6aaa',
+                                        borderColor: '#d7d7d7',
                                     }}>
                                         <Text style={{
                                             color: '#fff',
-                                            fontSize: 18,
+                                            fontSize: 15,
                                             fontWeight: 'bold',
                                             textShadowColor: '#000',
                                             textShadowOffset: { width: 1, height: 1 },
                                             textShadowRadius: 2,
+                                            fontFamily: RETRO_FONT,
                                         }}>
                                             {getSpecialTileLabel()}
                                         </Text>
@@ -3042,6 +3155,7 @@ const turn = (turnDir:string) => {
         </ImageBackground>
             )}
             {renderVisibleEnemies()}
+            {renderVisibleFloorLoot()}
             {merchantVisible ? (
                 <View
                     pointerEvents="box-none"
@@ -3059,6 +3173,15 @@ const turn = (turnDir:string) => {
                     </TouchableOpacity>
                 </View>
             ) : null}
+            <View pointerEvents="none" style={styles.bottomResourceBars}>
+                <View style={styles.resourceTrack}>
+                    <View style={[styles.healthBarFill, { width: `${healthPct * 100}%` }]} />
+                </View>
+                <View style={styles.resourceTrack}>
+                    <View style={[styles.manaBarFill, { width: `${manaPct * 100}%` }]} />
+                </View>
+            </View>
+            </View>
             {skillOverlay ? (
                 <View style={styles.skillOverlayWrap}>
                     {skillOverlay}
@@ -3069,15 +3192,6 @@ const turn = (turnDir:string) => {
                     {rightOverlay}
                 </View>
             ) : null}
-            <View pointerEvents="none" style={styles.bottomResourceBars}>
-                <View style={styles.resourceTrack}>
-                    <View style={[styles.healthBarFill, { width: `${healthPct * 100}%` }]} />
-                </View>
-                <View style={styles.resourceTrack}>
-                    <View style={[styles.manaBarFill, { width: `${manaPct * 100}%` }]} />
-                </View>
-            </View>
-            </View>
         </View>
     );
 };
@@ -3092,10 +3206,11 @@ const styles = StyleSheet.create({
         width: '100%', 
         height: '100%',
         flex: 1,
-        padding: 10,
-        justifyContent: 'space-around',
+        padding: 0,
+        justifyContent: 'center',
         alignItems: 'center',
-        flexDirection: 'row'
+        flexDirection: 'column',
+        backgroundColor: '#000000',
     },
     gameViewport: {
         width: ROOM_VIEWPORT_SIZE,
@@ -3103,6 +3218,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#0a0a12',
         overflow: 'hidden',
         position: 'relative',
+        borderWidth: 2,
+        borderColor: '#d7d7d7',
     },
     tileViewport: {
         width: '100%',
@@ -3125,10 +3242,47 @@ const styles = StyleSheet.create({
 
     },
     button: {
-        marginTop: 10,
         alignItems: 'center',
-        backgroundColor: '#2196F3',
-        padding: 5,
+        justifyContent: 'center',
+        minWidth: 34,
+        backgroundColor: '#111111',
+        borderWidth: 2,
+        borderColor: '#d7d7d7',
+        paddingHorizontal: 5,
+        paddingVertical: 4,
+    },
+    buttonText: {
+        color: '#ffffff',
+        fontSize: 8,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        fontFamily: RETRO_FONT,
+    },
+    movementHud: {
+        position: 'absolute',
+        left: 8,
+        top: 48,
+        zIndex: 260,
+        alignItems: 'flex-start',
+        gap: 4,
+    },
+    movementRow: {
+        flexDirection: 'row',
+        gap: 2,
+        alignItems: 'center',
+    },
+    compactButton: {
+        minWidth: 44,
+    },
+    movementButton: {
+        minWidth: 38,
+    },
+    interactionRow: {
+        flexDirection: 'row',
+        gap: 4,
+    },
+    interactionButton: {
+        minWidth: 60,
     },
     enemiesContainer: {
         flexDirection: 'row',
@@ -3152,37 +3306,62 @@ const styles = StyleSheet.create({
         width: 120,
         height: 120,
     },
+    floorLootInRoomButton: {
+        width: 70,
+        height: 70,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    floorLootInRoomSprite: {
+        width: 64,
+        height: 64,
+    },
+    floorLootCountWrap: {
+        marginTop: -8,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderWidth: 2,
+        borderColor: '#d7d7d7',
+        backgroundColor: '#101010',
+    },
+    floorLootCountText: {
+        color: '#ffffff',
+        fontSize: 9,
+        fontFamily: RETRO_FONT,
+    },
     skillOverlayWrap: {
         position: 'absolute',
-        left: 10,
-        bottom: 10,
+        left: 0,
+        bottom: 0,
         zIndex: 250,
     },
     rightOverlayWrap: {
         position: 'absolute',
-        right: 10,
-        top: 42,
+        right: 0,
+        top: 0,
         zIndex: 250,
     },
     bottomResourceBars: {
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 0,
+        bottom: 2,
         zIndex: 320,
     },
     resourceTrack: {
         width: '100%',
-        height: 2,
-        backgroundColor: '#111827',
+        height: 5,
+        backgroundColor: '#1a1a1a',
         overflow: 'hidden',
+        borderTopWidth: 1,
+        borderColor: '#2f2f2f',
     },
     healthBarFill: {
-        height: 4,
+        height: 5,
         backgroundColor: '#dc2626',
     },
     manaBarFill: {
-        height: 4,
+        height: 5,
         backgroundColor: '#2563eb',
     },
     depthIndicator: {
@@ -3191,16 +3370,17 @@ const styles = StyleSheet.create({
         left: 10,
         paddingHorizontal: 10,
         paddingVertical: 4,
-        borderWidth: 1,
-        borderColor: '#3f3f46',
-        backgroundColor: 'rgba(10, 10, 18, 0.85)',
-        borderRadius: 8,
+        borderWidth: 2,
+        borderColor: '#d7d7d7',
+        backgroundColor: '#060606',
         zIndex: 280,
     },
     depthIndicatorText: {
-        color: '#e2e8f0',
-        fontSize: 11,
+        color: '#ffffff',
+        fontSize: 10,
         fontWeight: '700',
+        fontFamily: RETRO_FONT,
+        textTransform: 'uppercase',
     },
     doorOverlay: {
         position: 'absolute',

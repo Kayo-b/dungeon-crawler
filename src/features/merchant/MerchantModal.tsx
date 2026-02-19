@@ -1,6 +1,5 @@
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ItemIcon } from '../../components/ItemIcon';
-import { BAG_CAPACITY } from '../inventory/inventoryUtils';
 import { MerchantStockEntry } from './merchantUtils';
 
 interface MerchantModalProps {
@@ -9,6 +8,7 @@ interface MerchantModalProps {
   gold: number;
   merchantStock: MerchantStockEntry[];
   playerBag: any[];
+  bagCapacity: number;
   onClose: () => void;
   onTalk: () => void;
   onTrade: () => void;
@@ -27,6 +27,7 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
   gold,
   merchantStock,
   playerBag,
+  bagCapacity,
   onClose,
   onTalk,
   onTrade,
@@ -104,7 +105,7 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
               <View style={styles.column}>
                 <Text style={styles.columnTitle}>Your Bag</Text>
                 <View style={styles.bagGrid}>
-                  {Array.from({ length: BAG_CAPACITY }).map((_, index) => {
+                  {Array.from({ length: bagCapacity }).map((_, index) => {
                     const item = playerBag[index];
                     return (
                       <Pressable
@@ -145,6 +146,7 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
     </View>
   );
 };
+const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
 
 const styles = StyleSheet.create({
   overlay: {
@@ -154,7 +156,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     zIndex: 980,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.84)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -163,10 +165,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 760,
     maxHeight: '92%',
-    backgroundColor: '#0f172a',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
+    backgroundColor: '#080808',
+    borderWidth: 4,
+    borderColor: '#d7d7d7',
     padding: 10,
     gap: 8,
   },
@@ -176,44 +177,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#f8fafc',
-    fontSize: 22,
+    color: '#ffffff',
+    fontSize: 20,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontFamily: RETRO_FONT,
   },
   goldText: {
-    color: '#facc15',
-    fontSize: 13,
+    color: '#f0f0f0',
+    fontSize: 12,
     fontWeight: '700',
+    fontFamily: RETRO_FONT,
   },
   menuActions: {
     gap: 8,
   },
   primaryButton: {
-    backgroundColor: '#1d4ed8',
-    borderRadius: 6,
-    paddingVertical: 10,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    paddingVertical: 8,
     alignItems: 'center',
   },
   secondaryButton: {
-    backgroundColor: '#475569',
-    borderRadius: 6,
-    paddingVertical: 10,
+    backgroundColor: '#262626',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    paddingVertical: 8,
     alignItems: 'center',
   },
   mutedButton: {
-    backgroundColor: '#334155',
-    borderRadius: 6,
-    paddingVertical: 10,
+    backgroundColor: '#1d1d1d',
+    borderWidth: 2,
+    borderColor: '#636363',
+    paddingVertical: 8,
     alignItems: 'center',
   },
   actionText: {
-    color: '#f8fafc',
-    fontSize: 12,
+    color: '#ffffff',
+    fontSize: 11,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
   },
   hintText: {
-    color: '#94a3b8',
-    fontSize: 11,
+    color: '#d0d0d0',
+    fontSize: 10,
+    fontFamily: RETRO_FONT,
   },
   tradeColumns: {
     flexDirection: 'row',
@@ -221,17 +232,19 @@ const styles = StyleSheet.create({
   },
   column: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 6,
-    backgroundColor: '#111827',
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    backgroundColor: '#121212',
     padding: 6,
     gap: 6,
   },
   columnTitle: {
-    color: '#f8fafc',
-    fontSize: 12,
+    color: '#ffffff',
+    fontSize: 11,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontFamily: RETRO_FONT,
   },
   columnScroll: {
     maxHeight: 320,
@@ -240,10 +253,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 6,
-    backgroundColor: '#0b1220',
+    borderWidth: 2,
+    borderColor: '#bfbfbf',
+    backgroundColor: '#181818',
     padding: 6,
     marginBottom: 6,
   },
@@ -252,20 +264,23 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   itemName: {
-    color: '#f8fafc',
-    fontSize: 12,
+    color: '#ffffff',
+    fontSize: 11,
     fontWeight: '600',
+    fontFamily: RETRO_FONT,
   },
   itemMeta: {
-    color: '#94a3b8',
-    fontSize: 10,
+    color: '#cfcfcf',
+    fontSize: 9,
+    fontFamily: RETRO_FONT,
   },
   priceText: {
-    color: '#facc15',
-    fontSize: 12,
+    color: '#f0f0f0',
+    fontSize: 11,
     fontWeight: '700',
     minWidth: 40,
     textAlign: 'right',
+    fontFamily: RETRO_FONT,
   },
   bagGrid: {
     flexDirection: 'row',
@@ -275,10 +290,9 @@ const styles = StyleSheet.create({
   bagCell: {
     width: 28,
     height: 28,
-    borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#334155',
-    backgroundColor: '#1e293b',
+    borderColor: '#d7d7d7',
+    backgroundColor: '#181818',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -286,8 +300,9 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   emptyText: {
-    color: '#94a3b8',
-    fontSize: 11,
+    color: '#d0d0d0',
+    fontSize: 10,
+    fontFamily: RETRO_FONT,
   },
   footerActions: {
     flexDirection: 'row',

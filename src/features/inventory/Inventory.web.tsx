@@ -5,8 +5,10 @@ import { restoreHealth, restoreMana, setCombatLog, setEquipment, setGold } from 
 import { setAllInventory } from './inventorySlice';
 import { ItemIcon } from '../../components/ItemIcon';
 import {
-  BAG_CAPACITY,
-  CONSUMABLE_STASH_CAPACITY,
+  getCarryLoadSummary,
+  STARTING_BAG_CAPACITY,
+  STARTING_BELT_CAPACITY,
+  getInventoryCapacities,
   normalizeInventoryContainers,
   readCurrencyGoldValue,
 } from './inventoryUtils';
@@ -16,34 +18,154 @@ interface EquipmentSlot {
   label: string;
   type: string;
   item: any;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  thin?: boolean;
 }
+
+type NavGroup = 'bag' | 'belt' | 'equipment';
+
+const RETRO_FONT = '"Press Start 2P", "Courier New", monospace';
+const BAG_COLUMNS = 4;
+const BELT_COLUMNS = 4;
+const EQUIPMENT_COLUMNS = 3;
+
+const normalizeToSlot = (itemType: string) => {
+  if (itemType === 'shield') return 'offhand';
+  if (itemType === 'sword' || itemType === 'dagger') return 'weapon';
+  if (itemType === 'armors') return 'armor';
+  if (itemType === 'helm' || itemType === 'helms') return 'helmet';
+  if (itemType === 'bags' || itemType === 'backpack' || itemType === 'pouch') return 'bag';
+  return itemType;
+};
+
+const slotAcceptsItem = (slotType: string, itemType: string) => {
+  if (slotType === 'offhand') {
+    return itemType === 'offhand' || itemType === 'shield';
+  }
+  if (slotType === 'weapon') {
+    return itemType === 'weapon' || itemType === 'sword' || itemType === 'dagger';
+  }
+  if (slotType === 'armor') {
+    return itemType === 'armor' || itemType === 'armors';
+  }
+  if (slotType === 'helmet') {
+    return itemType === 'helmet' || itemType === 'helm' || itemType === 'helms';
+  }
+  if (slotType === 'bag') {
+    return itemType === 'bag' || itemType === 'bags' || itemType === 'backpack' || itemType === 'pouch';
+  }
+  return slotType === itemType;
+};
+
+const ensureStarterContainers = (equipmentState: Record<string, any>) => {
+  const next = { ...(equipmentState || {}) };
+  if (!next.bag?.name) {
+    next.bag = { name: 'Small Pouch', type: 'bag', stats: { bagSlots: STARTING_BAG_CAPACITY } };
+  }
+  if (!next.belt?.name) {
+    next.belt = { name: 'Starter Belt', type: 'belt', stats: { consumableSlots: STARTING_BELT_CAPACITY } };
+  }
+  return next;
+};
+
+const defaultEquipmentForSlot = (slotKey: string) => {
+  if (slotKey === 'bag') {
+    return { name: 'Small Pouch', type: 'bag', stats: { bagSlots: STARTING_BAG_CAPACITY } };
+  }
+  if (slotKey === 'belt') {
+    return { name: 'Starter Belt', type: 'belt', stats: { consumableSlots: STARTING_BELT_CAPACITY } };
+  }
+  return { name: '', type: slotKey, stats: {} };
+};
+
+const buildItemDetails = (item: any) => {
+  if (!item) return [];
+
+  if (item.type === 'consumable') {
+    const hpAmount = item.stats?.amount ?? 0;
+    const manaAmount = item.stats?.mana ?? 0;
+    const lines: string[] = [];
+    if (hpAmount > 0) {
+      lines.push(`Use: Restore ${hpAmount} HP`);
+    }
+    if (manaAmount > 0) {
+      lines.push(`Use: Restore ${manaAmount} Mana`);
+    }
+    return lines.length > 0 ? lines : ['Use: Consumable'];
+  }
+
+  if (item.type === 'currency') {
+    return [`Currency value: ${item.value ?? 0}`];
+  }
+
+  const lines: string[] = [];
+  if (item.stats) {
+    Object.entries(item.stats).forEach(([key, value]) => {
+      lines.push(`${key}: ${String(value)}`);
+    });
+  }
+  if (Array.isArray(item.mods)) {
+    item.mods.forEach((mod: string) => lines.push(mod));
+  }
+  return lines.length > 0 ? lines : ['No special stats'];
+};
 
 export const Inventory = () => {
   const dispatch = useAppDispatch();
   const inventory = useAppSelector((state) => state.inventory.inventory as any[]);
   const consumableStash = useAppSelector((state) => state.inventory.consumableStash as any[]);
   const equipment = useAppSelector((state) => state.player.equipment as Record<string, any>);
+  const classArchetype = useAppSelector((state) => state.player.classArchetype || 'warrior');
+  const playerStats = useAppSelector((state) => state.player.stats as Record<string, any>);
   const playerHealth = useAppSelector((state) => state.player.health);
   const gold = useAppSelector((state) => state.player.gold || 0);
 
-  const [equipmentOpen, setEquipmentOpen] = useState(true);
-  const [bagOpen, setBagOpen] = useState(true);
   const [hoveredItem, setHoveredItem] = useState<any | null>(null);
   const isShiftDownRef = useRef(false);
   const bagShiftIntentRef = useRef<Record<number, boolean>>({});
-  const stashShiftIntentRef = useRef<Record<number, boolean>>({});
+  const beltShiftIntentRef = useRef<Record<number, boolean>>({});
   const bagButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const stashButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const beltButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const equipmentButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const [activeNav, setActiveNav] = useState<{ group: 'bag' | 'stash' | 'equipment'; index: number } | null>(null);
+  const [activeNav, setActiveNav] = useState<{ group: NavGroup; index: number } | null>(null);
 
-  const BAG_COLUMNS = 4;
-  const STASH_COLUMNS = 4;
-  const EQUIPMENT_COLUMNS = 4;
+  const capacities = useMemo(() => getInventoryCapacities(equipment), [equipment]);
+  const loadSummary = useMemo(
+    () =>
+      getCarryLoadSummary({
+        classArchetype,
+        stats: playerStats,
+        inventory,
+        consumableStash,
+        equipment,
+      }),
+    [classArchetype, playerStats, inventory, consumableStash, equipment]
+  );
 
-  const focusNavTarget = (group: 'bag' | 'stash' | 'equipment', nextIndex: number) => {
+  const equipmentSlots: EquipmentSlot[] = useMemo(() => {
+    return [
+      { key: 'amulet', label: 'AMULET', type: 'amulet', item: equipment?.amulet, x: 4, y: 32, w: 38, h: 38 },
+      { key: 'weapon', label: 'WEAPON', type: 'weapon', item: equipment?.weapon, x: 4, y: 74, w: 38, h: 38 },
+      { key: 'ring', label: 'RING', type: 'ring', item: equipment?.ring, x: 4, y: 116, w: 38, h: 38 },
+      { key: 'helmet', label: 'HEAD', type: 'helmet', item: equipment?.helmet, x: 46, y: 4, w: 38, h: 38 },
+      { key: 'armor', label: 'CHEST', type: 'armor', item: equipment?.armor, x: 46, y: 46, w: 38, h: 38 },
+      { key: 'boots', label: 'BOOTS', type: 'boots', item: equipment?.boots, x: 46, y: 130, w: 38, h: 38 },
+      { key: 'bag', label: 'BAG', type: 'bag', item: equipment?.bag, x: 88, y: 4, w: 38, h: 38 },
+      { key: 'offhand', label: 'OFF', type: 'offhand', item: equipment?.offhand, x: 88, y: 46, w: 38, h: 38 },
+      { key: 'belt', label: 'BELT', type: 'belt', item: equipment?.belt, x: 88, y: 88, w: 38, h: 14, thin: true },
+    ];
+  }, [equipment]);
+
+  const focusNavTarget = (group: NavGroup, nextIndex: number) => {
     const refs =
-      group === 'bag' ? bagButtonRefs.current : group === 'stash' ? stashButtonRefs.current : equipmentButtonRefs.current;
+      group === 'bag'
+        ? bagButtonRefs.current
+        : group === 'belt'
+          ? beltButtonRefs.current
+          : equipmentButtonRefs.current;
     const total = refs.length;
     if (total <= 0) return;
     const wrapped = ((nextIndex % total) + total) % total;
@@ -56,13 +178,18 @@ export const Inventory = () => {
 
   const moveNavByKey = (key: string) => {
     if (!activeNav) return false;
+
     const { group, index } = activeNav;
     const refs =
-      group === 'bag' ? bagButtonRefs.current : group === 'stash' ? stashButtonRefs.current : equipmentButtonRefs.current;
+      group === 'bag'
+        ? bagButtonRefs.current
+        : group === 'belt'
+          ? beltButtonRefs.current
+          : equipmentButtonRefs.current;
     const total = refs.length;
     if (total <= 0) return false;
 
-    const columns = group === 'bag' ? BAG_COLUMNS : group === 'stash' ? STASH_COLUMNS : EQUIPMENT_COLUMNS;
+    const columns = group === 'bag' ? BAG_COLUMNS : group === 'belt' ? BELT_COLUMNS : EQUIPMENT_COLUMNS;
     let nextIndex = index;
 
     if (key === 'ArrowRight') nextIndex += 1;
@@ -109,7 +236,6 @@ export const Inventory = () => {
     if (typeof window === 'undefined') return;
 
     const onFocusBag = () => {
-      setBagOpen(true);
       setTimeout(() => focusNavTarget('bag', 0), 0);
     };
 
@@ -121,87 +247,32 @@ export const Inventory = () => {
     return !!(event.shiftKey || event.nativeEvent?.shiftKey || isShiftDownRef.current);
   };
 
-  const slotAcceptsItem = (slotType: string, itemType: string) => {
-    if (slotType === 'offhand') {
-      return itemType === 'offhand' || itemType === 'shield';
-    }
-    if (slotType === 'weapon') {
-      return itemType === 'weapon' || itemType === 'sword' || itemType === 'dagger';
-    }
-    if (slotType === 'armor') {
-      return itemType === 'armor' || itemType === 'armors';
-    }
-    if (slotType === 'helmet') {
-      return itemType === 'helmet' || itemType === 'helm' || itemType === 'helms';
-    }
-    return slotType === itemType;
+  const isDeleteAction = (event: MouseEvent<HTMLButtonElement>) => {
+    return !!(event.ctrlKey && (event.shiftKey || event.nativeEvent?.shiftKey || isShiftDownRef.current));
   };
 
-  const normalizeToSlot = (itemType: string) => {
-    if (itemType === 'shield') return 'offhand';
-    if (itemType === 'sword' || itemType === 'dagger') return 'weapon';
-    if (itemType === 'armors') return 'armor';
-    if (itemType === 'helm' || itemType === 'helms') return 'helmet';
-    return itemType;
+  const confirmPermanentDrop = (itemName: string) => {
+    if (typeof window === 'undefined' || typeof window.confirm !== 'function') return true;
+    return window.confirm(`Drop ${itemName} on the floor? It will be deleted permanently.`);
   };
-
-  const buildItemDetails = (item: any) => {
-    if (!item) return [];
-
-    if (item.type === 'consumable') {
-      const hpAmount = item.stats?.amount ?? 0;
-      const manaAmount = item.stats?.mana ?? 0;
-      const lines: string[] = [];
-      if (hpAmount > 0) {
-        lines.push(`Use: Restore ${hpAmount} HP`);
-      }
-      if (manaAmount > 0) {
-        lines.push(`Use: Restore ${manaAmount} Mana`);
-      }
-      return lines.length > 0 ? lines : ['Use: Consumable'];
-    }
-
-    if (item.type === 'currency') {
-      return [`Currency value: ${item.value ?? 0}`];
-    }
-
-    const lines: string[] = [];
-    if (item.stats) {
-      Object.entries(item.stats).forEach(([key, value]) => {
-        lines.push(`${key}: ${String(value)}`);
-      });
-    }
-    if (Array.isArray(item.mods)) {
-      item.mods.forEach((mod: string) => lines.push(mod));
-    }
-    return lines.length > 0 ? lines : ['No special stats'];
-  };
-
-  const slots: EquipmentSlot[] = useMemo(() => {
-    return [
-      { key: 'weapon', label: 'Hand', type: 'weapon', item: equipment?.weapon },
-      { key: 'offhand', label: 'Offhand', type: 'offhand', item: equipment?.offhand },
-      { key: 'helmet', label: 'Head', type: 'helmet', item: equipment?.helmet },
-      { key: 'armor', label: 'Chest', type: 'armor', item: equipment?.armor },
-      { key: 'belt', label: 'Belt', type: 'belt', item: equipment?.belt },
-      { key: 'ring', label: 'Ring', type: 'ring', item: equipment?.ring },
-      { key: 'boots', label: 'Boots', type: 'boots', item: equipment?.boots },
-    ];
-  }, [equipment]);
 
   const loadCharacterState = async () => {
     const dataChar = await AsyncStorage.getItem('characters');
     const objChar = dataChar ? JSON.parse(dataChar) : {};
     if (!objChar?.character) return null;
+
+    const equipmentState = ensureStarterContainers(objChar.character.equipment || {});
     const normalized = normalizeInventoryContainers(
       objChar.character.inventory,
-      objChar.character.consumableStash
+      objChar.character.consumableStash,
+      getInventoryCapacities(equipmentState)
     );
+
     return {
       objChar,
       bag: [...normalized.inventory],
       stash: [...normalized.consumableStash],
-      equipmentState: { ...(objChar.character.equipment || {}) },
+      equipmentState,
     };
   };
 
@@ -211,14 +282,65 @@ export const Inventory = () => {
     stash: any[],
     equipmentState: Record<string, any>
   ) => {
-    const nextBag = bag.slice(0, BAG_CAPACITY);
-    const nextStash = stash.slice(0, CONSUMABLE_STASH_CAPACITY);
-    objChar.character.inventory = nextBag;
-    objChar.character.consumableStash = nextStash;
+    const normalized = normalizeInventoryContainers(
+      bag,
+      stash,
+      getInventoryCapacities(equipmentState)
+    );
+
+    objChar.character.inventory = normalized.inventory;
+    objChar.character.consumableStash = normalized.consumableStash;
     objChar.character.equipment = equipmentState;
-    dispatch(setAllInventory({ inventory: nextBag, consumableStash: nextStash }));
+
+    dispatch(setAllInventory({ inventory: normalized.inventory, consumableStash: normalized.consumableStash }));
     dispatch(setEquipment({ ...equipmentState }));
     await AsyncStorage.setItem('characters', JSON.stringify(objChar));
+  };
+
+  const deleteBagItem = async (bagIndex: number) => {
+    const loaded = await loadCharacterState();
+    if (!loaded) return;
+    const { objChar, bag, stash, equipmentState } = loaded;
+    const target = bag[bagIndex];
+    if (!target) return;
+    const itemName = target.name || 'item';
+    if (!confirmPermanentDrop(itemName)) return;
+    bag.splice(bagIndex, 1);
+    await persistCharacterState(objChar, bag, stash, equipmentState);
+    dispatch(setCombatLog(`Dropped ${itemName}. Item deleted.`));
+  };
+
+  const deleteBeltItem = async (stashIndex: number) => {
+    const loaded = await loadCharacterState();
+    if (!loaded) return;
+    const { objChar, bag, stash, equipmentState } = loaded;
+    const target = stash[stashIndex];
+    if (!target) return;
+    const itemName = target.name || 'item';
+    if (!confirmPermanentDrop(itemName)) return;
+    stash.splice(stashIndex, 1);
+    await persistCharacterState(objChar, bag, stash, equipmentState);
+    dispatch(setCombatLog(`Dropped ${itemName}. Item deleted.`));
+  };
+
+  const deleteEquippedItem = async (slotKey: string) => {
+    const loaded = await loadCharacterState();
+    if (!loaded) return;
+    const { objChar, bag, stash, equipmentState } = loaded;
+    const equippedItem = equipmentState?.[slotKey];
+    if (!equippedItem?.name) return;
+    const itemName = equippedItem.name || 'item';
+    if (!confirmPermanentDrop(itemName)) return;
+
+    const nextEquipment = { ...equipmentState };
+    if (slotKey === 'bag' || slotKey === 'belt') {
+      nextEquipment[slotKey] = defaultEquipmentForSlot(slotKey);
+    } else {
+      nextEquipment[slotKey] = { name: '', type: slotKey, stats: {} };
+    }
+
+    await persistCharacterState(objChar, bag, stash, nextEquipment);
+    dispatch(setCombatLog(`Dropped ${itemName}. Item deleted.`));
   };
 
   const useOrEquipBagItem = async (index: number) => {
@@ -267,18 +389,32 @@ export const Inventory = () => {
       const slotType = normalizeToSlot(activeItem.type);
       if (!slotAcceptsItem(slotType, activeItem.type)) return;
 
-      const currentEquippedItem = equipmentState[slotType];
-      if (!equipmentState[slotType]) {
-        equipmentState[slotType] = { name: '', type: slotType, stats: {} };
+      const nextEquipmentState = { ...equipmentState };
+      const nextBag = [...bag];
+      const nextStash = [...stash];
+      const currentEquippedItem = nextEquipmentState[slotType];
+
+      if (!nextEquipmentState[slotType]) {
+        nextEquipmentState[slotType] = { name: '', type: slotType, stats: {} };
       }
 
+      nextBag.splice(index, 1);
       if (currentEquippedItem?.name) {
-        bag.push(currentEquippedItem);
+        nextBag.push(currentEquippedItem);
+      }
+      nextEquipmentState[slotType] = activeItem;
+
+      const nextCapacities = getInventoryCapacities(nextEquipmentState);
+      if (nextBag.length > nextCapacities.bagCapacity) {
+        dispatch(setCombatLog('Not enough space for that equipment swap.'));
+        return;
+      }
+      if (nextStash.length > nextCapacities.beltCapacity) {
+        dispatch(setCombatLog('New belt cannot hold your current consumables.'));
+        return;
       }
 
-      bag.splice(index, 1);
-      equipmentState[slotType] = activeItem;
-      await persistCharacterState(objChar, bag, stash, equipmentState);
+      await persistCharacterState(objChar, nextBag, nextStash, nextEquipmentState);
     } catch (error) {
       console.error('Error using/equipping bag item:', error);
     }
@@ -296,7 +432,9 @@ export const Inventory = () => {
         dispatch(setCombatLog('Only consumables can be moved to belt.'));
         return;
       }
-      if (stash.length >= CONSUMABLE_STASH_CAPACITY) {
+
+      const caps = getInventoryCapacities(equipmentState);
+      if (stash.length >= caps.beltCapacity) {
         dispatch(setCombatLog('Belt is full.'));
         return;
       }
@@ -317,7 +455,9 @@ export const Inventory = () => {
       const { objChar, bag, stash, equipmentState } = loaded;
       const item = stash[stashIndex];
       if (!item) return;
-      if (bag.length >= BAG_CAPACITY) {
+
+      const caps = getInventoryCapacities(equipmentState);
+      if (bag.length >= caps.bagCapacity) {
         dispatch(setCombatLog('Bag is full.'));
         return;
       }
@@ -338,19 +478,37 @@ export const Inventory = () => {
       const { objChar, bag, stash, equipmentState } = loaded;
       const item = equipmentState?.[slotKey];
       if (!item?.name) return;
-      if (bag.length >= BAG_CAPACITY) {
+
+      if (slotKey === 'bag' && bag.length + 1 > STARTING_BAG_CAPACITY) {
+        dispatch(setCombatLog('Cannot unequip bag while carrying too many items.'));
+        return;
+      }
+      if (slotKey === 'belt' && stash.length > STARTING_BELT_CAPACITY) {
+        dispatch(setCombatLog('Cannot unequip belt while belt slots are occupied.'));
+        return;
+      }
+
+      const caps = getInventoryCapacities(equipmentState);
+      if (bag.length >= caps.bagCapacity) {
         dispatch(setCombatLog('Bag is full.'));
         return;
       }
 
+      const nextEquipment = { ...equipmentState };
       bag.push(item);
-      equipmentState[slotKey] = { name: '', type: slotKey, stats: {} };
-      await persistCharacterState(objChar, bag, stash, equipmentState);
+      nextEquipment[slotKey] = defaultEquipmentForSlot(slotKey);
+
+      await persistCharacterState(objChar, bag, stash, nextEquipment);
       dispatch(setCombatLog(`Moved ${item.name || 'Item'} to bag.`));
     } catch (error) {
       console.error('Error moving equipped item to bag:', error);
     }
   };
+
+  const bagSize = Math.min(inventory.length, capacities.bagCapacity);
+  const beltSize = Math.min(consumableStash.length, capacities.beltCapacity);
+  const equippedBagName = equipment?.bag?.name || 'Small Pouch';
+  const formatLoadValue = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1));
 
   return (
     <div
@@ -374,327 +532,378 @@ export const Inventory = () => {
         </div>
       )}
 
-      <div style={{ ...styles.section, ...styles.bagSection }}>
-        <button type="button" style={styles.sectionHeader} onClick={() => setBagOpen((prev) => !prev)}>
-          <span style={styles.sectionTitle}>
-            Bag ({Math.min(inventory.length, BAG_CAPACITY)}/{BAG_CAPACITY})
-          </span>
-          <span style={styles.toggleText}>{bagOpen ? 'Close' : 'Open'}</span>
-        </button>
+      <div style={styles.windowFrame}>
+        <div style={styles.windowHeaderRow}>
+          <span style={styles.windowHeader}>Inventory</span>
+          <span style={styles.windowHeaderRight}>EQ</span>
+        </div>
+        <div style={styles.equipmentBoard}>
+          {equipmentSlots.map((slot, index) => {
+            const item = slot.item?.name ? slot.item : null;
+            return (
+              <button
+                key={slot.key}
+                type="button"
+                ref={(node) => {
+                  equipmentButtonRefs.current[index] = node;
+                }}
+                style={{
+                  ...styles.equipSlot,
+                  left: slot.x,
+                  top: slot.y,
+                  width: slot.w,
+                  height: slot.h,
+                  ...(slot.thin ? styles.equipSlotThin : null),
+                }}
+                tabIndex={0}
+                onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                  if (item?.name && isDeleteAction(event)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void deleteEquippedItem(slot.key);
+                    return;
+                  }
+                  if (item?.name) {
+                    void moveEquipmentItemToBag(slot.key);
+                  }
+                }}
+                onFocus={() => setActiveNav({ group: 'equipment', index })}
+                onMouseEnter={() => item && setHoveredItem(item)}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                {item ? (
+                  <ItemIcon type={item.type || slot.type} size={slot.thin ? 10 : 15} itemName={item.name} itemStats={item.stats} />
+                ) : null}
+                <span style={styles.slotHint}>{slot.label}</span>
+              </button>
+            );
+          })}
 
-        <span style={styles.goldText}>Gold: {gold}</span>
-        <span style={styles.stashMeta}>
-          Consumable Belt: {Math.min(consumableStash.length, CONSUMABLE_STASH_CAPACITY)}/{CONSUMABLE_STASH_CAPACITY}
-        </span>
+          <div style={styles.statusRow}>
+            <div style={styles.statusCard}>
+              <span style={styles.statusLabel}>Belt</span>
+              <span style={styles.statusValue}>{beltSize}/{capacities.beltCapacity}</span>
+            </div>
+            <div style={styles.statusCard}>
+              <span style={styles.statusLabel}>Bag</span>
+              <span style={styles.statusValue}>{bagSize}/{capacities.bagCapacity}</span>
+            </div>
+          </div>
+          <div style={{ ...styles.loadLine, ...(loadSummary.overloaded ? styles.loadLineWarn : null) }}>
+            Load {formatLoadValue(loadSummary.used)}/{formatLoadValue(loadSummary.max)}
+          </div>
+        </div>
+      </div>
 
-        <div style={styles.stashGrid}>
-          {Array.from({ length: CONSUMABLE_STASH_CAPACITY }).map((_, slotIndex) => {
+      <div style={styles.windowFrame}>
+        <div style={styles.windowHeaderRow}>
+          <span style={styles.windowHeader}>{equippedBagName}</span>
+          <span style={styles.windowHeaderRight}>Gold {gold}</span>
+        </div>
+
+        <div style={styles.beltStripTitle}>Belt Slots</div>
+        <div style={styles.beltGrid}>
+          {Array.from({ length: capacities.beltCapacity }).map((_, slotIndex) => {
             const item = consumableStash[slotIndex];
             return (
               <button
                 key={`stash-slot-${slotIndex}`}
                 type="button"
                 ref={(node) => {
-                  stashButtonRefs.current[slotIndex] = node;
+                  beltButtonRefs.current[slotIndex] = node;
                 }}
-                style={{
-                  ...styles.stashCell,
-                  ...(!item ? styles.stashCellEmpty : null),
-                }}
+                style={{ ...styles.beltCell, ...(!item ? styles.beltCellEmpty : null) }}
                 tabIndex={0}
                 onClick={(event: MouseEvent<HTMLButtonElement>) => {
-                  if (item) {
-                    const shiftIntent = isShiftAction(event) || !!stashShiftIntentRef.current[slotIndex];
-                    stashShiftIntentRef.current[slotIndex] = false;
-                    if (!shiftIntent) {
-                      dispatch(setCombatLog('Use Shift + Left Click to move from belt to bag.'));
-                      return;
-                    }
+                  if (!item) return;
+                  if (isDeleteAction(event)) {
                     event.preventDefault();
                     event.stopPropagation();
-                    void moveStashItemToBag(slotIndex);
+                    void deleteBeltItem(slotIndex);
+                    return;
                   }
+                  const shiftIntent = isShiftAction(event) || !!beltShiftIntentRef.current[slotIndex];
+                  beltShiftIntentRef.current[slotIndex] = false;
+                  if (!shiftIntent) {
+                    dispatch(setCombatLog('Use Shift + Left Click to move from belt to bag.'));
+                    return;
+                  }
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void moveStashItemToBag(slotIndex);
                 }}
-                onFocus={() => setActiveNav({ group: 'stash', index: slotIndex })}
+                onFocus={() => setActiveNav({ group: 'belt', index: slotIndex })}
                 onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
-                  stashShiftIntentRef.current[slotIndex] = isShiftAction(event);
+                  beltShiftIntentRef.current[slotIndex] = isShiftAction(event);
                 }}
                 onMouseEnter={() => item && setHoveredItem(item)}
                 onMouseLeave={() => setHoveredItem(null)}
               >
-                {item ? <ItemIcon type={item.type} size={20} itemName={item.name} itemStats={item.stats} /> : null}
+                {item ? <ItemIcon type={item.type} size={14} itemName={item.name} itemStats={item.stats} /> : null}
               </button>
             );
           })}
         </div>
 
-        {bagOpen && (
-          <div style={styles.bagScroll}>
-            <div style={styles.bagGrid}>
-              {Array.from({ length: BAG_CAPACITY }).map((_, index) => {
-                const item = inventory[index];
-                return (
-                  <button
-                    key={`bag-slot-${index}`}
-                    type="button"
-                    ref={(node) => {
-                      bagButtonRefs.current[index] = node;
-                    }}
-                    style={{
-                      ...styles.bagCell,
-                      ...(!item ? styles.bagCellEmpty : null),
-                    }}
-                    tabIndex={0}
-                    onClick={(event: MouseEvent<HTMLButtonElement>) => {
-                      if (!item) return;
-                      const shiftIntent = isShiftAction(event) || !!bagShiftIntentRef.current[index];
-                      bagShiftIntentRef.current[index] = false;
-                      if (item.type === 'consumable' && shiftIntent) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        void moveBagConsumableToBelt(index);
-                        return;
-                      }
-                      void useOrEquipBagItem(index);
-                    }}
-                    onFocus={() => setActiveNav({ group: 'bag', index })}
-                    onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
-                      bagShiftIntentRef.current[index] = isShiftAction(event);
-                    }}
-                    onMouseEnter={() => item && setHoveredItem(item)}
-                    onMouseLeave={() => setHoveredItem(null)}
-                  >
-                    {item ? <ItemIcon type={item.type} size={20} itemName={item.name} itemStats={item.stats} /> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <span style={styles.helperText}>
-          Shift + Left Click moves potions between bag and belt (both directions).
-        </span>
-      </div>
-
-      <div style={styles.section}>
-        <button type="button" style={styles.sectionHeader} onClick={() => setEquipmentOpen((prev) => !prev)}>
-          <span style={styles.sectionTitle}>Equipped</span>
-          <span style={styles.toggleText}>{equipmentOpen ? 'Close' : 'Open'}</span>
-        </button>
-
-        {equipmentOpen && (
-          <div style={styles.equipmentGrid}>
-            {slots.map((slot, index) => {
-              const itemName = slot.item?.name || '';
+        <div style={styles.bagGridWrap}>
+          <div style={styles.bagGrid}>
+            {Array.from({ length: capacities.bagCapacity }).map((_, index) => {
+              const item = inventory[index];
               return (
                 <button
-                  key={slot.key}
+                  key={`bag-slot-${index}`}
                   type="button"
                   ref={(node) => {
-                    equipmentButtonRefs.current[index] = node;
+                    bagButtonRefs.current[index] = node;
                   }}
-                  style={styles.slotBoxButton}
+                  style={{ ...styles.bagCell, ...(!item ? styles.bagCellEmpty : null) }}
                   tabIndex={0}
-                  onClick={() => {
-                    if (slot.item?.name) {
-                      void moveEquipmentItemToBag(slot.key);
+                  onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                    if (!item) return;
+                    if (isDeleteAction(event)) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void deleteBagItem(index);
+                      return;
                     }
+                    const shiftIntent = isShiftAction(event) || !!bagShiftIntentRef.current[index];
+                    bagShiftIntentRef.current[index] = false;
+                    if (item.type === 'consumable' && shiftIntent) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void moveBagConsumableToBelt(index);
+                      return;
+                    }
+                    void useOrEquipBagItem(index);
                   }}
-                  onFocus={() => setActiveNav({ group: 'equipment', index })}
-                  onMouseEnter={() => slot.item?.name && setHoveredItem(slot.item)}
+                  onFocus={() => setActiveNav({ group: 'bag', index })}
+                  onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+                    bagShiftIntentRef.current[index] = isShiftAction(event);
+                  }}
+                  onMouseEnter={() => item && setHoveredItem(item)}
                   onMouseLeave={() => setHoveredItem(null)}
                 >
-                  <div style={styles.slotBox}>
-                    <ItemIcon
-                      type={slot.item?.type || slot.type}
-                      size={26}
-                      itemName={slot.item?.name}
-                      itemStats={slot.item?.stats}
-                    />
-                    <span style={styles.slotLabel}>{slot.label}</span>
-                    <span style={styles.slotItemName}>{itemName || 'Empty'}</span>
-                  </div>
+                  {item ? <ItemIcon type={item.type} size={18} itemName={item.name} itemStats={item.stats} /> : null}
                 </button>
               );
             })}
           </div>
-        )}
+        </div>
+
+        <span style={styles.helperText}>Shift + Left Click moves consumables. Ctrl + Shift + Left Click deletes item.</span>
       </div>
     </div>
   );
 };
 
+const panelFrame: CSSProperties = {
+  background: 'linear-gradient(135deg, #2f3338 0%, #22262a 100%)',
+  border: '2px solid #8c9095',
+  boxShadow: 'inset 0 0 0 1px #121417, inset 0 0 0 2px #3a3e44',
+  padding: 4,
+};
+
+const slotBase: CSSProperties = {
+  border: '2px solid #535861',
+  background: 'linear-gradient(135deg, #2a2e33 0%, #1f2327 100%)',
+  boxShadow: 'inset 0 0 0 1px #15181b',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxSizing: 'border-box',
+  cursor: 'pointer',
+  outline: 'none',
+};
+
 const styles: Record<string, CSSProperties> = {
   root: {
-    background: '#111827',
-    border: '1px solid #334155',
-    borderRadius: 8,
-    padding: 7,
     display: 'flex',
     flexDirection: 'column',
-    gap: 7,
+    gap: 4,
     position: 'relative',
+    fontFamily: RETRO_FONT,
+    width: 136,
+    pointerEvents: 'auto',
   },
-  section: {
-    background: '#0f172a',
-    borderRadius: 6,
-    padding: 5,
-    border: '1px solid #1e293b',
-    position: 'relative',
+  windowFrame: {
+    ...panelFrame,
   },
-  bagSection: {
-    position: 'relative',
-  },
-  sectionHeader: {
+  windowHeaderRow: {
     display: 'flex',
-    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
-    background: 'transparent',
-    border: 0,
-    padding: 0,
-    width: '100%',
-    cursor: 'pointer',
+    marginBottom: 4,
+    paddingBottom: 2,
+    borderBottom: '1px solid #5a5f66',
   },
-  sectionTitle: {
-    color: '#f8fafc',
-    fontWeight: 700,
-    fontSize: 11,
+  windowHeader: {
+    color: '#f1f4f7',
+    fontSize: 9,
+    textTransform: 'uppercase',
+    letterSpacing: 0,
   },
-  toggleText: {
-    color: '#93c5fd',
-    fontSize: 10,
+  windowHeaderRight: {
+    color: '#c7ccd2',
+    fontSize: 8,
+    textTransform: 'uppercase',
   },
-  equipmentGrid: {
+  equipmentBoard: {
+    position: 'relative',
+    width: 130,
+    height: 196,
+    border: '2px solid #656a72',
+    background: 'linear-gradient(145deg, #2b3036 0%, #22262b 100%)',
+    margin: '0 auto',
+    boxSizing: 'border-box',
+  },
+  equipSlot: {
+    ...slotBase,
+    position: 'absolute',
+    padding: 2,
+  },
+  equipSlotThin: {
+    padding: 1,
+  },
+  slotHint: {
+    position: 'absolute',
+    right: 1,
+    bottom: 1,
+    fontSize: 5,
+    color: '#959ca5',
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+    pointerEvents: 'none',
+  },
+  statusRow: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
+    bottom: 4,
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 4,
+  },
+  statusCard: {
+    border: '2px solid #6d7279',
+    background: '#171a1d',
+    padding: '2px 2px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  statusLabel: {
+    color: '#b7bdc5',
+    fontSize: 6,
+    textTransform: 'uppercase',
+  },
+  statusValue: {
+    color: '#f7fafb',
+    fontSize: 7,
+    textTransform: 'uppercase',
+  },
+  loadLine: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
+    bottom: 32,
+    textAlign: 'center',
+    color: '#cfd4da',
+    fontSize: 6,
+    textTransform: 'uppercase',
+  },
+  loadLineWarn: {
+    color: '#ff8b8b',
+  },
+  beltStripTitle: {
+    color: '#d9dde2',
+    fontSize: 6,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  beltGrid: {
     display: 'flex',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+    gap: 2,
+    marginBottom: 3,
+    minHeight: 20,
   },
-  slotBoxButton: {
-    border: 0,
-    background: 'transparent',
-    padding: 0,
-    margin: 0,
-    cursor: 'pointer',
-  },
-  slotBox: {
-    width: 70,
-    height: 70,
-    background: '#1e293b',
-    borderRadius: 6,
-    border: '1px solid #334155',
+  beltCell: {
+    width: 16,
+    height: 14,
+    border: '1px solid #6a6f77',
+    background: '#22262b',
+    boxSizing: 'border-box',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '0 2px',
-    boxSizing: 'border-box',
+    cursor: 'pointer',
+    outline: 'none',
+    padding: 1,
   },
-  slotLabel: {
-    color: '#cbd5e1',
-    fontSize: 9,
-    fontWeight: 700,
+  beltCellEmpty: {
+    opacity: 0.55,
+    cursor: 'default',
   },
-  slotItemName: {
-    color: '#94a3b8',
-    fontSize: 8,
-    textAlign: 'center',
-    maxWidth: 64,
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
-  },
-  bagScroll: {
-    maxHeight: 116,
+  bagGridWrap: {
+    maxHeight: 142,
     overflowY: 'auto',
+    border: '1px solid #4f545c',
+    background: '#171b1f',
+    padding: 4,
   },
   bagGrid: {
-    display: 'flex',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 2,
   },
   bagCell: {
-    width: 26,
-    height: 26,
-    borderRadius: 4,
-    border: '1px solid #334155',
-    background: '#1e293b',
+    width: 28,
+    height: 28,
+    border: '1px solid #6a6f77',
+    background: 'linear-gradient(145deg, #2a2f34 0%, #1f2328 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     boxSizing: 'border-box',
     cursor: 'pointer',
+    outline: 'none',
   },
   bagCellEmpty: {
-    opacity: 0.45,
+    opacity: 0.52,
     cursor: 'default',
-  },
-  stashMeta: {
-    color: '#94a3b8',
-    fontSize: 9,
-    marginBottom: 4,
-    display: 'block',
-  },
-  stashGrid: {
-    display: 'flex',
-    flexDirection: 'row',
-    gap: 4,
-    marginBottom: 6,
-  },
-  stashCell: {
-    width: 26,
-    height: 26,
-    borderRadius: 4,
-    border: '1px solid #7c3aed',
-    background: '#312e81',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxSizing: 'border-box',
-    cursor: 'pointer',
-  },
-  stashCellEmpty: {
-    opacity: 0.5,
-    cursor: 'default',
-  },
-  goldText: {
-    position: 'absolute',
-    top: 20,
-    right: 6,
-    color: '#facc15',
-    fontSize: 10,
-    fontWeight: 700,
-    zIndex: 2,
   },
   helperText: {
-    color: '#94a3b8',
-    fontSize: 8,
+    color: '#9ea5ad',
+    fontSize: 5,
     marginTop: 4,
     display: 'block',
+    textTransform: 'uppercase',
+    lineHeight: 1.5,
   },
   tooltipOverlay: {
     position: 'absolute',
-    right: 8,
-    top: -8,
-    maxWidth: 210,
-    background: 'rgba(2, 6, 23, 0.94)',
-    border: '1px solid #475569',
-    borderRadius: 8,
+    right: 138,
+    top: 0,
+    maxWidth: 220,
+    background: '#13171b',
+    border: '2px solid #7a8088',
+    boxShadow: 'inset 0 0 0 1px #20252b',
     padding: 8,
     zIndex: 20,
     pointerEvents: 'none',
   },
   tooltipTitle: {
-    color: '#f8fafc',
+    color: '#ffffff',
     fontWeight: 700,
-    fontSize: 11,
+    fontSize: 8,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   tooltipLine: {
-    color: '#cbd5e1',
-    fontSize: 10,
+    color: '#d6dbe0',
+    fontSize: 7,
+    lineHeight: 1.5,
   },
 };

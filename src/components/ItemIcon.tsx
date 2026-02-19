@@ -66,6 +66,17 @@ export const ItemIcon: React.FC<ItemIconProps> = ({
           <Rect x="10" y="9" width="4" height="6" fill="#d1d5db" stroke={iconStroke} />
         </Svg>
       );
+    case 'bag':
+    case 'bags':
+    case 'backpack':
+    case 'pouch':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x="5" y="6" width="14" height="14" fill="#8b5a2b" stroke={iconStroke} />
+          <Rect x="9" y="4" width="6" height="4" fill="#6b4226" stroke={iconStroke} />
+          <Rect x="9" y="11" width="6" height="5" fill="#d1d5db" stroke={iconStroke} />
+        </Svg>
+      );
     case 'ring':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">

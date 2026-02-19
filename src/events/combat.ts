@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { store } from './../app/store';
@@ -36,6 +36,14 @@ interface LootObject {
   ID: number;
   amount?: number;
   amout?: number;
+}
+
+export interface FloorLootBag {
+  id: string;
+  mapId: string;
+  x: number;
+  y: number;
+  items: any[];
 }
 
 type HitVariant = 'pow' | 'slash' | 'fire' | 'crush' | 'mutilate';
@@ -90,6 +98,7 @@ export const useCombat = () => {
   const playerPosX = useAppSelector((state) => state.room.posX);
   const playerPosY = useAppSelector((state) => state.room.posY);
   const playerFacing = useAppSelector((state) => state.room.direction as Direction);
+  const currentMapId = useAppSelector((state) => state.room.currentMapId);
   const specialCooldownFrames = useAppSelector((state) => state.combat.specialCooldownFrames);
   const inCombat = useAppSelector((state) => state.combat.inCombat);
   const playerClass = useAppSelector((state) => state.player.classArchetype || 'warrior');
@@ -112,8 +121,22 @@ export const useCombat = () => {
     facing: playerFacing,
     playerClass,
   });
-  const pendingLootDropsRef = useRef<LootObject[]>([]);
-  const [pendingLootItems, setPendingLootItems] = useState<any[]>([]);
+  const [floorLootBags, setFloorLootBags] = useState<FloorLootBag[]>([]);
+  const [activeLootBagId, setActiveLootBagId] = useState<string | null>(null);
+  const pendingLootItems = useMemo(() => {
+    if (!activeLootBagId) return [];
+    return floorLootBags.find((bag) => bag.id === activeLootBagId)?.items || [];
+  }, [floorLootBags, activeLootBagId]);
+
+  useEffect(() => {
+    if (!activeLootBagId) return;
+    const bagStillExists = floorLootBags.some(
+      (bag) => bag.id === activeLootBagId && Array.isArray(bag.items) && bag.items.length > 0
+    );
+    if (!bagStillExists) {
+      setActiveLootBagId(null);
+    }
+  }, [activeLootBagId, floorLootBags]);
 
   const enemiesArr = Object.values(enemies);
   const enemiesRef = useRef(enemiesArr);
@@ -215,13 +238,87 @@ export const useCombat = () => {
       .filter((id) => (reachableOnly ? isEnemyReachableNow(id) : true));
   };
 
-  const collectLootDrops = (loot: LootObject[]) => {
-    loot.forEach((val: LootObject) => {
-      if (Math.random() <= Number(val.dropChance || 0)) {
-        pendingLootDropsRef.current.push({ ...val });
+  const resolveLootDrops = (loot: LootObject[]): any[] => {
+    const sourceItems = (itemData as any)?.items || {};
+
+    return (loot || [])
+      .filter((entry) => Math.random() <= Number(entry?.dropChance || 0))
+      .map((drop) => {
+        const baseItem = sourceItems?.[drop.type]?.[`${drop.ID}`];
+        if (!baseItem) return null;
+        const quantity = Number(drop.amount ?? drop.amout ?? 1);
+        if (!Number.isFinite(quantity) || quantity <= 1) {
+          return { ...baseItem };
+        }
+        return { ...baseItem, amount: Math.max(1, Math.floor(quantity)) };
+      })
+      .filter(Boolean);
+  };
+
+  const addFloorLootBag = (params: { x: number; y: number; mapId: string; items: any[] }) => {
+    if (!params.items || params.items.length <= 0) return;
+
+    setFloorLootBags((prev) => {
+      const existingIndex = prev.findIndex(
+        (bag) => bag.mapId === params.mapId && bag.x === params.x && bag.y === params.y
+      );
+      if (existingIndex >= 0) {
+        const merged = [...prev];
+        merged[existingIndex] = {
+          ...merged[existingIndex],
+          items: [...merged[existingIndex].items, ...params.items],
+        };
+        return merged;
       }
+
+      return [
+        ...prev,
+        {
+          id: `loot-${Date.now()}-${params.x}-${params.y}-${Math.floor(Math.random() * 9999)}`,
+          mapId: params.mapId,
+          x: params.x,
+          y: params.y,
+          items: [...params.items],
+        },
+      ];
     });
   };
+
+  const setActiveLootBagItems = useCallback((nextItems: any[] | ((prev: any[]) => any[])) => {
+    const targetBagId = activeLootBagId;
+    if (!targetBagId) return;
+
+    setFloorLootBags((prev) => {
+      return prev.flatMap((bag) => {
+        if (bag.id !== targetBagId) {
+          return [bag];
+        }
+
+        const computedItems =
+          typeof nextItems === 'function' ? (nextItems as (prev: any[]) => any[])(bag.items || []) : nextItems;
+        const normalizedItems = Array.isArray(computedItems) ? computedItems.filter(Boolean) : [];
+
+        if (normalizedItems.length <= 0) {
+          return [];
+        }
+
+        return [{ ...bag, items: normalizedItems }];
+      });
+    });
+  }, [activeLootBagId]);
+
+  const openLootBag = useCallback((bagId: string) => {
+    setActiveLootBagId(bagId);
+  }, []);
+
+  const closeLootBag = useCallback(() => {
+    setActiveLootBagId(null);
+  }, []);
+
+  const clearFloorLootBags = useCallback(() => {
+    setFloorLootBags([]);
+    setActiveLootBagId(null);
+  }, []);
 
   const getClassHitFx = () => {
     if (playerClass === 'caster') return CLASS_HIT_FX.caster;
@@ -300,34 +397,6 @@ export const useCombat = () => {
       dispatch(setCombatLog('Combat ended.'));
       return;
     }
-    const itemsData = await AsyncStorage.getItem('items');
-    const itemsObj = itemsData ? JSON.parse(itemsData) : itemData;
-
-    if (!itemsData) {
-      await AsyncStorage.setItem('items', JSON.stringify(itemData));
-    }
-
-    const resolvedDroppedItems = pendingLootDropsRef.current
-      .map((drop) => {
-        const baseItem = itemsObj.items?.[drop.type]?.[`${drop.ID}`];
-        if (!baseItem) return null;
-        const quantity = Number(drop.amount ?? drop.amout ?? 1);
-        if (!Number.isFinite(quantity) || quantity <= 1) {
-          return { ...baseItem };
-        }
-        return { ...baseItem, amount: Math.max(1, Math.floor(quantity)) };
-      })
-      .filter(Boolean);
-
-    if (resolvedDroppedItems.length > 0) {
-      setPendingLootItems((prev) => [...prev, ...resolvedDroppedItems]);
-      dispatch(
-        setCombatLog(
-          `Loot dropped: ${resolvedDroppedItems.map((entry: any) => entry.name || 'Unknown').join(', ')}.`
-        )
-      );
-    }
-    pendingLootDropsRef.current = [];
 
     obj.character.stats.health = playerHealthRef.current;
     obj.character.experience = Math.max(0, Number(store.getState().player.experience || obj.character.experience || 0));
@@ -561,7 +630,26 @@ export const useCombat = () => {
 
       if (currentEnemyHealth <= 0) {
         dispatch(XP(enemyXP));
-        collectLootDrops(loot as LootObject[]);
+        const latestEnemyState = enemiesRef.current[targetId] || targetEnemy;
+        const lootTable = Array.isArray(latestEnemyState?.loot) ? latestEnemyState.loot : loot;
+        const droppedItems = resolveLootDrops(lootTable as LootObject[]);
+        if (droppedItems.length > 0) {
+          const dropXValue = Number(latestEnemyState?.positionX);
+          const dropYValue = Number(latestEnemyState?.positionY);
+          const dropX = Number.isFinite(dropXValue) ? dropXValue : combatViewRef.current.x;
+          const dropY = Number.isFinite(dropYValue) ? dropYValue : combatViewRef.current.y;
+          addFloorLootBag({
+            x: dropX,
+            y: dropY,
+            mapId: String(currentMapId || ''),
+            items: droppedItems,
+          });
+          dispatch(
+            setCombatLog(
+              `Loot dropped: ${droppedItems.map((entry: any) => entry?.name || 'Unknown').join(', ')}.`
+            )
+          );
+        }
 
         const nextEnemy = findNextLivingEnemy(targetId);
         if (nextEnemy !== null) {
@@ -755,7 +843,6 @@ export const useCombat = () => {
 
   const startCombat = (id: number) => {
     const currentEnemies = enemiesRef.current;
-    pendingLootDropsRef.current = [];
 
     if (combatRef.current || inCombat) {
       return;
@@ -850,7 +937,12 @@ export const useCombat = () => {
     performSecondarySkill,
     specialCooldownFrames,
     inCombat,
+    floorLootBags,
+    activeLootBagId,
+    openLootBag,
+    closeLootBag,
+    clearFloorLootBags,
+    setActiveLootBagItems,
     pendingLootItems,
-    setPendingLootItems,
   };
 };

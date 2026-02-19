@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import data from '../../data/characters.json';
 import itemData from '../../data/items.json';
-import { Inventory } from '../inventory/Inventory';
 import {
   fetchEquipment,
   setGold,
@@ -18,11 +17,16 @@ import {
   setXP,
 } from './playerSlice';
 import { setAllInventory } from '../inventory/inventorySlice';
-import { extractCurrencyFromBag, normalizeInventoryContainers } from '../inventory/inventoryUtils';
+import {
+  extractCurrencyFromBag,
+  getInventoryCapacities,
+  normalizeInventoryContainers,
+} from '../inventory/inventoryUtils';
 
 interface PlayerProps {
   classLabel: string;
 }
+const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
 
 export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
   const dispatch = useAppDispatch();
@@ -63,9 +67,19 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
     obj.character.unspentStatPoints = unspentStatPoints;
     const baseGold = Math.max(0, Number(obj.character.gold || 0));
 
+    const equipmentState = obj.character.equipment || {};
+    if (!equipmentState.bag?.name) {
+      equipmentState.bag = { name: 'Small Pouch', type: 'bag', stats: { bagSlots: 4 } };
+    }
+    if (!equipmentState.belt?.name) {
+      equipmentState.belt = { name: 'Starter Belt', type: 'belt', stats: { consumableSlots: 2 } };
+    }
+
+    const capacities = getInventoryCapacities(equipmentState);
     const normalizedInventory = normalizeInventoryContainers(
       obj.character.inventory,
-      obj.character.consumableStash
+      obj.character.consumableStash,
+      capacities
     );
     const legacyCurrencySplit = extractCurrencyFromBag(normalizedInventory.inventory);
     const inv = legacyCurrencySplit.inventoryWithoutCurrency;
@@ -74,7 +88,7 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
     obj.character.inventory = inv;
     obj.character.consumableStash = consumableStash;
     obj.character.gold = totalGold;
-    const equipped = obj.character.equipment;
+    const equipped = equipmentState;
 
     dispatch(setEquipment(equipped));
     dispatch(setStats(baseStats));
@@ -146,10 +160,6 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
           ))}
         </ScrollView>
       </View>
-
-      <View style={styles.inventoryPanel}>
-        <Inventory />
-      </View>
     </View>
   );
 };
@@ -161,32 +171,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 6,
     gap: 8,
+    backgroundColor: '#000000',
   },
   logPanelInline: {
-    width: 270,
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 6,
-    backgroundColor: '#0f172a',
+    width: 320,
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    backgroundColor: '#080808',
     padding: 6,
   },
   panelTitle: {
-    color: '#f8fafc',
+    color: '#ffffff',
     fontWeight: '700',
     fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontFamily: RETRO_FONT,
     marginBottom: 2,
   },
   logView: {
     height: 168,
   },
   logText: {
-    color: '#cbd5e1',
+    color: '#d8d8d8',
     fontSize: 10,
     marginBottom: 1,
-  },
-  inventoryPanel: {
-    flex: 1,
+    fontFamily: RETRO_FONT,
   },
 });
