@@ -2949,7 +2949,7 @@ const turn = (turnDir:string) => {
         <View style={styles.roomRoot}>
             {/* DEBUG OVERLAY */}
             <DebugOverlay
-                visible={false}
+                visible={true}
                 mapArray={activeMapArray}
                 pathTileArr={activePathTileArr}
                 verticalTileArr={verticalTileArr}

@@ -31,6 +31,7 @@ const RETRO_FONT = '"Press Start 2P", "Courier New", monospace';
 const BAG_COLUMNS = 4;
 const BELT_COLUMNS = 4;
 const EQUIPMENT_COLUMNS = 3;
+const FLOOR_DROP_EVENT = 'dungeon:drop-items-to-floor';
 
 const normalizeToSlot = (itemType: string) => {
   if (itemType === 'shield') return 'offhand';
@@ -118,6 +119,9 @@ export const Inventory = () => {
   const inventory = useAppSelector((state) => state.inventory.inventory as any[]);
   const consumableStash = useAppSelector((state) => state.inventory.consumableStash as any[]);
   const equipment = useAppSelector((state) => state.player.equipment as Record<string, any>);
+  const currentMapId = useAppSelector((state) => state.room.currentMapId);
+  const playerPosX = useAppSelector((state) => state.room.posX);
+  const playerPosY = useAppSelector((state) => state.room.posY);
   const classArchetype = useAppSelector((state) => state.player.classArchetype || 'warrior');
   const playerStats = useAppSelector((state) => state.player.stats as Record<string, any>);
   const playerHealth = useAppSelector((state) => state.player.health);
@@ -251,6 +255,28 @@ export const Inventory = () => {
     return !!(event.ctrlKey && (event.shiftKey || event.nativeEvent?.shiftKey || isShiftDownRef.current));
   };
 
+  const isFloorDropAction = (event: MouseEvent<HTMLButtonElement>) => {
+    const ctrlHeld = !!(event.ctrlKey || event.nativeEvent?.ctrlKey);
+    const shiftHeld = !!(event.shiftKey || event.nativeEvent?.shiftKey || isShiftDownRef.current);
+    return ctrlHeld && !shiftHeld;
+  };
+
+  const emitFloorDropItems = (items: any[]) => {
+    const payload = Array.isArray(items) ? items.filter(Boolean) : [];
+    if (payload.length <= 0) return;
+    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+    window.dispatchEvent(
+      new CustomEvent(FLOOR_DROP_EVENT, {
+        detail: {
+          items: payload,
+          mapId: String(currentMapId || ''),
+          x: playerPosX,
+          y: playerPosY,
+        },
+      })
+    );
+  };
+
   const confirmPermanentDrop = (itemName: string) => {
     if (typeof window === 'undefined' || typeof window.confirm !== 'function') return true;
     return window.confirm(`Drop ${itemName} on the floor? It will be deleted permanently.`);
@@ -308,6 +334,20 @@ export const Inventory = () => {
     bag.splice(bagIndex, 1);
     await persistCharacterState(objChar, bag, stash, equipmentState);
     dispatch(setCombatLog(`Dropped ${itemName}. Item deleted.`));
+  };
+
+  const dropBagItemToFloor = async (bagIndex: number) => {
+    const loaded = await loadCharacterState();
+    if (!loaded) return;
+    const { objChar, bag, stash, equipmentState } = loaded;
+    const target = bag[bagIndex];
+    if (!target) return;
+    const itemName = target.name || 'item';
+    const droppedItem = { ...target };
+    bag.splice(bagIndex, 1);
+    await persistCharacterState(objChar, bag, stash, equipmentState);
+    emitFloorDropItems([droppedItem]);
+    dispatch(setCombatLog(`Dropped ${itemName} on the floor.`));
   };
 
   const deleteBeltItem = async (stashIndex: number) => {
@@ -666,6 +706,12 @@ export const Inventory = () => {
                       void deleteBagItem(index);
                       return;
                     }
+                    if (isFloorDropAction(event)) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void dropBagItemToFloor(index);
+                      return;
+                    }
                     const shiftIntent = isShiftAction(event) || !!bagShiftIntentRef.current[index];
                     bagShiftIntentRef.current[index] = false;
                     if (item.type === 'consumable' && shiftIntent) {
@@ -690,7 +736,9 @@ export const Inventory = () => {
           </div>
         </div>
 
-        <span style={styles.helperText}>Shift + Left Click moves consumables. Ctrl + Shift + Left Click deletes item.</span>
+        <span style={styles.helperText}>
+          Shift + Left Click moves consumables. Ctrl + Left Click drops to floor. Ctrl + Shift + Left Click deletes item.
+        </span>
       </div>
     </div>
   );

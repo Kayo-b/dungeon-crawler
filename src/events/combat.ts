@@ -255,7 +255,7 @@ export const useCombat = () => {
       .filter(Boolean);
   };
 
-  const addFloorLootBag = (params: { x: number; y: number; mapId: string; items: any[] }) => {
+  const addFloorLootBag = useCallback((params: { x: number; y: number; mapId: string; items: any[] }) => {
     if (!params.items || params.items.length <= 0) return;
 
     setFloorLootBags((prev) => {
@@ -282,7 +282,7 @@ export const useCombat = () => {
         },
       ];
     });
-  };
+  }, []);
 
   const setActiveLootBagItems = useCallback((nextItems: any[] | ((prev: any[]) => any[])) => {
     const targetBagId = activeLootBagId;
@@ -943,6 +943,7 @@ export const useCombat = () => {
     closeLootBag,
     clearFloorLootBags,
     setActiveLootBagItems,
+    addFloorLootBag,
     pendingLootItems,
   };
 };

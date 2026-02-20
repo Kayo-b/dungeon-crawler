@@ -38,16 +38,6 @@ export const Room3D: React.FC<Room3DProps> = ({
     viewDistance = 5,
     onDoorInteract,
 }) => {
-    const resolveAssetUri = (asset: any) => {
-        if (typeof asset === 'string') return asset;
-        if (asset?.uri) return asset.uri;
-        if (asset?.default) return asset.default;
-        if (typeof (Image as any).resolveAssetSource === 'function') {
-            return (Image as any).resolveAssetSource(asset)?.uri;
-        }
-        return '';
-    };
-    const brickLargeUri = resolveAssetUri(brickLarge);
     type DoorPlacement = 'none' | 'front' | 'left' | 'right';
 
     const getTileTypeAt = (x: number, y: number) => {
@@ -166,18 +156,11 @@ export const Room3D: React.FC<Room3DProps> = ({
 
     const getBrightness = (distance: number) => {
 
-        // return 1;
-        return Math.max(0.3, 1 - distance * 0.12);
+        return 1;
+        // return Math.max(0.3, 1 - distance * 0.12);
     };
 
     const isWeb = Platform.OS === 'web';
-    const wallFrontTextureStyle = isWeb
-        ? ({
-            backgroundImage: brickLargeUri ? `url(${brickLargeUri})` : undefined,
-            backgroundRepeat: 'repeat',
-            backgroundSize: 'auto',
-        } as any)
-        : null;
 
     const renderFrames = () => {
         const frames: React.ReactNode[] = [];
@@ -190,7 +173,7 @@ export const Room3D: React.FC<Room3DProps> = ({
 
             const far = getFrameDimensions(d);
             const near = d === 1
-                ? { left: 0, right: VIEWPORT_WIDTH, top: 0, bottom: VIEWPORT_HEIGHT }
+                ? { left: 0, right: VIEWPORT_WIDTH, top: 0, bottom: VIEWPORT_HEIGHT}
                 : getFrameDimensions(d - 1);
 
             const isWall = tile.type === 0;
@@ -205,19 +188,16 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: far.left + 20,
+                                left: far.left,
                                 top: far.top,
-                                width: far.width,
+                                width: far.width + 40,
                                 height: far.height - 40,
                                 opacity: brightness,
                                 zIndex: 90 - d,
-                            },
-                            wallFrontTextureStyle,
+                            }
                         ]}
                     >
-                        {!isWeb && (
-                            <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
-                        )}
+                        <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
                     </View>
                 );
             }
@@ -278,7 +258,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                             {
                                 left: near.left,
                                 top: near.top - 20, // Extend beyond to fill gaps
-                                width: leftWidth + 10,
+                                width: tilesAhead.length === 0 ? leftWidth - 20 : leftWidth + 10,
                                 height: near.bottom - near.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
@@ -376,7 +356,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                             styles.segment,
                             {
                                 left: near.left - 20,
-                                top: far.bottom - 80,
+                                top: far.bottom - 75,
                                 width: near.right - near.left + 40,
                                 height: floorHeight + 10,
                                 zIndex: 89 - d,
@@ -391,7 +371,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                             style={[
                                 {
                                     width: '100%',
-                                    height: '200%',
+                                    height: '250%',
                                     opacity: brightness * 0.9,
                                 },
                                 isWeb && {
@@ -418,9 +398,9 @@ export const Room3D: React.FC<Room3DProps> = ({
                             {
                                 left: near.left - 20,
                                 top: near.top + 130,
-                                width: near.right - near.left + 40,
+                                width: near.left > 0 ? near.right - near.left + 10 : -40,
                                 height: ceilingHeight + 20,
-                                zIndex: 98 - d,
+                                zIndex: 88 - d,
                             },
                             isWeb && {
                                 // @ts-ignore

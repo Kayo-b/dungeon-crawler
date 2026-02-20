@@ -59,6 +59,7 @@ const ENEMY_TYPE = {
   ARCHER: 2,
 } as const;
 const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
+const FLOOR_DROP_EVENT = 'dungeon:drop-items-to-floor';
 
 type EnemyTypeId = (typeof ENEMY_TYPE)[keyof typeof ENEMY_TYPE];
 type PackKind = 'rats' | 'skeletons' | 'mixed';
@@ -204,6 +205,7 @@ export const MainScreen = () => {
     closeLootBag,
     clearFloorLootBags,
     setActiveLootBagItems,
+    addFloorLootBag,
     pendingLootItems,
   } = useCombat();
 
@@ -241,6 +243,35 @@ export const MainScreen = () => {
       setShowLootModal(false);
     }
   }, [pendingLootItems]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const onDropItemsToFloor = (event: Event) => {
+      const customEvent = event as CustomEvent<{ items?: any[]; mapId?: string; x?: number; y?: number }>;
+      const droppedItems = Array.isArray(customEvent.detail?.items)
+        ? customEvent.detail.items.filter(Boolean)
+        : [];
+      if (droppedItems.length <= 0) return;
+      const dropX = Number.isFinite(customEvent.detail?.x) ? Number(customEvent.detail?.x) : posX;
+      const dropY = Number.isFinite(customEvent.detail?.y) ? Number(customEvent.detail?.y) : posY;
+      const dropMapId =
+        typeof customEvent.detail?.mapId === 'string' && customEvent.detail.mapId.length > 0
+          ? customEvent.detail.mapId
+          : String(currentMapId || '');
+      addFloorLootBag({
+        x: dropX,
+        y: dropY,
+        mapId: dropMapId,
+        items: droppedItems,
+      });
+    };
+
+    window.addEventListener(FLOOR_DROP_EVENT, onDropItemsToFloor as EventListener);
+    return () => {
+      window.removeEventListener(FLOOR_DROP_EVENT, onDropItemsToFloor as EventListener);
+    };
+  }, [addFloorLootBag, posX, posY, currentMapId]);
 
   const isSmallMap = mapWidth * mapHeight <= SMALL_MAP_MAX_TILES;
   const dungeonDepth = getMapDepth(currentMapId);
@@ -1606,6 +1637,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   skillBar: {
+    opacity:0 ,
     width: 192,
     gap: 4,
     padding: 5,

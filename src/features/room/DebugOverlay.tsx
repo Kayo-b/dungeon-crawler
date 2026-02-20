@@ -26,7 +26,7 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = ({
   dg_map,
 }) => {
   const dispatch = useAppDispatch();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(false);
   const [showMapGenerator, setShowMapGenerator] = useState(false);
   const [history, setHistory] = useState<MovementEvent[]>([]);
