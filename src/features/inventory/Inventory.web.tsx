@@ -1,9 +1,14 @@
 import { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { restoreHealth, restoreMana, setCombatLog, setEquipment, setGold } from '../../features/player/playerSlice';
+import { restoreHealth, restoreMana, setCombatLog, setEquipment, setGold, setSkillLevels } from '../../features/player/playerSlice';
 import { setAllInventory } from './inventorySlice';
 import { ItemIcon } from '../../components/ItemIcon';
+import {
+  getSkillLevel,
+  readSkillLevelsFromCharacter,
+  readSkillTrainingFromItem,
+} from '../../features/skills/skillCatalog';
 import {
   getCarryLoadSummary,
   STARTING_BAG_CAPACITY,
@@ -85,6 +90,26 @@ const defaultEquipmentForSlot = (slotKey: string) => {
 const buildItemDetails = (item: any) => {
   if (!item) return [];
 
+  if (item.type === 'tome') {
+    const requirements = item.requirements && typeof item.requirements === 'object'
+      ? Object.entries(item.requirements as Record<string, unknown>)
+          .map(([key, value]) => `${String(key).slice(0, 3).toUpperCase()} ${String(value)}`)
+      : [];
+    const learned = item.skillName || item.teachesSkill || 'Unknown Skill';
+    const lines = [`Teaches: ${learned}`];
+    const tomeLevel = Number(item.tomeLevel || item.level || item.levelRequirement || item['Level Requirement'] || 1);
+    if (Number.isFinite(tomeLevel) && tomeLevel > 0) {
+      lines.push(`Tome Level: ${Math.floor(tomeLevel)}`);
+    }
+    if (item.manaCost) {
+      lines.push(`Mana Cost: ${item.manaCost}`);
+    }
+    if (requirements.length > 0) {
+      lines.push(`Requires: ${requirements.join(', ')}`);
+    }
+    return lines;
+  }
+
   if (item.type === 'consumable') {
     const hpAmount = item.stats?.amount ?? 0;
     const manaAmount = item.stats?.mana ?? 0;
@@ -128,6 +153,7 @@ export const Inventory = () => {
   const gold = useAppSelector((state) => state.player.gold || 0);
 
   const [hoveredItem, setHoveredItem] = useState<any | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
   const isShiftDownRef = useRef(false);
   const bagShiftIntentRef = useRef<Record<number, boolean>>({});
   const beltShiftIntentRef = useRef<Record<number, boolean>>({});
@@ -426,6 +452,35 @@ export const Inventory = () => {
         return;
       }
 
+      if (activeItem.type === 'tome') {
+        const training = readSkillTrainingFromItem(activeItem);
+        if (!training) {
+          dispatch(setCombatLog(`${activeItem.name || 'Tome'} cannot be used.`));
+          return;
+        }
+        const currentLevels = readSkillLevelsFromCharacter(objChar.character.skills);
+        const currentLevel = getSkillLevel(currentLevels, training.skillId);
+        if (training.tomeLevel <= currentLevel) {
+          dispatch(
+            setCombatLog(
+              `${activeItem.name || 'Tome'} needs to be higher than current ${training.skillId} level (${currentLevel}).`
+            )
+          );
+          return;
+        }
+
+        const nextLevels = {
+          ...currentLevels,
+          [training.skillId]: training.tomeLevel,
+        };
+        objChar.character.skills = nextLevels;
+        bag.splice(index, 1);
+        dispatch(setSkillLevels(nextLevels));
+        dispatch(setCombatLog(`Learned ${activeItem.skillName || training.skillId} Lv.${training.tomeLevel}.`));
+        await persistCharacterState(objChar, bag, stash, equipmentState);
+        return;
+      }
+
       const slotType = normalizeToSlot(activeItem.type);
       if (!slotAcceptsItem(slotType, activeItem.type)) return;
 
@@ -550,6 +605,29 @@ export const Inventory = () => {
   const equippedBagName = equipment?.bag?.name || 'Small Pouch';
   const formatLoadValue = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1));
 
+  const updateTooltipPosition = (event: MouseEvent<HTMLButtonElement>) => {
+    if (typeof window === 'undefined') return;
+    const tooltipWidth = 220;
+    const tooltipHeight = 140;
+    const margin = 12;
+    const cursorOffset = 14;
+    const preferredRight = event.clientX + cursorOffset;
+    const preferredLeft = event.clientX - tooltipWidth - cursorOffset;
+    const placeRight = preferredRight + tooltipWidth <= window.innerWidth - margin;
+    const rawLeft = placeRight ? preferredRight : preferredLeft;
+    const nextLeft = Math.max(margin, Math.min(rawLeft, window.innerWidth - tooltipWidth - margin));
+    const nextTop = Math.max(
+      margin,
+      Math.min(event.clientY + cursorOffset, window.innerHeight - tooltipHeight - margin)
+    );
+    setTooltipPos({ left: nextLeft, top: nextTop });
+  };
+
+  const showTooltipForItem = (item: any, event: MouseEvent<HTMLButtonElement>) => {
+    setHoveredItem(item);
+    updateTooltipPosition(event);
+  };
+
   return (
     <div
       style={styles.root}
@@ -562,7 +640,7 @@ export const Inventory = () => {
       }}
     >
       {hoveredItem && (
-        <div style={styles.tooltipOverlay}>
+        <div style={{ ...styles.tooltipOverlay, left: tooltipPos.left, top: tooltipPos.top }}>
           <div style={styles.tooltipTitle}>{hoveredItem.name || 'Unknown Item'}</div>
           {buildItemDetails(hoveredItem).map((line, index) => (
             <div key={`${line}-${index}`} style={styles.tooltipLine}>
@@ -608,7 +686,8 @@ export const Inventory = () => {
                   }
                 }}
                 onFocus={() => setActiveNav({ group: 'equipment', index })}
-                onMouseEnter={() => item && setHoveredItem(item)}
+                onMouseEnter={(event) => item && showTooltipForItem(item, event)}
+                onMouseMove={(event) => item && showTooltipForItem(item, event)}
                 onMouseLeave={() => setHoveredItem(null)}
               >
                 {item ? (
@@ -676,7 +755,8 @@ export const Inventory = () => {
                 onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
                   beltShiftIntentRef.current[slotIndex] = isShiftAction(event);
                 }}
-                onMouseEnter={() => item && setHoveredItem(item)}
+                onMouseEnter={(event) => item && showTooltipForItem(item, event)}
+                onMouseMove={(event) => item && showTooltipForItem(item, event)}
                 onMouseLeave={() => setHoveredItem(null)}
               >
                 {item ? <ItemIcon type={item.type} size={14} itemName={item.name} itemStats={item.stats} /> : null}
@@ -726,7 +806,8 @@ export const Inventory = () => {
                   onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
                     bagShiftIntentRef.current[index] = isShiftAction(event);
                   }}
-                  onMouseEnter={() => item && setHoveredItem(item)}
+                  onMouseEnter={(event) => item && showTooltipForItem(item, event)}
+                  onMouseMove={(event) => item && showTooltipForItem(item, event)}
                   onMouseLeave={() => setHoveredItem(null)}
                 >
                   {item ? <ItemIcon type={item.type} size={18} itemName={item.name} itemStats={item.stats} /> : null}
@@ -931,9 +1012,7 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.5,
   },
   tooltipOverlay: {
-    position: 'absolute',
-    right: 138,
-    top: 0,
+    position: 'fixed',
     maxWidth: 220,
     background: '#13171b',
     border: '2px solid #7a8088',

@@ -164,12 +164,13 @@ export const buildCharacterFromArchetype = (archetypeId: ArchetypeId, characterN
   cloned.character.xptolvlup = 16;
   cloned.character.unspentStatPoints = 0;
   cloned.character.gold = 0;
+  cloned.character.skills = {};
   cloned.character.stats = { ...archetype.stats };
   const startingInventory: Array<{
     ID: number;
     name: string;
     type: string;
-    stats: Record<string, number>;
+    stats?: Record<string, number>;
   }> = [
     { ID: 1, name: 'Minor Healing Potion', type: 'consumable', stats: { amount: 8 } },
     { ID: 2, name: 'Minor Mana Flask', type: 'consumable', stats: { mana: 14 } },

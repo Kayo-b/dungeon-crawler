@@ -38,6 +38,255 @@
       "value": 10.0
       }
     },
+    "tomes": {
+      "1": {
+        "ID": 1,
+        "name": "Tome of Crushing Blow",
+        "type": "tome",
+        "teachesSkill": "crushing-blow",
+        "tomeLevel": 1,
+        "skillName": "Crushing Blow",
+        "manaCost": 20,
+        "requirements": {
+          "strength": 12
+        },
+        "rarity": "uncommon",
+        "Quality Level": 8,
+        "Level Requirement": 1
+      },
+      "2": {
+        "ID": 2,
+        "name": "Tome of Whirlwind",
+        "type": "tome",
+        "teachesSkill": "whirlwind",
+        "tomeLevel": 1,
+        "skillName": "Whirlwind",
+        "manaCost": 35,
+        "requirements": {
+          "strength": 16,
+          "vitality": 10
+        },
+        "rarity": "magic",
+        "Quality Level": 13,
+        "Level Requirement": 2
+      },
+      "3": {
+        "ID": 3,
+        "name": "Tome of Arcane Bolt",
+        "type": "tome",
+        "teachesSkill": "arcane-bolt",
+        "tomeLevel": 1,
+        "skillName": "Arcane Bolt",
+        "manaCost": 18,
+        "requirements": {
+          "intelligence": 12
+        },
+        "rarity": "uncommon",
+        "Quality Level": 8,
+        "Level Requirement": 1
+      },
+      "4": {
+        "ID": 4,
+        "name": "Tome of Fire Blast",
+        "type": "tome",
+        "teachesSkill": "fire-blast",
+        "tomeLevel": 1,
+        "skillName": "Fire Blast",
+        "manaCost": 32,
+        "requirements": {
+          "intelligence": 16
+        },
+        "rarity": "magic",
+        "Quality Level": 13,
+        "Level Requirement": 2
+      },
+      "5": {
+        "ID": 5,
+        "name": "Tome of Quick Stab",
+        "type": "tome",
+        "teachesSkill": "quick-stab",
+        "tomeLevel": 1,
+        "skillName": "Quick Stab",
+        "manaCost": 16,
+        "requirements": {
+          "dexterity": 12
+        },
+        "rarity": "uncommon",
+        "Quality Level": 8,
+        "Level Requirement": 1
+      },
+      "6": {
+        "ID": 6,
+        "name": "Tome of Eviscerate",
+        "type": "tome",
+        "teachesSkill": "eviscerate",
+        "tomeLevel": 1,
+        "skillName": "Eviscerate",
+        "manaCost": 24,
+        "requirements": {
+          "dexterity": 16
+        },
+        "rarity": "magic",
+        "Quality Level": 13,
+        "Level Requirement": 2
+      },
+      "7": {
+        "ID": 7,
+        "name": "Tome of Crushing Blow II",
+        "type": "tome",
+        "teachesSkill": "crushing-blow",
+        "tomeLevel": 2,
+        "skillName": "Crushing Blow",
+        "manaCost": 20,
+        "requirements": { "strength": 14 },
+        "rarity": "magic",
+        "Quality Level": 12,
+        "Level Requirement": 4
+      },
+      "8": {
+        "ID": 8,
+        "name": "Tome of Whirlwind II",
+        "type": "tome",
+        "teachesSkill": "whirlwind",
+        "tomeLevel": 2,
+        "skillName": "Whirlwind",
+        "manaCost": 35,
+        "requirements": { "strength": 18, "vitality": 12 },
+        "rarity": "rare",
+        "Quality Level": 17,
+        "Level Requirement": 4
+      },
+      "9": {
+        "ID": 9,
+        "name": "Tome of Arcane Bolt II",
+        "type": "tome",
+        "teachesSkill": "arcane-bolt",
+        "tomeLevel": 2,
+        "skillName": "Arcane Bolt",
+        "manaCost": 18,
+        "requirements": { "intelligence": 14 },
+        "rarity": "magic",
+        "Quality Level": 12,
+        "Level Requirement": 4
+      },
+      "10": {
+        "ID": 10,
+        "name": "Tome of Fire Blast II",
+        "type": "tome",
+        "teachesSkill": "fire-blast",
+        "tomeLevel": 2,
+        "skillName": "Fire Blast",
+        "manaCost": 32,
+        "requirements": { "intelligence": 18 },
+        "rarity": "rare",
+        "Quality Level": 17,
+        "Level Requirement": 4
+      },
+      "11": {
+        "ID": 11,
+        "name": "Tome of Quick Stab II",
+        "type": "tome",
+        "teachesSkill": "quick-stab",
+        "tomeLevel": 2,
+        "skillName": "Quick Stab",
+        "manaCost": 16,
+        "requirements": { "dexterity": 14 },
+        "rarity": "magic",
+        "Quality Level": 12,
+        "Level Requirement": 4
+      },
+      "12": {
+        "ID": 12,
+        "name": "Tome of Eviscerate II",
+        "type": "tome",
+        "teachesSkill": "eviscerate",
+        "tomeLevel": 2,
+        "skillName": "Eviscerate",
+        "manaCost": 24,
+        "requirements": { "dexterity": 18 },
+        "rarity": "rare",
+        "Quality Level": 17,
+        "Level Requirement": 4
+      },
+      "13": {
+        "ID": 13,
+        "name": "Tome of Crushing Blow III",
+        "type": "tome",
+        "teachesSkill": "crushing-blow",
+        "tomeLevel": 3,
+        "skillName": "Crushing Blow",
+        "manaCost": 20,
+        "requirements": { "strength": 18 },
+        "rarity": "rare",
+        "Quality Level": 16,
+        "Level Requirement": 8
+      },
+      "14": {
+        "ID": 14,
+        "name": "Tome of Whirlwind III",
+        "type": "tome",
+        "teachesSkill": "whirlwind",
+        "tomeLevel": 3,
+        "skillName": "Whirlwind",
+        "manaCost": 35,
+        "requirements": { "strength": 22, "vitality": 14 },
+        "rarity": "unique",
+        "Quality Level": 22,
+        "Level Requirement": 8
+      },
+      "15": {
+        "ID": 15,
+        "name": "Tome of Arcane Bolt III",
+        "type": "tome",
+        "teachesSkill": "arcane-bolt",
+        "tomeLevel": 3,
+        "skillName": "Arcane Bolt",
+        "manaCost": 18,
+        "requirements": { "intelligence": 18 },
+        "rarity": "rare",
+        "Quality Level": 16,
+        "Level Requirement": 8
+      },
+      "16": {
+        "ID": 16,
+        "name": "Tome of Fire Blast III",
+        "type": "tome",
+        "teachesSkill": "fire-blast",
+        "tomeLevel": 3,
+        "skillName": "Fire Blast",
+        "manaCost": 32,
+        "requirements": { "intelligence": 22 },
+        "rarity": "unique",
+        "Quality Level": 22,
+        "Level Requirement": 8
+      },
+      "17": {
+        "ID": 17,
+        "name": "Tome of Quick Stab III",
+        "type": "tome",
+        "teachesSkill": "quick-stab",
+        "tomeLevel": 3,
+        "skillName": "Quick Stab",
+        "manaCost": 16,
+        "requirements": { "dexterity": 18 },
+        "rarity": "rare",
+        "Quality Level": 16,
+        "Level Requirement": 8
+      },
+      "18": {
+        "ID": 18,
+        "name": "Tome of Eviscerate III",
+        "type": "tome",
+        "teachesSkill": "eviscerate",
+        "tomeLevel": 3,
+        "skillName": "Eviscerate",
+        "manaCost": 24,
+        "requirements": { "dexterity": 22 },
+        "rarity": "unique",
+        "Quality Level": 22,
+        "Level Requirement": 8
+      }
+    },
        "amulet": {
       "1": {
         "ID": 1,

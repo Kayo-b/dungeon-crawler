@@ -390,6 +390,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             // CEILING - full width, tilting AWAY (bottom edge goes back into distance)
             const ceilingHeight = far.top - near.top;
             if (ceilingHeight > 0) {
+                    {console.log('DDDDDDDDDDDDDD',d)}
                 frames.push(
                     <View
                         key={`ceiling-${d}`}
@@ -398,13 +399,13 @@ export const Room3D: React.FC<Room3DProps> = ({
                             {
                                 left: near.left - 20,
                                 top: near.top + 130,
-                                width: near.left > 0 ? near.right - near.left + 10 : -40,
+                                width: near.right - near.left + 10,
                                 height: ceilingHeight + 20,
                                 zIndex: 88 - d,
                             },
                             isWeb && {
                                 // @ts-ignore
-                                perspective: '300px',
+                                perspective: '350px',
                             }
                         ]}
                     >
@@ -418,12 +419,12 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 },
                                 isWeb && {
                                     // @ts-ignore
-                                    transform: `rotateX(-${ceilingRotation}deg)`,
+                                    transform: d === 1 ? `rotateX(50deg)` : `rotateX(-${ceilingRotation}deg)`,
                                     transformOrigin: '50% 100%',
                                 }
                             ]}
                         >
-                            <Image source={brickSmall} style={styles.segmentImage} resizeMode="repeat" />
+                            <Image source={brickSmall} style={styles.segmentImage} resizeMode="repeat"/>
                         </View>
                     </View>
                 );

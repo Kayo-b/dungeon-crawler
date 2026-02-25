@@ -2,6 +2,7 @@ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { computeDerivedPlayerStats } from './playerStats';
+import { readSkillLevelsFromCharacter, SkillLevels } from '../skills/skillCatalog';
 
 let health = data.character.stats.health;
 let experience = data.character.experience;
@@ -11,6 +12,7 @@ let equipment = data.character.equipment;
 let unspentStatPoints = Number((data.character as any).unspentStatPoints || 0);
 let gold = Number((data.character as any).gold || 0);
 let combatLog: string[] = [];
+let skillLevels = readSkillLevelsFromCharacter((data.character as any).skills);
 
 async function saveData(nextHealth: number) {
   const storedData = await AsyncStorage.getItem('characters');
@@ -49,6 +51,7 @@ interface CounterState {
   comboPoints: number;
   maxComboPoints: number;
   gold: number;
+  skillLevels: SkillLevels;
 }
 
 interface DmgPayload {
@@ -183,6 +186,7 @@ const initialState: CounterState = {
   comboPoints: 0,
   maxComboPoints: 5,
   gold: Math.max(0, gold),
+  skillLevels,
 };
 
 export const fetchEquipment = createAsyncThunk('counter/fetchEquipment', async () => {
@@ -271,6 +275,9 @@ const playerSlice = createSlice({
     setGold(state, action: PayloadAction<number>) {
       state.gold = Math.max(0, Number(action.payload || 0));
     },
+    setSkillLevels(state, action: PayloadAction<SkillLevels>) {
+      state.skillLevels = { ...(action.payload || {}) };
+    },
     addGold(state, action: PayloadAction<number>) {
       const increment = Math.max(0, Number(action.payload || 0));
       state.gold = Math.max(0, Number((state.gold + increment).toFixed(2)));
@@ -341,6 +348,7 @@ export const {
   restoreHealth,
   setClassMeta,
   setGold,
+  setSkillLevels,
   addGold,
   gainRage,
   spendRage,

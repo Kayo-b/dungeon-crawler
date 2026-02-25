@@ -12,6 +12,7 @@ import {
   setEquipment,
   setHealth,
   setLevel,
+  setSkillLevels,
   setStats,
   setUnspentStatPoints,
   setXP,
@@ -22,6 +23,7 @@ import {
   getInventoryCapacities,
   normalizeInventoryContainers,
 } from '../inventory/inventoryUtils';
+import { readSkillLevelsFromCharacter } from '../skills/skillCatalog';
 
 interface PlayerProps {
   classLabel: string;
@@ -66,6 +68,8 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
     const unspentStatPoints = Math.max(0, Number(obj.character.unspentStatPoints || 0));
     obj.character.unspentStatPoints = unspentStatPoints;
     const baseGold = Math.max(0, Number(obj.character.gold || 0));
+    const skillLevels = readSkillLevelsFromCharacter(obj.character.skills);
+    obj.character.skills = skillLevels;
 
     const equipmentState = obj.character.equipment || {};
     if (!equipmentState.bag?.name) {
@@ -97,6 +101,7 @@ export const Player: React.FC<PlayerProps> = ({ classLabel }) => {
     dispatch(setLevel(level));
     dispatch(setUnspentStatPoints(unspentStatPoints));
     dispatch(setGold(totalGold));
+    dispatch(setSkillLevels(skillLevels));
     dispatch(setAllInventory({ inventory: inv, consumableStash }));
     dispatch(fetchEquipment());
     dispatch(

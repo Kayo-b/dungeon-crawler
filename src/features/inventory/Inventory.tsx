@@ -2,9 +2,14 @@ import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { restoreHealth, restoreMana, setCombatLog, setEquipment, setGold } from '../../features/player/playerSlice';
+import { restoreHealth, restoreMana, setCombatLog, setEquipment, setGold, setSkillLevels } from '../../features/player/playerSlice';
 import { setAllInventory } from './inventorySlice';
 import { ItemIcon } from '../../components/ItemIcon';
+import {
+  getSkillLevel,
+  readSkillLevelsFromCharacter,
+  readSkillTrainingFromItem,
+} from '../../features/skills/skillCatalog';
 import {
   BAG_CAPACITY,
   CONSUMABLE_STASH_CAPACITY,
@@ -75,6 +80,26 @@ export const Inventory = () => {
 
   const buildItemDetails = (item: any) => {
     if (!item) return [];
+
+    if (item.type === 'tome') {
+      const requirements = item.requirements && typeof item.requirements === 'object'
+        ? Object.entries(item.requirements as Record<string, unknown>)
+            .map(([key, value]) => `${String(key).slice(0, 3).toUpperCase()} ${String(value)}`)
+        : [];
+      const taughtSkill = item.skillName || item.teachesSkill || 'Unknown Skill';
+      const lines: string[] = [`Teaches: ${taughtSkill}`];
+      const tomeLevel = Number(item.tomeLevel || item.level || item.levelRequirement || item['Level Requirement'] || 1);
+      if (Number.isFinite(tomeLevel) && tomeLevel > 0) {
+        lines.push(`Tome Level: ${Math.floor(tomeLevel)}`);
+      }
+      if (item.manaCost) {
+        lines.push(`Mana Cost: ${item.manaCost}`);
+      }
+      if (requirements.length > 0) {
+        lines.push(`Requires: ${requirements.join(', ')}`);
+      }
+      return lines;
+    }
 
     if (item.type === 'consumable') {
       const hpAmount = item.stats?.amount ?? 0;
@@ -188,6 +213,35 @@ export const Inventory = () => {
         const effectText = effectSegments.length > 0 ? effectSegments.join(', ') : 'No effect';
         dispatch(setCombatLog(`Used ${activeItem.name || 'Consumable'} (${effectText}).`));
         bag.splice(index, 1);
+        await persistCharacterState(objChar, bag, stash, equipmentState);
+        return;
+      }
+
+      if (activeItem.type === 'tome') {
+        const training = readSkillTrainingFromItem(activeItem);
+        if (!training) {
+          dispatch(setCombatLog(`${activeItem.name || 'Tome'} cannot be used.`));
+          return;
+        }
+        const currentLevels = readSkillLevelsFromCharacter(objChar.character.skills);
+        const currentLevel = getSkillLevel(currentLevels, training.skillId);
+        if (training.tomeLevel <= currentLevel) {
+          dispatch(
+            setCombatLog(
+              `${activeItem.name || 'Tome'} needs to be higher than current ${training.skillId} level (${currentLevel}).`
+            )
+          );
+          return;
+        }
+
+        const nextLevels = {
+          ...currentLevels,
+          [training.skillId]: training.tomeLevel,
+        };
+        objChar.character.skills = nextLevels;
+        bag.splice(index, 1);
+        dispatch(setSkillLevels(nextLevels));
+        dispatch(setCombatLog(`Learned ${activeItem.skillName || training.skillId} Lv.${training.tomeLevel}.`));
         await persistCharacterState(objChar, bag, stash, equipmentState);
         return;
       }

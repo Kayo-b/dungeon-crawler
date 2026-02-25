@@ -2637,7 +2637,7 @@ const turn = (turnDir:string) => {
             case 'arrowright':
             guardedTurn('R');
             break;
-            case 't': // Toggle movement system with 'T' key
+            case 'm': // Toggle movement system with 'M' key
             setUseNewMovement(prev => !prev);
             break;
             default:

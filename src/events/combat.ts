@@ -29,9 +29,16 @@ import {
 } from './combatSlice';
 import { computeDerivedPlayerStats, getClassProgressionProfile } from '../features/player/playerStats';
 import itemData from '../data/items.json';
+import {
+  SkillId,
+  SKILLS,
+  doesMeetSkillRequirements,
+  getSkillLevel,
+  getSkillRequirementSummary,
+} from '../features/skills/skillCatalog';
 
 interface LootObject {
-  dropChance: number;
+  dropChance?: number;
   type: string;
   ID: number;
   amount?: number;
@@ -52,11 +59,6 @@ const SKILL_GCD_FRAMES = 8;
 const WEAPON_CLEAVE_AFFIX = 'great';
 const WEAPON_CLEAVE_MULTIPLIER = 0.35;
 const STAT_POINTS_PER_LEVEL = 5;
-const SKILL_MANA_COSTS = {
-  warrior: { primary: 20, secondary: 35 },
-  caster: { primary: 18, secondary: 32 },
-  ranger: { primary: 16, secondary: 24 },
-};
 
 const formatPassiveGain = (value: number): string => {
   return Number.isInteger(value) ? `${value}` : value.toFixed(2).replace(/\.?0+$/, '');
@@ -102,17 +104,21 @@ export const useCombat = () => {
   const specialCooldownFrames = useAppSelector((state) => state.combat.specialCooldownFrames);
   const inCombat = useAppSelector((state) => state.combat.inCombat);
   const playerClass = useAppSelector((state) => state.player.classArchetype || 'warrior');
+  const skillLevels = useAppSelector((state) => state.player.skillLevels || {});
 
   const mana = useAppSelector((state) => state.player.mana);
   const comboPoints = useAppSelector((state) => state.player.comboPoints);
 
   const combatRef = useRef(false);
+  const combatEndingRef = useRef(false);
   const playerCombatIntRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const enemyCombatIntRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const secEnemyIntervalsRef = useRef<ReturnType<typeof setInterval>[]>([]);
   const cooldownTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const enemyHealthRef = useRef<{ [key: number]: number }>({});
+  const processedEnemyIdsRef = useRef<Set<number>>(new Set());
+  const pendingEnemyLootRef = useRef<Array<{ mapId: string; x: number; y: number; item: any }>>([]);
   const playerHealthRef = useRef(playerHealth);
   const playerAttackArmedRef = useRef(false);
   const combatViewRef = useRef({
@@ -120,6 +126,7 @@ export const useCombat = () => {
     y: playerPosY,
     facing: playerFacing,
     playerClass,
+    mapId: currentMapId,
   });
   const [floorLootBags, setFloorLootBags] = useState<FloorLootBag[]>([]);
   const [activeLootBagId, setActiveLootBagId] = useState<string | null>(null);
@@ -146,6 +153,7 @@ export const useCombat = () => {
     y: playerPosY,
     facing: playerFacing,
     playerClass,
+    mapId: currentMapId,
   };
 
   useEffect(() => {
@@ -238,21 +246,108 @@ export const useCombat = () => {
       .filter((id) => (reachableOnly ? isEnemyReachableNow(id) : true));
   };
 
-  const resolveLootDrops = (loot: LootObject[]): any[] => {
+  const resolveLootEntry = (drop: LootObject): any | null => {
     const sourceItems = (itemData as any)?.items || {};
+    const baseItem = sourceItems?.[drop.type]?.[`${drop.ID}`];
+    if (!baseItem) return null;
+    const quantity = Number(drop.amount ?? drop.amout ?? 1);
+    if (!Number.isFinite(quantity) || quantity <= 1) {
+      return { ...baseItem };
+    }
+    return { ...baseItem, amount: Math.max(1, Math.floor(quantity)) };
+  };
 
-    return (loot || [])
-      .filter((entry) => Math.random() <= Number(entry?.dropChance || 0))
-      .map((drop) => {
-        const baseItem = sourceItems?.[drop.type]?.[`${drop.ID}`];
-        if (!baseItem) return null;
-        const quantity = Number(drop.amount ?? drop.amout ?? 1);
-        if (!Number.isFinite(quantity) || quantity <= 1) {
-          return { ...baseItem };
-        }
-        return { ...baseItem, amount: Math.max(1, Math.floor(quantity)) };
+  const resolveSingleLootDrop = (loot: LootObject[]): any | null => {
+    const candidates = (loot || [])
+      .map((entry) => {
+        const resolved = resolveLootEntry(entry);
+        if (!resolved) return null;
+        const chance = Math.max(0, Number(entry?.dropChance || 0));
+        return { resolved, chance };
       })
-      .filter(Boolean);
+      .filter((entry): entry is { resolved: any; chance: number } => !!entry);
+
+    if (candidates.length <= 0) return null;
+
+    const successfulRolls = candidates.filter((entry) => Math.random() <= entry.chance);
+    if (successfulRolls.length > 0) {
+      const rolled = successfulRolls[Math.floor(Math.random() * successfulRolls.length)];
+      return rolled ? { ...rolled.resolved } : null;
+    }
+
+    const weightedTotal = candidates.reduce((sum, entry) => sum + Math.max(0.01, entry.chance), 0);
+    if (!Number.isFinite(weightedTotal) || weightedTotal <= 0) {
+      return { ...candidates[0].resolved };
+    }
+
+    let roll = Math.random() * weightedTotal;
+    for (const entry of candidates) {
+      roll -= Math.max(0.01, entry.chance);
+      if (roll <= 0) {
+        return { ...entry.resolved };
+      }
+    }
+
+    return { ...candidates[candidates.length - 1].resolved };
+  };
+
+  const queueEnemyLootDrop = (enemyId: number, enemyState: any, lootTable: LootObject[]) => {
+    if (processedEnemyIdsRef.current.has(enemyId)) return;
+    processedEnemyIdsRef.current.add(enemyId);
+
+    const dropXValue = Number(enemyState?.positionX);
+    const dropYValue = Number(enemyState?.positionY);
+    const dropX = Number.isFinite(dropXValue) ? dropXValue : combatViewRef.current.x;
+    const dropY = Number.isFinite(dropYValue) ? dropYValue : combatViewRef.current.y;
+    const mapId = String(combatViewRef.current.mapId || '');
+
+    const guaranteedLootEntries: LootObject[] = Array.isArray(enemyState?.guaranteedLoot)
+      ? enemyState.guaranteedLoot
+      : [];
+    const guaranteedLootItems = guaranteedLootEntries
+      .map((entry: LootObject) => resolveLootEntry(entry))
+      .filter((entry): entry is Record<string, any> => !!entry);
+
+    if (guaranteedLootItems.length > 0) {
+      guaranteedLootItems.forEach((item: Record<string, any>) => {
+        pendingEnemyLootRef.current.push({
+          x: dropX,
+          y: dropY,
+          mapId,
+          item,
+        });
+      });
+      return;
+    }
+
+    const droppedItem = resolveSingleLootDrop(lootTable);
+    if (!droppedItem) return;
+
+    pendingEnemyLootRef.current.push({
+      x: dropX,
+      y: dropY,
+      mapId,
+      item: droppedItem,
+    });
+  };
+
+  const queueAllDefeatedEnemyRewards = () => {
+    Object.keys(enemyHealthRef.current)
+      .map(Number)
+      .forEach((enemyId) => {
+        if ((enemyHealthRef.current[enemyId] ?? 1) > 0) return;
+        if (processedEnemyIdsRef.current.has(enemyId)) return;
+
+        const defeatedEnemy = enemiesRef.current[enemyId];
+        if (!defeatedEnemy || !isHostileEnemy(defeatedEnemy)) {
+          processedEnemyIdsRef.current.add(enemyId);
+          return;
+        }
+
+        dispatch(XP(Number(defeatedEnemy.xp || 0)));
+        const lootTable = Array.isArray(defeatedEnemy.loot) ? defeatedEnemy.loot : [];
+        queueEnemyLootDrop(enemyId, defeatedEnemy, lootTable as LootObject[]);
+      });
   };
 
   const addFloorLootBag = useCallback((params: { x: number; y: number; mapId: string; items: any[] }) => {
@@ -318,7 +413,59 @@ export const useCombat = () => {
   const clearFloorLootBags = useCallback(() => {
     setFloorLootBags([]);
     setActiveLootBagId(null);
+    pendingEnemyLootRef.current = [];
   }, []);
+
+  const flushQueuedEnemyLoot = () => {
+    const queuedLoot = [...pendingEnemyLootRef.current];
+    pendingEnemyLootRef.current = [];
+    if (queuedLoot.length <= 0) return;
+
+    queuedLoot.forEach((entry) => {
+      addFloorLootBag({
+        x: entry.x,
+        y: entry.y,
+        mapId: entry.mapId,
+        items: [entry.item],
+      });
+    });
+
+    const names = queuedLoot.map((entry) => entry.item?.name || 'Unknown item');
+    dispatch(
+      setCombatLog(`Loot dropped: ${names.join(', ')}.`)
+    );
+  };
+
+  const getSkillById = (skillId: SkillId | null | undefined) => {
+    if (!skillId) return null;
+    return SKILLS[skillId] || null;
+  };
+
+  const getTrainedSkillLevel = (skillId: SkillId | null | undefined) => {
+    if (!skillId) return 0;
+    return Math.max(0, getSkillLevel(skillLevels, skillId));
+  };
+
+  const canUseSkillByRequirements = (skillId: SkillId | null | undefined): { ok: boolean; reason?: string } => {
+    const skill = getSkillById(skillId);
+    if (!skill) {
+      return { ok: false, reason: 'No skill equipped for this slot.' };
+    }
+    if (getTrainedSkillLevel(skill.id) <= 0) {
+      return { ok: false, reason: `${skill.name} is not trained yet.` };
+    }
+    if (!doesMeetSkillRequirements(skill, playerStats)) {
+      const requirementText = getSkillRequirementSummary(skill);
+      return { ok: false, reason: `Need ${requirementText} for ${skill.name}.` };
+    }
+    if (mana < skill.manaCost) {
+      return { ok: false, reason: `Need ${skill.manaCost} mana for ${skill.name}.` };
+    }
+    if (skill.requiresCombo && comboPoints <= 0) {
+      return { ok: false, reason: `${skill.name} requires combo points.` };
+    }
+    return { ok: true };
+  };
 
   const getClassHitFx = () => {
     if (playerClass === 'caster') return CLASS_HIT_FX.caster;
@@ -382,71 +529,87 @@ export const useCombat = () => {
     }
   };
 
-  const endCombat = async () => {
-    combatRef.current = false;
-    playerAttackArmedRef.current = false;
-    clearAllIntervals();
+  const endCombat = async (options?: { flushLoot?: boolean }) => {
+    if (combatEndingRef.current) return;
+    combatEndingRef.current = true;
 
-    dispatch(resetComboPoints());
+    try {
+      combatRef.current = false;
+      playerAttackArmedRef.current = false;
+      clearAllIntervals();
 
-    const data = await AsyncStorage.getItem('characters');
-    const obj = data ? JSON.parse(data) : {};
-    if (!obj?.character) {
+      dispatch(resetComboPoints());
+
+      const data = await AsyncStorage.getItem('characters');
+      const obj = data ? JSON.parse(data) : {};
+      if (!obj?.character) {
+        pendingEnemyLootRef.current = [];
+        processedEnemyIdsRef.current.clear();
+        dispatch(setInCombat(false));
+        dispatch(setSpecialCooldown(0));
+        dispatch(setCombatLog('Combat ended.'));
+        return;
+      }
+
+      obj.character.stats.health = playerHealthRef.current;
+      obj.character.experience = Math.max(0, Number(store.getState().player.experience || obj.character.experience || 0));
+      obj.character.level = Math.max(1, Number(obj.character.level || 1));
+      obj.character.xptolvlup = Math.max(16, Number(obj.character.xptolvlup || 16));
+      obj.character.unspentStatPoints = Math.max(0, Number(obj.character.unspentStatPoints || 0));
+
+      let levelsGained = 0;
+      while (obj.character.experience >= obj.character.xptolvlup) {
+        obj.character.level += 1;
+        obj.character.xptolvlup *= 2;
+        levelsGained += 1;
+      }
+
+      if (levelsGained > 0) {
+        const classArchetype = obj.character.classArchetype || playerClass || 'warrior';
+        const classProfile = getClassProgressionProfile(classArchetype);
+        const passiveHpGain = levelsGained * classProfile.levelUpHp;
+        const passiveManaGain = levelsGained * classProfile.levelUpMana;
+        const passiveStaminaGain = levelsGained * classProfile.levelUpStamina;
+
+        const derivedAfterLevel = computeDerivedPlayerStats(
+          obj.character.stats,
+          obj.character.equipment || store.getState().player.equipment || {},
+          { classArchetype, level: obj.character.level }
+        );
+
+        obj.character.stats.health = Math.min(
+          derivedAfterLevel.maxHealth,
+          Number(obj.character.stats.health || 0) + passiveHpGain
+        );
+
+        obj.character.unspentStatPoints += levelsGained * STAT_POINTS_PER_LEVEL;
+        dispatch(setLevel(obj.character.level));
+        dispatch(setStats(obj.character.stats));
+        dispatch(setHealth(obj.character.stats.health));
+        dispatch(restoreMana(passiveManaGain));
+        dispatch(setUnspentStatPoints(obj.character.unspentStatPoints));
+        dispatch(
+          setCombatLog(
+            `Level up! +${levelsGained * STAT_POINTS_PER_LEVEL} stat points, +${formatPassiveGain(passiveHpGain)} HP, +${formatPassiveGain(passiveManaGain)} Mana, +${formatPassiveGain(passiveStaminaGain)} Stamina.`
+          )
+        );
+      }
+
+      await AsyncStorage.setItem('characters', JSON.stringify(obj));
+
+      if (options?.flushLoot && playerHealthRef.current > 0) {
+        flushQueuedEnemyLoot();
+      } else {
+        pendingEnemyLootRef.current = [];
+      }
+      processedEnemyIdsRef.current.clear();
+
       dispatch(setInCombat(false));
       dispatch(setSpecialCooldown(0));
       dispatch(setCombatLog('Combat ended.'));
-      return;
+    } finally {
+      combatEndingRef.current = false;
     }
-
-    obj.character.stats.health = playerHealthRef.current;
-    obj.character.experience = Math.max(0, Number(store.getState().player.experience || obj.character.experience || 0));
-    obj.character.level = Math.max(1, Number(obj.character.level || 1));
-    obj.character.xptolvlup = Math.max(16, Number(obj.character.xptolvlup || 16));
-    obj.character.unspentStatPoints = Math.max(0, Number(obj.character.unspentStatPoints || 0));
-
-    let levelsGained = 0;
-    while (obj.character.experience >= obj.character.xptolvlup) {
-      obj.character.level += 1;
-      obj.character.xptolvlup *= 2;
-      levelsGained += 1;
-    }
-
-    if (levelsGained > 0) {
-      const classArchetype = obj.character.classArchetype || playerClass || 'warrior';
-      const classProfile = getClassProgressionProfile(classArchetype);
-      const passiveHpGain = levelsGained * classProfile.levelUpHp;
-      const passiveManaGain = levelsGained * classProfile.levelUpMana;
-      const passiveStaminaGain = levelsGained * classProfile.levelUpStamina;
-
-      const derivedAfterLevel = computeDerivedPlayerStats(
-        obj.character.stats,
-        obj.character.equipment || store.getState().player.equipment || {},
-        { classArchetype, level: obj.character.level }
-      );
-
-      obj.character.stats.health = Math.min(
-        derivedAfterLevel.maxHealth,
-        Number(obj.character.stats.health || 0) + passiveHpGain
-      );
-
-      obj.character.unspentStatPoints += levelsGained * STAT_POINTS_PER_LEVEL;
-      dispatch(setLevel(obj.character.level));
-      dispatch(setStats(obj.character.stats));
-      dispatch(setHealth(obj.character.stats.health));
-      dispatch(restoreMana(passiveManaGain));
-      dispatch(setUnspentStatPoints(obj.character.unspentStatPoints));
-      dispatch(
-        setCombatLog(
-          `Level up! +${levelsGained * STAT_POINTS_PER_LEVEL} stat points, +${formatPassiveGain(passiveHpGain)} HP, +${formatPassiveGain(passiveManaGain)} Mana, +${formatPassiveGain(passiveStaminaGain)} Stamina.`
-        )
-      );
-    }
-
-    await AsyncStorage.setItem('characters', JSON.stringify(obj));
-
-    dispatch(setInCombat(false));
-    dispatch(setSpecialCooldown(0));
-    dispatch(setCombatLog('Combat ended.'));
   };
 
   const getPrimaryTarget = (): number | null => {
@@ -484,127 +647,118 @@ export const useCombat = () => {
     dispatch(setCombatLog('You counterattack with a skill.'));
   };
 
-  const performPrimarySkill = () => {
+  const performSkill = (skillId: SkillId | null | undefined, slot: 'primary' | 'secondary') => {
     if (!canUseSkillNow()) return;
 
-    const targetId = getPrimaryTarget();
-    if (targetId === null) return;
-
-    if (playerClass === 'warrior') {
-      const manaCost = SKILL_MANA_COSTS.warrior.primary;
-      if (mana < manaCost) {
-        dispatch(setCombatLog(`Need ${manaCost} mana for Crushing Blow.`));
-        return;
-      }
-
-      beginPlayerAttackIfNeeded(targetId);
-      dispatch(spendMana(manaCost));
-      const damage = Math.max(4, Math.floor(playerDmg * 2.2 + (playerStats?.strength || 0) * 0.35));
-      applyDamageToEnemy(targetId, damage, false, 'crush');
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
-      dispatch(setCombatLog('Crushing Blow lands a heavy hit.'));
+    const skill = getSkillById(skillId);
+    if (!skill) {
+      dispatch(setCombatLog(`No ${slot} skill trained.`));
       return;
     }
 
-    if (playerClass === 'caster') {
-      const manaCost = SKILL_MANA_COSTS.caster.primary;
-      if (mana < manaCost) {
-        dispatch(setCombatLog(`Need ${manaCost} mana for Arcane Bolt.`));
-        return;
-      }
-
-      beginPlayerAttackIfNeeded(targetId);
-      dispatch(spendMana(manaCost));
-      const damage = Math.max(4, Math.floor(playerDmg * 1.6 + (playerStats?.intelligence || 0) * 0.9));
-      applyDamageToEnemy(targetId, damage, false, 'fire');
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
-      dispatch(setCombatLog('Arcane Bolt burns the target.'));
+    const availability = canUseSkillByRequirements(skill.id);
+    if (!availability.ok) {
+      dispatch(setCombatLog(availability.reason || `${skill.name} is unavailable.`));
       return;
     }
+    const skillRank = Math.max(1, getTrainedSkillLevel(skill.id));
+    const levelMultiplier = 1 + (skillRank - 1) * 0.24;
 
-    const manaCost = SKILL_MANA_COSTS.ranger.primary;
-    if (mana < manaCost) {
-      dispatch(setCombatLog(`Need ${manaCost} mana for Quick Stab.`));
-      return;
-    }
-
-    beginPlayerAttackIfNeeded(targetId);
-    dispatch(spendMana(manaCost));
-    dispatch(addComboPoint(1));
-    const damage = Math.max(2, Math.floor(playerDmg * 0.78 + (playerStats?.dexterity || 0) * 0.2));
-    applyDamageToEnemy(targetId, damage, false, 'slash');
-    dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
-    dispatch(setCombatLog('Quick Stab builds 1 combo point.'));
-  };
-
-  const performSecondarySkill = () => {
-    if (!canUseSkillNow()) return;
-
-    if (playerClass === 'warrior') {
-      const manaCost = SKILL_MANA_COSTS.warrior.secondary;
-      if (mana < manaCost) {
-        dispatch(setCombatLog(`Need ${manaCost} mana for Whirlwind.`));
-        return;
-      }
-
+    if (skill.id === 'whirlwind') {
       const targets = aliveEnemyIds(true);
-      if (targets.length === 0) return;
+      if (targets.length <= 0) return;
 
       beginPlayerAttackIfNeeded(targets[0]);
-      dispatch(spendMana(manaCost));
-      const damage = Math.max(3, Math.floor(playerDmg * 1.35 + (playerStats?.strength || 0) * 0.22));
+      dispatch(spendMana(skill.manaCost));
+      const damage = Math.max(
+        3,
+        Math.floor((playerDmg * 1.35 + (playerStats?.strength || 0) * 0.22) * levelMultiplier)
+      );
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'slash'));
       dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
-      dispatch(setCombatLog(`Whirlwind hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
+      dispatch(setCombatLog(`Whirlwind Lv.${skillRank} hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
       return;
     }
 
-    if (playerClass === 'caster') {
-      const manaCost = SKILL_MANA_COSTS.caster.secondary;
-      if (mana < manaCost) {
-        dispatch(setCombatLog(`Need ${manaCost} mana for Fire Blast.`));
-        return;
-      }
-
+    if (skill.id === 'fire-blast') {
       const targets = aliveEnemyIds(true);
-      if (targets.length === 0) return;
+      if (targets.length <= 0) return;
 
       beginPlayerAttackIfNeeded(targets[0]);
-      dispatch(spendMana(manaCost));
-      const damage = Math.max(3, Math.floor(playerDmg * 1.2 + (playerStats?.intelligence || 0) * 0.65));
+      dispatch(spendMana(skill.manaCost));
+      const damage = Math.max(
+        3,
+        Math.floor((playerDmg * 1.2 + (playerStats?.intelligence || 0) * 0.65) * levelMultiplier)
+      );
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'fire'));
       dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
-      dispatch(setCombatLog(`Fire Blast scorches ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
-      return;
-    }
-
-    const manaCost = SKILL_MANA_COSTS.ranger.secondary;
-    if (mana < manaCost) {
-      dispatch(setCombatLog(`Need ${manaCost} mana for Eviscerate.`));
-      return;
-    }
-    if (comboPoints <= 0) {
-      dispatch(setCombatLog('Eviscerate requires combo points.'));
+      dispatch(setCombatLog(`Fire Blast Lv.${skillRank} scorches ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
       return;
     }
 
     const targetId = getPrimaryTarget();
     if (targetId === null) return;
-
-    const spentCombo = comboPoints;
     beginPlayerAttackIfNeeded(targetId);
-    dispatch(spendMana(manaCost));
-    dispatch(consumeAllComboPoints());
+    dispatch(spendMana(skill.manaCost));
 
-    const comboMultiplier = 1.1 + spentCombo * 0.6;
-    const damage = Math.max(
-      5,
-      Math.floor(playerDmg * comboMultiplier + (playerStats?.dexterity || 0) * 0.35 * spentCombo)
-    );
+    if (skill.id === 'crushing-blow') {
+      const damage = Math.max(
+        4,
+        Math.floor((playerDmg * 2.2 + (playerStats?.strength || 0) * 0.35) * levelMultiplier)
+      );
+      applyDamageToEnemy(targetId, damage, false, 'crush');
+      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
+      dispatch(setCombatLog(`Crushing Blow Lv.${skillRank} lands a heavy hit.`));
+      return;
+    }
 
-    applyDamageToEnemy(targetId, damage, false, 'mutilate');
-    dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
-    dispatch(setCombatLog(`Eviscerate consumes ${spentCombo} combo point${spentCombo > 1 ? 's' : ''}.`));
+    if (skill.id === 'arcane-bolt') {
+      const damage = Math.max(
+        4,
+        Math.floor((playerDmg * 1.6 + (playerStats?.intelligence || 0) * 0.9) * levelMultiplier)
+      );
+      applyDamageToEnemy(targetId, damage, false, 'fire');
+      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
+      dispatch(setCombatLog(`Arcane Bolt Lv.${skillRank} burns the target.`));
+      return;
+    }
+
+    if (skill.id === 'quick-stab') {
+      dispatch(addComboPoint(1 + Math.floor((skillRank - 1) / 2)));
+      const damage = Math.max(
+        2,
+        Math.floor((playerDmg * 0.78 + (playerStats?.dexterity || 0) * 0.2) * levelMultiplier)
+      );
+      applyDamageToEnemy(targetId, damage, false, 'slash');
+      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
+      dispatch(setCombatLog(`Quick Stab Lv.${skillRank} builds combo points.`));
+      return;
+    }
+
+    if (skill.id === 'eviscerate') {
+      const spentCombo = comboPoints;
+      dispatch(consumeAllComboPoints());
+      const comboMultiplier = (1.1 + spentCombo * 0.6) * levelMultiplier;
+      const damage = Math.max(
+        5,
+        Math.floor(playerDmg * comboMultiplier + (playerStats?.dexterity || 0) * 0.35 * spentCombo)
+      );
+      applyDamageToEnemy(targetId, damage, false, 'mutilate');
+      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
+      dispatch(
+        setCombatLog(
+          `Eviscerate Lv.${skillRank} consumes ${spentCombo} combo point${spentCombo > 1 ? 's' : ''}.`
+        )
+      );
+    }
+  };
+
+  const performPrimarySkill = (skillId?: SkillId | null) => {
+    performSkill(skillId, 'primary');
+  };
+
+  const performSecondarySkill = (skillId?: SkillId | null) => {
+    performSkill(skillId, 'secondary');
   };
 
   const playerLoop = (targetId: number) => {
@@ -616,8 +770,6 @@ export const useCombat = () => {
     const targetEnemy = currentEnemies[targetId];
     const enemyDR = targetEnemy.defence;
     const enemyLVL = targetEnemy.level;
-    const enemyXP = targetEnemy.xp;
-    const loot = targetEnemy.loot;
     const playerHR = hitRate(playerAR, enemyDR, playerLVL, enemyLVL);
 
     playerCombatIntRef.current = setInterval(() => {
@@ -626,31 +778,10 @@ export const useCombat = () => {
         return;
       }
 
+      queueAllDefeatedEnemyRewards();
       const currentEnemyHealth = enemyHealthRef.current[targetId];
 
       if (currentEnemyHealth <= 0) {
-        dispatch(XP(enemyXP));
-        const latestEnemyState = enemiesRef.current[targetId] || targetEnemy;
-        const lootTable = Array.isArray(latestEnemyState?.loot) ? latestEnemyState.loot : loot;
-        const droppedItems = resolveLootDrops(lootTable as LootObject[]);
-        if (droppedItems.length > 0) {
-          const dropXValue = Number(latestEnemyState?.positionX);
-          const dropYValue = Number(latestEnemyState?.positionY);
-          const dropX = Number.isFinite(dropXValue) ? dropXValue : combatViewRef.current.x;
-          const dropY = Number.isFinite(dropYValue) ? dropYValue : combatViewRef.current.y;
-          addFloorLootBag({
-            x: dropX,
-            y: dropY,
-            mapId: String(currentMapId || ''),
-            items: droppedItems,
-          });
-          dispatch(
-            setCombatLog(
-              `Loot dropped: ${droppedItems.map((entry: any) => entry?.name || 'Unknown').join(', ')}.`
-            )
-          );
-        }
-
         const nextEnemy = findNextLivingEnemy(targetId);
         if (nextEnemy !== null) {
           dispatch(setCurrentEnemy(nextEnemy));
@@ -658,7 +789,7 @@ export const useCombat = () => {
           playerCombatIntRef.current = null;
           playerLoop(nextEnemy);
         } else {
-          endCombat();
+          endCombat({ flushLoot: true });
         }
         return;
       }
@@ -671,7 +802,7 @@ export const useCombat = () => {
           playerCombatIntRef.current = null;
           playerLoop(nextEnemy);
         } else {
-          endCombat();
+          endCombat({ flushLoot: true });
         }
         return;
       }
@@ -886,6 +1017,9 @@ export const useCombat = () => {
     playerHealthRef.current = currentPlayerHealth;
 
     if (currentPlayerHealth > 0 && currentEnemies.length > 0) {
+      combatEndingRef.current = false;
+      processedEnemyIdsRef.current.clear();
+      pendingEnemyLootRef.current = [];
       combatRef.current = true;
       playerAttackArmedRef.current = false;
       clearAllIntervals();
