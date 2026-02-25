@@ -246,6 +246,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             const wallRotation = 59.8 + (d - 1) * 4;
             const floorRotation = 60;
             const ceilingRotation = 100;
+            const lastTileCeilingRotation = -65;
 
             // LEFT WALL - full height from near.top to near.bottom
             const leftWidth = far.left - near.left;
@@ -390,7 +391,17 @@ export const Room3D: React.FC<Room3DProps> = ({
             // CEILING - full width, tilting AWAY (bottom edge goes back into distance)
             const ceilingHeight = far.top - near.top;
             if (ceilingHeight > 0) {
-                    {console.log('DDDDDDDDDDDDDD',d)}
+                const isLastTile = d === 1 && isWall;
+                const ceilingTop = isLastTile ? Math.max(0, near.top - 6) : near.top + 130;
+                const ceilingOuterHeight = isLastTile ? Math.max(70, ceilingHeight + 56) : ceilingHeight + 20;
+                const ceilingOuterZ = isLastTile ? 88 - d : 88 - d;
+                const ceilingInnerHeight = isLastTile ? '400%' : '500%';
+                const ceilingInnerMarginTop = isLastTile ? '0%' : '-100%';
+                const ceilingTransform = isLastTile
+                    ? `rotateX(${lastTileCeilingRotation}deg)`
+                    : `rotateX(-${ceilingRotation}deg)`;
+                const ceilingTransformOrigin = isLastTile ? '50% 0%' : '50% 100%';
+
                 frames.push(
                     <View
                         key={`ceiling-${d}`}
@@ -398,10 +409,10 @@ export const Room3D: React.FC<Room3DProps> = ({
                             styles.segment,
                             {
                                 left: near.left - 20,
-                                top: near.top + 130,
-                                width: near.right - near.left + 10,
-                                height: ceilingHeight + 20,
-                                zIndex: 88 - d,
+                                top: ceilingTop,
+                                width: near.right - near.left + 10,// this relates to perspective for ceiling length
+                                height: ceilingOuterHeight,
+                                zIndex: ceilingOuterZ,
                             },
                             isWeb && {
                                 // @ts-ignore
@@ -413,14 +424,14 @@ export const Room3D: React.FC<Room3DProps> = ({
                             style={[
                                 {
                                     width: '100%',
-                                    height: '500%',
-                                    marginTop: '-100%',
-                                    opacity: brightness * 0.7,
+                                    height: ceilingInnerHeight,
+                                    marginTop: ceilingInnerMarginTop,
+                                    opacity: isLastTile ? brightness * 0.85 : brightness * 0.7,
                                 },
                                 isWeb && {
                                     // @ts-ignore
-                                    transform: d === 1 ? `rotateX(50deg)` : `rotateX(-${ceilingRotation}deg)`,
-                                    transformOrigin: '50% 100%',
+                                    transform: ceilingTransform,
+                                    transformOrigin: ceilingTransformOrigin,
                                 }
                             ]}
                         >
