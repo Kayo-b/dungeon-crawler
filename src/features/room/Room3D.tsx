@@ -172,10 +172,12 @@ export const Room3D: React.FC<Room3DProps> = ({
         // }
     };
 
-    const getBrightness = (distance: number) => {
-
+    const getBrightness = (_distance: number) => {
         return 1;
-        // return Math.max(0.3, 1 - distance * 0.12);
+    };
+
+    const getFogPaintOpacity = (distance: number) => {
+        return Math.max(0, Math.min(0.58, (distance - 1) * 0.14));
     };
 
     const isWeb = Platform.OS === 'web';
@@ -188,6 +190,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             const tile = tilesAhead[i];
             const d = tile.distance;
             const brightness = getBrightness(d);
+            const fogPaintOpacity = getFogPaintOpacity(d);
 
             const far = getFrameDimensions(d);
             const near = d === 1
@@ -229,6 +232,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                         ]}
                     >
                         <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
+                        <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity }]} />
                     </View>
                 );
             }
@@ -257,7 +261,6 @@ export const Room3D: React.FC<Room3DProps> = ({
                         ]}
                     >
                         <TouchableOpacity
-                            activeOpacity={0.9}
                             onPress={onDoorInteract}
                             disabled={!isOnDoorTile || !onDoorInteract}
                             style={styles.doorInteractWrap}
@@ -269,12 +272,13 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 resizeMode="contain"
                             />
                         </TouchableOpacity>
+                        <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity }]} />
                     </View>
                 );
             }
 
             // Wall rotation - moderate angle for visibility while creating depth
-            const wallRotation = 59.8 + (d - 1) * 4;
+            const wallRotation = 65 + (d - 1) * 4;
             const floorRotation = 60;
             const ceilingRotation = 100;
             const lastTileCeilingRotation = -65;
@@ -282,6 +286,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             // LEFT WALL - full height from near.top to near.bottom
             const leftWidth = far.left - near.left;
             if (leftWidth > 0 && showLeftWall) {
+
                 frames.push(
                     <View
                         key={`wall-left-${d}`}
@@ -289,8 +294,8 @@ export const Room3D: React.FC<Room3DProps> = ({
                             styles.segment,
                             {
                                 left: near.left,
-                                top: near.top - 20, // Extend beyond to fill gaps
-                                width: tilesAhead.length === 0 ? leftWidth - 20 : leftWidth + 10,
+                                top: near.top - 40, // Extend beyond to fill gaps
+                                width: tilesAhead.length === 0 ? leftWidth - 40 : leftWidth + 100,
                                 height: near.bottom - near.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
@@ -320,12 +325,14 @@ export const Room3D: React.FC<Room3DProps> = ({
                                     testID={`door-side-left-${d}`}
                                     source={doorSprite}
                                     style={[styles.doorPlane, styles.doorLeftCentered]}
-                                    resizeMode="contain"
+                                    resizeMode="repeat"
                                 />
                             )}
+                            <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity }]} />
                         </View>
                     </View>
                 );
+
             }
 
             // RIGHT WALL - full height from near.top to near.bottom
@@ -337,9 +344,9 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: far.right - 10,
-                                top: near.top - 20,
-                                width: rightWidth + 10,
+                                left: far.right - 100,
+                                top: near.top - 40,
+                                width: rightWidth + 100,
                                 height: near.bottom - near.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
@@ -373,6 +380,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                     resizeMode="contain"
                                 />
                             )}
+                            <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity }]} />
                         </View>
                     </View>
                 );
@@ -415,6 +423,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                         >
                             <Image source={brickSmall} style={styles.segmentImage} resizeMode="repeat" />
                         </View>
+                        <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity * 0.85 }]} />
                     </View>
                 );
             }
@@ -468,6 +477,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                         >
                             <Image source={brickSmall} style={styles.segmentImage} resizeMode="repeat"/>
                         </View>
+                        <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity * 0.9 }]} />
                     </View>
                 );
             }
@@ -520,6 +530,14 @@ const styles = StyleSheet.create({
     },
     segment: {
         position: 'absolute',
+    },
+    fogPaint: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#000',
     },
     segmentImage: {
         width: '100%',
