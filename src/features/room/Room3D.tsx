@@ -39,6 +39,10 @@ export const Room3D: React.FC<Room3DProps> = ({
     onDoorInteract,
 }) => {
     type DoorPlacement = 'none' | 'front' | 'left' | 'right';
+    interface TurnOptions {
+        leftOpen: boolean;
+        rightOpen: boolean;
+    }
 
     const getTileTypeAt = (x: number, y: number) => {
         if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) return 0;
@@ -62,6 +66,20 @@ export const Room3D: React.FC<Room3DProps> = ({
         if (direction === 'S') return { forward: { x: 0, y: 1 }, left: { x: 1, y: 0 } };
         if (direction === 'E') return { forward: { x: 1, y: 0 }, left: { x: 0, y: -1 } };
         return { forward: { x: -1, y: 0 }, left: { x: 0, y: 1 } };
+    };
+
+    const isWalkable = (x: number, y: number): boolean => {
+        return getTileTypeAt(x, y) > 0;
+    };
+
+    const getTurnOptionsAtDistance = (distance: number): TurnOptions => {
+        const tilePos = getForwardTilePos(Math.max(0, distance));
+        const vectors = getFacingVectors();
+        const right = { x: -vectors.left.x, y: -vectors.left.y };
+        return {
+            leftOpen: isWalkable(tilePos.x + vectors.left.x, tilePos.y + vectors.left.y),
+            rightOpen: isWalkable(tilePos.x + right.x, tilePos.y + right.y),
+        };
     };
 
     const getDoorPlacement = (tileX: number, tileY: number): DoorPlacement => {
@@ -179,21 +197,34 @@ export const Room3D: React.FC<Room3DProps> = ({
             const isWall = tile.type === 0;
             const isDoorAhead = tile.type === 5;
             const doorPlacement = isDoorAhead ? getDoorPlacement(tile.x, tile.y) : 'none';
+            const isImmediateWall = isWall && d === 1;
+            const approachDistance = isWall ? Math.max(0, d - 1) : d;
+            const turnOptions = getTurnOptionsAtDistance(approachDistance);
+            const showNoSideWalls = isWall && turnOptions.leftOpen && turnOptions.rightOpen;
+            const showLeftOnly = isWall && turnOptions.rightOpen && !turnOptions.leftOpen;
+            const showRightOnly = isWall && turnOptions.leftOpen && !turnOptions.rightOpen;
+            const showLeftWall = !showNoSideWalls && !showRightOnly;
+            const showRightWall = !showNoSideWalls && !showLeftOnly;
 
             // Front wall face
             if (isWall) {
+                const wallFaceLeft = isImmediateWall ? near.left : far.left;
+                const wallFaceTop = isImmediateWall ? near.top : far.top;
+                const wallFaceWidth = isImmediateWall ? near.right - near.left : far.width + 40;
+                const wallFaceHeight = isImmediateWall ? near.bottom - near.top : far.height - 40;
+                const wallFaceZ = isImmediateWall ? 96 : 90 - d;
                 frames.push(
                     <View
                         key={`wall-front-${d}`}
                         style={[
                             styles.segment,
                             {
-                                left: far.left,
-                                top: far.top,
-                                width: far.width + 40,
-                                height: far.height - 40,
+                                left: wallFaceLeft,
+                                top: wallFaceTop,
+                                width: wallFaceWidth,
+                                height: wallFaceHeight,
                                 opacity: brightness,
-                                zIndex: 90 - d,
+                                zIndex: wallFaceZ,
                             }
                         ]}
                     >
@@ -250,7 +281,7 @@ export const Room3D: React.FC<Room3DProps> = ({
 
             // LEFT WALL - full height from near.top to near.bottom
             const leftWidth = far.left - near.left;
-            if (leftWidth > 0) {
+            if (leftWidth > 0 && showLeftWall) {
                 frames.push(
                     <View
                         key={`wall-left-${d}`}
@@ -299,7 +330,7 @@ export const Room3D: React.FC<Room3DProps> = ({
 
             // RIGHT WALL - full height from near.top to near.bottom
             const rightWidth = near.right - far.right;
-            if (rightWidth > 0) {
+            if (rightWidth > 0 && showRightWall) {
                 frames.push(
                     <View
                         key={`wall-right-${d}`}
