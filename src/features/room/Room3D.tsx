@@ -212,9 +212,9 @@ export const Room3D: React.FC<Room3DProps> = ({
             // Front wall face
             if (isWall) {
                 const wallFaceLeft = isImmediateWall ? near.left : far.left;
-                const wallFaceTop = isImmediateWall ? near.top : far.top;
+                const wallFaceTop = isImmediateWall ? near.top - 40 : far.top;
                 const wallFaceWidth = isImmediateWall ? near.right - near.left : far.width + 40;
-                const wallFaceHeight = isImmediateWall ? near.bottom - near.top : far.height - 40;
+                const wallFaceHeight = isImmediateWall ? near.bottom - near.top - 40 : far.height - 40;
                 const wallFaceZ = isImmediateWall ? 96 : 90 - d;
                 frames.push(
                     <View
@@ -284,6 +284,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             const lastTileCeilingRotation = -65;
 
             // LEFT WALL - full height from near.top to near.bottom
+            const isLastTile = d === 1 && isWall;
             const leftWidth = far.left - near.left;
             if (leftWidth > 0 && showLeftWall) {
 
@@ -293,10 +294,10 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: near.left,
-                                top: near.top - 40, // Extend beyond to fill gaps
-                                width: tilesAhead.length === 0 ? leftWidth - 40 : leftWidth + 100,
-                                height: near.bottom - near.top + 10 + (d - 1) * 4,
+                                left: isLastTile ? - 70 : near.left,
+                                top: isLastTile ? near.top - 65 : near.top - 40, // Extend beyond to fill gaps
+                                width: isLastTile ? leftWidth + 100 : leftWidth + 100,
+                                height: isLastTile ? 500 : near.bottom - near.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
                             isWeb && {
@@ -309,7 +310,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                             style={[
                                 {
                                     width: '200%',
-                                    height: '100%',
+                                    height: isLastTile ? '200%' : '100%',
                                     opacity: brightness,
                                 },
                                 isWeb && {
@@ -325,7 +326,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                     testID={`door-side-left-${d}`}
                                     source={doorSprite}
                                     style={[styles.doorPlane, styles.doorLeftCentered]}
-                                    resizeMode="repeat"
+                                    resizeMode= {isLastTile ? "cover" : "repeat"}
                                 />
                             )}
                             <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity }]} />
