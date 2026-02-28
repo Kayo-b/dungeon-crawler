@@ -138,39 +138,40 @@ export const Room3D: React.FC<Room3DProps> = ({
     const currentTileDoorPlacement = isOnDoorTile ? getDoorPlacement(positionX, positionY) : 'none';
 
     // Get corridor opening at each distance
-    const getFrameDimensions = (distance: number) => {
-        const scale = 1 / (distance * 0.4 + 0.5);
+    const getFrameDimensionsWalls = (distance: number) => {
+        const scale = 1 / (distance * 0.4 + 0.5);//set to second var to 0.9 gives narrowing corridor effect
         const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance / 2));
         const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance / 4));
         const left = CENTER_X - width / 1.8;
-        const top = CENTER_Y - height / 1.8;
+        const top = CENTER_Y - height / (1.8 - distance/4) ;// set 1.8 -/- distance/x  to give going up/down effect   
         const right = CENTER_X + width / 1.8;
         const bottom = CENTER_Y + height / 1.8;
         return { width, height, left, top, right, bottom, scale };
-        // distance = 4;
-        // if(distance === 2) {
-        //     console.log('distance', distance)
-        //     const scale = 1 / distance;
-        //     const width = VIEWPORT_WIDTH * scale;
-        //     const height = VIEWPORT_HEIGHT * scale;
-        //     const left = CENTER_X - width / 1;
-        //     const top = CENTER_Y - height / 2;
-        //     const right = CENTER_X + width / 1;
-        //     const bottom = CENTER_Y + height / 1;
-        //     return { width, height, left, top, right, bottom, scale };
-        // } else {
-        //     console.log('distance', distance)
-        //     const scale = 1 / distance;
-        //     const width = VIEWPORT_WIDTH * scale;
-        //     const height = VIEWPORT_HEIGHT * scale;
-        //     const left = CENTER_X - width / 1;
-        //     const top = CENTER_Y - height / 2;
-        //     const right = CENTER_X + width / 1;
-        //     const bottom = CENTER_Y + height / 1;
-        //     return { width, height, left, top, right, bottom, scale };
-
-        // }
     };
+
+     // Get corridor opening at each distance
+    const getFrameDimensionsCeiling = (distance: number) => {
+        const scale = 1 / (distance * 0.4 + 0.5);//set to second var to 0.9 gives narrowing corridor effect
+        const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance / 2));
+        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance / 4));
+        const left = CENTER_X - width / 1.8;
+        const top = CENTER_Y - height / 1.8 - distance;// set 1.8 -/- distance/x  to give going up/down effect   
+        const right = CENTER_X + width / 1.8;
+        const bottom = CENTER_Y + height / 1.8;
+        return { width, height, left, top, right, bottom, scale };
+    };   // Get corridor opening at each distance
+
+    const getFrameDimensionsFloor = (distance: number) => {
+        const scale = 1 / (distance * 0.4 + 0.5);//set to second var to 0.9 gives narrowing corridor effect
+        const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance / 2));
+        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance / 4));
+        const left = CENTER_X - width / 1.8;
+        const top = CENTER_Y - height / (1.8 - distance/4) ;// set 1.8 -/- distance/x  to give going up/down effect   
+        const right = CENTER_X + width / 1.8;
+        const bottom = CENTER_Y + height / 1.8;
+        return { width, height, left, top, right, bottom, scale };
+    };
+
 
     const getBrightness = (_distance: number) => {
         return 1;
@@ -192,10 +193,10 @@ export const Room3D: React.FC<Room3DProps> = ({
             const brightness = getBrightness(d);
             const fogPaintOpacity = getFogPaintOpacity(d);
 
-            const far = getFrameDimensions(d);
+            const far = getFrameDimensionsWalls(d);
             const near = d === 1
                 ? { left: 0, right: VIEWPORT_WIDTH, top: 0, bottom: VIEWPORT_HEIGHT}
-                : getFrameDimensions(d - 1);
+                : getFrameDimensionsWalls(d - 1);
 
             const isWall = tile.type === 0;
             const isDoorAhead = tile.type === 5;
@@ -295,9 +296,9 @@ export const Room3D: React.FC<Room3DProps> = ({
                             styles.segment,
                             {
                                 left: isLastTile ? - 70 : near.left,
-                                top: isLastTile ? near.top - 65 : near.top - 40, // Extend beyond to fill gaps
+                                top: isLastTile ? near.top - 95 : near.top - 40, // Extend beyond to fill gaps
                                 width: isLastTile ? leftWidth + 100 : leftWidth + 100,
-                                height: isLastTile ? 500 : near.bottom - near.top + 10 + (d - 1) * 4,
+                                height: isLastTile ? 450 : near.bottom - near.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
                             isWeb && {
