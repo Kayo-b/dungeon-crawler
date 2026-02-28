@@ -28,6 +28,125 @@ const VIEWPORT_HEIGHT = 512;
 const CENTER_X = VIEWPORT_WIDTH / 2;
 const CENTER_Y = VIEWPORT_HEIGHT / 2;
 
+type FrameSurface = 'walls' | 'frontWall' | 'ceiling' | 'floor';
+type FramePhase = 'near' | 'far';
+
+interface FrameDimensions {
+    width: number;
+    height: number;
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+    scale: number;
+}
+
+interface FramePhaseProfile {
+    widthMultiplier: number;
+    heightMultiplier: number;
+    scaleMultiplier: number;
+    leftOffset: number;
+    topOffset: number;
+    rightOffset: number;
+    bottomOffset: number;
+}
+
+interface FrameSurfaceProfile {
+    scaleDistanceFactor: number;
+    scaleBase: number;
+    widthBase: number;
+    widthDistanceFactor: number;
+    heightBase: number;
+    heightDistanceFactor: number;
+    horizontalDivisor: number;
+    topDivisorBase: number;
+    topDivisorDistanceFactor: number;
+    bottomDivisor: number;
+    verticalDistanceOffset: number;
+    phase: Record<FramePhase, FramePhaseProfile>;
+}
+
+const FULLSCREEN_FRAME: FrameDimensions = {
+    width: VIEWPORT_WIDTH,
+    height: VIEWPORT_HEIGHT,
+    left: 0,
+    top: 0,
+    right: VIEWPORT_WIDTH,
+    bottom: VIEWPORT_HEIGHT,
+    scale: 1,
+};
+
+const FRAME_SURFACE_PROFILES: Record<FrameSurface, FrameSurfaceProfile> = {
+    walls: {
+        scaleDistanceFactor: 0.4,
+        scaleBase: 0.5,
+        widthBase: 0.51,
+        widthDistanceFactor: 0.1,
+        heightBase: 0.5,
+        heightDistanceFactor: 0.05,
+        horizontalDivisor: 1.8,
+        topDivisorBase: 1.75,
+        topDivisorDistanceFactor: 0.25,
+        bottomDivisor: 1.72,
+        verticalDistanceOffset: 0,
+        phase: {
+            near: { widthMultiplier: 1.02, heightMultiplier: 1.02, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
+            far: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
+        },
+    },
+    frontWall: {
+        scaleDistanceFactor: 0.4,
+        scaleBase: 0.5,
+        widthBase: 0.51,
+        widthDistanceFactor: 0.1,
+        heightBase: 0.5,
+        heightDistanceFactor: 1.8,//0.05,
+        horizontalDivisor: 1.8,
+        topDivisorBase: 1.8,
+        topDivisorDistanceFactor: 0.25,
+        bottomDivisor: 1.8,
+        verticalDistanceOffset: 0,
+        phase: {
+            near: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
+            far: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
+        },
+    },
+    ceiling: {
+        scaleDistanceFactor: 0.4,
+        scaleBase: 0.5,
+        widthBase: 0.51,
+        widthDistanceFactor: 0.1,
+        heightBase: 0.5,
+        heightDistanceFactor: 1.8,//0.05,
+        horizontalDivisor: 1.8,
+        topDivisorBase: 1.8,
+        topDivisorDistanceFactor: 0,
+        bottomDivisor: 1.8,
+        verticalDistanceOffset: 0,
+        phase: {
+            near: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
+            far: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
+        },
+    },
+    floor: {
+        scaleDistanceFactor: 0.4,
+        scaleBase: 0.5,
+        widthBase: 0.51,
+        widthDistanceFactor: 0.1,
+        heightBase: 0.5,
+        heightDistanceFactor: 0.05,
+        horizontalDivisor: 1.8,
+        topDivisorBase: 1.76,
+        topDivisorDistanceFactor: 0.2,
+        bottomDivisor: 1.72,
+        verticalDistanceOffset: 1,
+        phase: {
+            near: { widthMultiplier: 1.01, heightMultiplier: 1.08, scaleMultiplier: 1, leftOffset: 0, topOffset: 6, rightOffset: 0, bottomOffset: 8 },
+            far: { widthMultiplier: 0.97, heightMultiplier: 0.88, scaleMultiplier: 1, leftOffset: 0, topOffset: 3, rightOffset: 0, bottomOffset: -8 },
+        },
+    },
+};
+
 export const Room3D: React.FC<Room3DProps> = ({
     positionX,
     positionY,
@@ -137,41 +256,45 @@ export const Room3D: React.FC<Room3DProps> = ({
     const isOnDoorTile = getTileTypeAt(positionX, positionY) === 5;
     const currentTileDoorPlacement = isOnDoorTile ? getDoorPlacement(positionX, positionY) : 'none';
 
-    // Get corridor opening at each distance
-    const getFrameDimensionsWalls = (distance: number) => {
-        const scale = 1 / (distance * 0.4 + 0.5);//set to second var to 0.9 gives narrowing corridor effect
-        const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance / 2));
-        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance / 4));
-        const left = CENTER_X - width / 1.8;
-        const top = CENTER_Y - height / (1.8 - distance/4) ;// set 1.8 -/- distance/x  to give going up/down effect   
-        const right = CENTER_X + width / 1.8;
-        const bottom = CENTER_Y + height / 1.8;
+    const getFrameDimensions = (
+        surface: FrameSurface,
+        distance: number,
+        phase: FramePhase = 'far',
+    ): FrameDimensions => {
+        const profile = FRAME_SURFACE_PROFILES[surface];
+        const phaseProfile = profile.phase[phase];
+        const clampedDistance = Math.max(0, distance);
+        const topDivisor = Math.max(
+            0.7,
+            profile.topDivisorBase - clampedDistance * profile.topDivisorDistanceFactor
+        );
+
+        const scale = (
+            1 / (clampedDistance * profile.scaleDistanceFactor + profile.scaleBase)
+        ) * phaseProfile.scaleMultiplier;
+        const width = (
+            VIEWPORT_WIDTH * scale * (
+                profile.widthBase + profile.widthDistanceFactor * clampedDistance
+            )
+        ) * phaseProfile.widthMultiplier;
+        const height = (
+            VIEWPORT_HEIGHT * scale * (
+                profile.heightBase + profile.heightDistanceFactor * clampedDistance
+            )
+        ) * phaseProfile.heightMultiplier;
+
+        const left = CENTER_X - width / profile.horizontalDivisor + phaseProfile.leftOffset;
+        const top = (
+            CENTER_Y - height / topDivisor
+            + profile.verticalDistanceOffset * clampedDistance
+            + phaseProfile.topOffset
+        );
+        const right = CENTER_X + width / profile.horizontalDivisor + phaseProfile.rightOffset;
+        const bottom = CENTER_Y + height / profile.bottomDivisor + phaseProfile.bottomOffset;
+
         return { width, height, left, top, right, bottom, scale };
     };
-
-     // Get corridor opening at each distance
-    const getFrameDimensionsCeiling = (distance: number) => {
-        const scale = 1 / (distance * 0.4 + 0.5);//set to second var to 0.9 gives narrowing corridor effect
-        const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance / 2));
-        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance / 4));
-        const left = CENTER_X - width / 1.8;
-        const top = CENTER_Y - height / 1.8 - distance;// set 1.8 -/- distance/x  to give going up/down effect   
-        const right = CENTER_X + width / 1.8;
-        const bottom = CENTER_Y + height / 1.8;
-        return { width, height, left, top, right, bottom, scale };
-    };   // Get corridor opening at each distance
-
-    const getFrameDimensionsFloor = (distance: number) => {
-        const scale = 1 / (distance * 0.4 + 0.5);//set to second var to 0.9 gives narrowing corridor effect
-        const width = VIEWPORT_WIDTH * scale * (0.51 + (0.2 * distance / 2));
-        const height = VIEWPORT_HEIGHT * scale * (0.5 + (0.2 * distance / 4));
-        const left = CENTER_X - width / 1.8;
-        const top = CENTER_Y - height / (1.8 - distance/4) ;// set 1.8 -/- distance/x  to give going up/down effect   
-        const right = CENTER_X + width / 1.8;
-        const bottom = CENTER_Y + height / 1.8;
-        return { width, height, left, top, right, bottom, scale };
-    };
-
+ 
 
     const getBrightness = (_distance: number) => {
         return 1;
@@ -193,10 +316,22 @@ export const Room3D: React.FC<Room3DProps> = ({
             const brightness = getBrightness(d);
             const fogPaintOpacity = getFogPaintOpacity(d);
 
-            const far = getFrameDimensionsWalls(d);
-            const near = d === 1
-                ? { left: 0, right: VIEWPORT_WIDTH, top: 0, bottom: VIEWPORT_HEIGHT}
-                : getFrameDimensionsWalls(d - 1);
+            const wallFar = getFrameDimensions('walls', d, 'far');
+            const wallNear = d === 1
+                ? FULLSCREEN_FRAME
+                : getFrameDimensions('walls', d - 1, 'near');
+            const frontFar = getFrameDimensions('frontWall', d, 'far');
+            const frontNear = d === 1
+                ? FULLSCREEN_FRAME
+                : getFrameDimensions('frontWall', d - 1, 'near');
+            const ceilingFar = getFrameDimensions('ceiling', d, 'far');
+            const ceilingNear = d === 1
+                ? FULLSCREEN_FRAME
+                : getFrameDimensions('ceiling', d - 1, 'near');
+            const floorFar = getFrameDimensions('floor', d, 'far');
+            const floorNear = d === 1
+                ? FULLSCREEN_FRAME
+                : getFrameDimensions('floor', d - 1, 'near');
 
             const isWall = tile.type === 0;
             const isDoorAhead = tile.type === 5;
@@ -212,10 +347,10 @@ export const Room3D: React.FC<Room3DProps> = ({
 
             // Front wall face
             if (isWall) {
-                const wallFaceLeft = isImmediateWall ? near.left : far.left;
-                const wallFaceTop = isImmediateWall ? near.top - 40 : far.top;
-                const wallFaceWidth = isImmediateWall ? near.right - near.left : far.width + 40;
-                const wallFaceHeight = isImmediateWall ? near.bottom - near.top - 40 : far.height - 40;
+                const wallFaceLeft = isImmediateWall ? frontNear.left : frontFar.left;
+                const wallFaceTop = isImmediateWall ? frontNear.top - 40 : frontFar.top;
+                const wallFaceWidth = isImmediateWall ? frontNear.right - frontNear.left : frontFar.width + 40;
+                const wallFaceHeight = isImmediateWall ? frontNear.bottom - frontNear.top - 40 : frontFar.height - 40;
                 const wallFaceZ = isImmediateWall ? 96 : 90 - d;
                 frames.push(
                     <View
@@ -249,10 +384,10 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: far.left,
-                                top: far.top,
-                                width: far.width,
-                                height: far.height,
+                                left: frontFar.left,
+                                top: frontFar.top,
+                                width: frontFar.width,
+                                height: frontFar.height,
                                 zIndex: 101 - d,
                             },
                             isWeb && {
@@ -286,7 +421,7 @@ export const Room3D: React.FC<Room3DProps> = ({
 
             // LEFT WALL - full height from near.top to near.bottom
             const isLastTile = d === 1 && isWall;
-            const leftWidth = far.left - near.left;
+            const leftWidth = wallFar.left - wallNear.left;
             if (leftWidth > 0 && showLeftWall) {
 
                 frames.push(
@@ -295,10 +430,10 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: isLastTile ? - 70 : near.left,
-                                top: isLastTile ? near.top - 95 : near.top - 40, // Extend beyond to fill gaps
+                                left: isLastTile ? - 70 : wallNear.left,
+                                top: isLastTile ? wallNear.top - 95 : wallNear.top - 40, // Extend beyond to fill gaps
                                 width: isLastTile ? leftWidth + 100 : leftWidth + 100,
-                                height: isLastTile ? 450 : near.bottom - near.top + 10 + (d - 1) * 4,
+                                height: isLastTile ? 450 : wallNear.bottom - wallNear.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
                             isWeb && {
@@ -338,7 +473,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             }
 
             // RIGHT WALL - full height from near.top to near.bottom
-            const rightWidth = near.right - far.right;
+            const rightWidth = wallNear.right - wallFar.right;
             if (rightWidth > 0 && showRightWall) {
                 frames.push(
                     <View
@@ -346,10 +481,10 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: far.right - 100,
-                                top: near.top - 40,
+                                left: wallFar.right - 100,
+                                top: wallNear.top - 40,
                                 width: rightWidth + 100,
-                                height: near.bottom - near.top + 10 + (d - 1) * 4,
+                                height: wallNear.bottom - wallNear.top + 10 + (d - 1) * 4,
                                 zIndex: 99 - d,
                             },
                             isWeb && {
@@ -389,7 +524,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             }
 
             // FLOOR - full width, tilting AWAY (top edge goes back into distance)
-            const floorHeight = near.bottom - far.bottom;
+            const floorHeight = floorNear.bottom - floorFar.bottom;
             if (floorHeight > 0) {
                 frames.push(
                     <View
@@ -397,9 +532,9 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: near.left - 20,
-                                top: far.bottom - 75,
-                                width: near.right - near.left + 40,
+                                left: floorNear.left - 20,
+                                top: floorFar.bottom - 75,
+                                width: floorNear.right - floorNear.left + 40,
                                 height: floorHeight + 10,
                                 zIndex: 89 - d,
                             },
@@ -431,10 +566,10 @@ export const Room3D: React.FC<Room3DProps> = ({
             }
 
             // CEILING - full width, tilting AWAY (bottom edge goes back into distance)
-            const ceilingHeight = far.top - near.top;
+            const ceilingHeight = ceilingFar.top - ceilingNear.top;
             if (ceilingHeight > 0) {
                 const isLastTile = d === 1 && isWall;
-                const ceilingTop = isLastTile ? Math.max(0, near.top - 6) : near.top + 130;
+                const ceilingTop = isLastTile ? Math.max(0, ceilingNear.top - 6) : ceilingNear.top + 130;
                 const ceilingOuterHeight = isLastTile ? Math.max(70, ceilingHeight + 56) : ceilingHeight + 20;
                 const ceilingOuterZ = isLastTile ? 88 - d : 88 - d;
                 const ceilingInnerHeight = isLastTile ? '400%' : '500%';
@@ -450,9 +585,9 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: near.left - 20,
+                                left: ceilingNear.left - 20,
                                 top: ceilingTop,
-                                width: near.right - near.left + 10,// this relates to perspective for ceiling length
+                                width: ceilingNear.right - ceilingNear.left + 10,// this relates to perspective for ceiling length
                                 height: ceilingOuterHeight,
                                 zIndex: ceilingOuterZ,
                             },
