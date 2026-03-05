@@ -117,7 +117,7 @@ const FRAME_SURFACE_PROFILES: Record<FrameSurface, FrameSurfaceProfile> = {
         widthBase: 0.51,
         widthDistanceFactor: 0.1,
         heightBase: 0.5,
-        heightDistanceFactor: 1.8,//0.05,
+        heightDistanceFactor: 0.05,
         horizontalDivisor: 1.8,
         topDivisorBase: 1.8,
         topDivisorDistanceFactor: 0,
