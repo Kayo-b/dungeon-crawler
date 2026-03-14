@@ -116,8 +116,8 @@ const FRAME_SURFACE_PROFILES: Record<FrameSurface, FrameSurfaceProfile> = {
         scaleBase: 0.5,
         widthBase: 0.51,
         widthDistanceFactor: 0.1,
-        heightBase: 0.5,
-        heightDistanceFactor: 0.05,
+        heightBase: 0.8,
+        heightDistanceFactor: 0.04,
         horizontalDivisor: 1.8,
         topDivisorBase: 1.8,
         topDivisorDistanceFactor: 0,
@@ -301,7 +301,7 @@ export const Room3D: React.FC<Room3DProps> = ({
     };
 
     const getFogPaintOpacity = (distance: number) => {
-        return Math.max(0, Math.min(0.58, (distance - 1) * 0.14));
+        return 0;Math.max(0, Math.min(0.58, (distance - 1) * 0.14));
     };
 
     const isWeb = Platform.OS === 'web';
@@ -351,7 +351,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                 const wallFaceTop = isImmediateWall ? frontNear.top - 40 : frontFar.top;
                 const wallFaceWidth = isImmediateWall ? frontNear.right - frontNear.left : frontFar.width + 40;
                 const wallFaceHeight = isImmediateWall ? frontNear.bottom - frontNear.top - 40 : frontFar.height - 40;
-                const wallFaceZ = isImmediateWall ? 96 : 90 - d;
+                const wallFaceZ = isImmediateWall ? 89 : 89 - d;
                 frames.push(
                     <View
                         key={`wall-front-${d}`}
@@ -434,7 +434,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 top: isLastTile ? wallNear.top - 95 : wallNear.top - 40, // Extend beyond to fill gaps
                                 width: isLastTile ? leftWidth + 100 : leftWidth + 100,
                                 height: isLastTile ? 450 : wallNear.bottom - wallNear.top + 10 + (d - 1) * 4,
-                                zIndex: 99 - d,
+                                zIndex: 90 - d,
                             },
                             isWeb && {
                                 // @ts-ignore
@@ -485,7 +485,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 top: wallNear.top - 40,
                                 width: rightWidth + 100,
                                 height: wallNear.bottom - wallNear.top + 10 + (d - 1) * 4,
-                                zIndex: 99 - d,
+                                zIndex: 90 - d,
                             },
                             isWeb && {
                                 // @ts-ignore
@@ -536,7 +536,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 top: floorFar.bottom - 75,
                                 width: floorNear.right - floorNear.left + 40,
                                 height: floorHeight + 10,
-                                zIndex: 89 - d,
+                                zIndex: 88 - d,
                             },
                             isWeb && {
                                 // @ts-ignore
@@ -569,10 +569,10 @@ export const Room3D: React.FC<Room3DProps> = ({
             const ceilingHeight = ceilingFar.top - ceilingNear.top;
             if (ceilingHeight > 0) {
                 const isLastTile = d === 1 && isWall;
-                const ceilingTop = isLastTile ? Math.max(0, ceilingNear.top - 6) : ceilingNear.top + 130;
-                const ceilingOuterHeight = isLastTile ? Math.max(70, ceilingHeight + 56) : ceilingHeight + 20;
-                const ceilingOuterZ = isLastTile ? 88 - d : 88 - d;
-                const ceilingInnerHeight = isLastTile ? '400%' : '500%';
+                const ceilingTop = isLastTile ? Math.max(0, ceilingNear.top - 6) : ceilingNear.top +  110;
+                const ceilingOuterHeight = isLastTile ? Math.max(70, ceilingHeight + 56) : ceilingHeight + 10;
+                const ceilingOuterZ = isLastTile ? 100 - d : 100 - d;
+                const ceilingInnerHeight = isLastTile ? '450%' : '450%';
                 const ceilingInnerMarginTop = isLastTile ? '0%' : '-100%';
                 const ceilingTransform = isLastTile
                     ? `rotateX(${lastTileCeilingRotation}deg)`
@@ -593,7 +593,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                             },
                             isWeb && {
                                 // @ts-ignore
-                                perspective: '350px',
+                                perspective: '360px',
                             }
                         ]}
                     >
@@ -603,7 +603,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                     width: '100%',
                                     height: ceilingInnerHeight,
                                     marginTop: ceilingInnerMarginTop,
-                                    opacity: isLastTile ? brightness * 0.85 : brightness * 0.7,
+                                    opacity: 1,//isLastTile ? brightness * 0.85 : brightness * 0.7,
                                 },
                                 isWeb && {
                                     // @ts-ignore
