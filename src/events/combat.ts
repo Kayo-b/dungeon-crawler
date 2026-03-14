@@ -40,6 +40,7 @@ import {
   discardHand,
   refillCardMana,
   clearScrollSystem,
+  knockbackEnemy,
 } from './combatSlice';
 import { computeDerivedPlayerStats, getClassProgressionProfile } from '../features/player/playerStats';
 import itemData from '../data/items.json';
@@ -353,6 +354,10 @@ export const useCombat = () => {
     return { ...candidates[candidates.length - 1].resolved };
   };
 
+  // Scroll (tomes) drops are removed — skills are granted only through level-up.
+  // Potion (consumable) drops are commented out.
+  const FILTERED_DROP_TYPES = new Set(['tomes', 'consumable']);
+
   const queueEnemyLootDrop = (enemyId: number, enemyState: any, lootTable: LootObject[]) => {
     if (processedEnemyIdsRef.current.has(enemyId)) return;
     processedEnemyIdsRef.current.add(enemyId);
@@ -366,7 +371,9 @@ export const useCombat = () => {
     const guaranteedLootEntries: LootObject[] = Array.isArray(enemyState?.guaranteedLoot)
       ? enemyState.guaranteedLoot
       : [];
+    // Filter out tomes and consumables from guaranteed drops
     const guaranteedLootItems = guaranteedLootEntries
+      .filter((entry: LootObject) => !FILTERED_DROP_TYPES.has(entry.type))
       .map((entry: LootObject) => resolveLootEntry(entry))
       .filter((entry): entry is Record<string, any> => !!entry);
 
@@ -382,7 +389,9 @@ export const useCombat = () => {
       return;
     }
 
-    const droppedItem = resolveSingleLootDrop(lootTable);
+    // Filter out tomes and consumables from random drops
+    const filteredLootTable = lootTable.filter((entry) => !FILTERED_DROP_TYPES.has(entry.type));
+    const droppedItem = resolveSingleLootDrop(filteredLootTable);
     if (!droppedItem) return;
 
     pendingEnemyLootRef.current.push({
@@ -542,6 +551,19 @@ export const useCombat = () => {
     if (newHealth <= 0 && frontLayerRef.current.includes(enemyId)) {
       advanceLayersAfterDeath(enemyId);
     }
+  };
+
+  /**
+   * Knock a living front-layer enemy back to the mid layer.
+   * The enemy can no longer attack until it advances back to the front.
+   */
+  const applyKnockback = (enemyId: number) => {
+    if ((enemyHealthRef.current[enemyId] ?? 0) <= 0) return; // dead enemies don't get knocked back
+    const frontIdx = frontLayerRef.current.indexOf(enemyId);
+    if (frontIdx === -1) return; // not in front layer
+    frontLayerRef.current.splice(frontIdx, 1);
+    midLayerRef.current.unshift(enemyId);
+    dispatch(knockbackEnemy(enemyId));
   };
 
   const applyWeaponCleave = (targetId: number, baseDamage: number) => {
@@ -897,7 +919,13 @@ export const useCombat = () => {
         Math.floor((playerDmg * 1.35 + (playerStats?.strength || 0) * 0.22) * levelMultiplier)
       );
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'slash'));
-      dispatch(setCombatLog(`Whirlwind Lv.${skillRank} hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
+      // Knock back all surviving front-layer enemies
+      const survivingFront = [...frontLayerRef.current].filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
+      survivingFront.forEach((id) => applyKnockback(id));
+      const knockedCount = survivingFront.length;
+      dispatch(setCombatLog(
+        `Whirlwind Lv.${skillRank} hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}${knockedCount > 0 ? ` — ${knockedCount} knocked back!` : ''}.`
+      ));
       queueAllDefeatedEnemyRewards();
       if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
@@ -929,7 +957,11 @@ export const useCombat = () => {
         Math.floor((playerDmg * 2.2 + (playerStats?.strength || 0) * 0.35) * levelMultiplier)
       );
       applyDamageToEnemy(targetId, damage, false, 'crush');
-      dispatch(setCombatLog(`Crushing Blow Lv.${skillRank} lands a heavy hit.`));
+      const wasKnockedBack = (enemyHealthRef.current[targetId] ?? 0) > 0;
+      if (wasKnockedBack) applyKnockback(targetId);
+      dispatch(setCombatLog(
+        `Crushing Blow Lv.${skillRank} lands a heavy hit${wasKnockedBack ? ' — enemy knocked back!' : '.'}`
+      ));
       queueAllDefeatedEnemyRewards();
       if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();

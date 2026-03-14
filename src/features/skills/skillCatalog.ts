@@ -17,6 +17,8 @@ export interface SkillDefinition {
   requiresCombo?: boolean;
   /** True for utility/buff skills that don't target enemies */
   isBuff?: boolean;
+  /** If true, surviving targets are knocked from the front layer to the mid layer */
+  hasKnockback?: boolean;
 }
 
 /** An offer presented to the player on level up */
@@ -35,44 +37,46 @@ export const SKILLS: Record<SkillId, SkillDefinition> = {
   'crushing-blow': {
     id: 'crushing-blow',
     name: 'Crushing Blow',
-    manaCost: 20,
-    description: 'A devastating overhead strike that deals heavy physical damage.',
+    manaCost: 1,
+    description: 'A devastating overhead strike dealing heavy physical damage. Knocks the target to the back of the enemy formation.',
+    hasKnockback: true,
   },
   whirlwind: {
     id: 'whirlwind',
     name: 'Whirlwind',
-    manaCost: 35,
-    description: 'Spin in a lethal arc, striking all enemies in the front.',
+    manaCost: 1,
+    description: 'Spin in a lethal arc, striking all enemies in the front. Knocks back all surviving enemies.',
+    hasKnockback: true,
   },
   'arcane-bolt': {
     id: 'arcane-bolt',
     name: 'Arcane Bolt',
-    manaCost: 18,
+    manaCost: 1,
     description: 'Launch a bolt of raw arcane energy at a single target.',
   },
   'fire-blast': {
     id: 'fire-blast',
     name: 'Fire Blast',
-    manaCost: 32,
-    description: 'Unleash a wave of fire that scorches all enemies.',
+    manaCost: 1,
+    description: 'Unleash a wave of fire that scorches all enemies in the front row.',
   },
   'quick-stab': {
     id: 'quick-stab',
     name: 'Quick Stab',
-    manaCost: 16,
-    description: 'A swift precise strike that builds combo points.',
+    manaCost: 1,
+    description: 'A swift precise strike that builds combo points for a follow-up Eviscerate.',
   },
   eviscerate: {
     id: 'eviscerate',
     name: 'Eviscerate',
-    manaCost: 24,
-    description: 'Spend all combo points to deal massive burst damage.',
+    manaCost: 1,
+    description: 'Spend all combo points to deal massive burst damage. Requires at least 1 combo point.',
     requiresCombo: true,
   },
   'enforce-armor': {
     id: 'enforce-armor',
     name: 'Enforce Armor',
-    manaCost: 20,
+    manaCost: 1,
     description: 'Reinforce your armor with arcane energy, creating a damage-absorbing buffer before your health.',
     isBuff: true,
   },
