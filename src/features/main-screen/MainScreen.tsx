@@ -19,6 +19,7 @@ import {
   setStats,
   setUnspentStatPoints,
   setXP,
+  clearPendingLevelUpSkills,
 } from '../player/playerSlice';
 import { setAllInventory } from '../inventory/inventorySlice';
 import { ConsumableBelt } from '../inventory/ConsumableBelt';
@@ -42,9 +43,12 @@ import {
   getActiveSkillLoadout,
   getSkillLevel,
   getSkillRequirementSummary,
+  getAllLearnedSkills,
   readSkillLevelsFromCharacter,
   SKILLS,
+  SkillId,
 } from '../skills/skillCatalog';
+import { LevelUpSkillModal } from '../skills/LevelUpSkillModal';
 import {
   getCarryLoadSummary,
   getInventoryCapacities,
@@ -197,6 +201,7 @@ export const MainScreen = () => {
   const playerStats = useAppSelector((state) => state.player.stats as Record<string, any>);
   const playerEquipment = useAppSelector((state) => state.player.equipment as Record<string, any>);
   const unspentStatPoints = useAppSelector((state) => state.player.unspentStatPoints);
+  const pendingLevelUpSkills = useAppSelector((state) => state.player.pendingLevelUpSkills || null);
   const playerGold = useAppSelector((state) => state.player.gold || 0);
   const bagInventory = useAppSelector((state) => state.inventory.inventory as any[]);
   const consumableStash = useAppSelector((state) => state.inventory.consumableStash as any[]);
@@ -215,8 +220,8 @@ export const MainScreen = () => {
   const {
     startCombat,
     engagePlayerAttack,
-    attackCurrentTarget,
     performPlayerAttack,
+    performSkill,
     performPrimarySkill,
     performSecondarySkill,
     specialCooldownFrames,
@@ -256,10 +261,11 @@ export const MainScreen = () => {
       return;
     }
 
-    const previousPoints = previousUnspentPointsRef.current;
-    if (unspentStatPoints > 0 && unspentStatPoints > previousPoints) {
-      setShowStatPointsWindow(true);
-    }
+    // Stats system commented out — level up now grants skill choices instead
+    // const previousPoints = previousUnspentPointsRef.current;
+    // if (unspentStatPoints > 0 && unspentStatPoints > previousPoints) {
+    //   setShowStatPointsWindow(true);
+    // }
     previousUnspentPointsRef.current = unspentStatPoints;
   }, [menuMode, unspentStatPoints, clearFloorLootBags]);
 
@@ -1137,77 +1143,22 @@ export const MainScreen = () => {
     }).start();
   }, [menuMode, playerHealth, showDeathOverlay, deathOpacity, revivePending]);
 
-  const activeSkillLoadout = useMemo(
-    () => getActiveSkillLoadout(skillLevels, classArchetype),
-    [skillLevels, classArchetype]
-  );
-  const primarySkill = activeSkillLoadout.primary ? SKILLS[activeSkillLoadout.primary] : null;
-  const secondarySkill = activeSkillLoadout.secondary ? SKILLS[activeSkillLoadout.secondary] : null;
-  const primarySkillLevel = primarySkill ? getSkillLevel(skillLevels, primarySkill.id) : 0;
-  const secondarySkillLevel = secondarySkill ? getSkillLevel(skillLevels, secondarySkill.id) : 0;
-  const primarySkillMeetsStats = primarySkill ? doesMeetSkillRequirements(primarySkill, playerStats) : false;
-  const secondarySkillMeetsStats = secondarySkill ? doesMeetSkillRequirements(secondarySkill, playerStats) : false;
-  const primaryReqSummary = primarySkill ? getSkillRequirementSummary(primarySkill) : '';
-  const secondaryReqSummary = secondarySkill ? getSkillRequirementSummary(secondarySkill) : '';
+  const learnedSkills = useMemo(() => getAllLearnedSkills(skillLevels), [skillLevels]);
 
-  const skillHud = useMemo(() => {
-    const primaryLabelBase = primarySkill
-      ? `${primarySkill.name} Lv.${primarySkillLevel} [${primarySkill.manaCost}]`
-      : 'No Primary Skill';
-    const secondaryLabelBase = secondarySkill
-      ? `${secondarySkill.name} Lv.${secondarySkillLevel} [${secondarySkill.manaCost}]`
-      : 'No Secondary Skill';
-
-    const primaryNeedsCombo = !!primarySkill?.requiresCombo && comboPoints <= 0;
-    const secondaryNeedsCombo = !!secondarySkill?.requiresCombo && comboPoints <= 0;
-    const primaryDisabled =
-      !primarySkill ||
-      !primarySkillMeetsStats ||
-      mana < (primarySkill?.manaCost || 0) ||
-      primaryNeedsCombo;
-    const secondaryDisabled =
-      !secondarySkill ||
-      !secondarySkillMeetsStats ||
-      mana < (secondarySkill?.manaCost || 0) ||
-      secondaryNeedsCombo;
-
-    const primaryLabel =
-      primarySkill && !primarySkillMeetsStats && primaryReqSummary.length > 0
-        ? `${primaryLabelBase} (${primaryReqSummary})`
-        : primaryLabelBase;
-    const secondaryLabel =
-      secondarySkill && !secondarySkillMeetsStats && secondaryReqSummary.length > 0
-        ? `${secondaryLabelBase} (${secondaryReqSummary})`
-        : secondaryLabelBase;
-
-    return {
-      primaryLabel,
-      secondaryLabel,
-      primaryDisabled,
-      secondaryDisabled,
-    };
-  }, [
-    comboPoints,
-    mana,
-    primaryReqSummary,
-    primarySkillLevel,
-    primarySkill,
-    primarySkillMeetsStats,
-    secondaryReqSummary,
-    secondarySkillLevel,
-    secondarySkill,
-    secondarySkillMeetsStats,
-  ]);
-
-  const skillButtonsLocked = !inCombat || specialCooldownFrames > 0 || combatPhase !== 'player_turn';
-  const primaryResourceLocked = skillHud.primaryDisabled;
-  const secondaryResourceLocked = skillHud.secondaryDisabled;
-  const primaryDisabled = skillButtonsLocked || primaryResourceLocked;
-  const secondaryDisabled = skillButtonsLocked || secondaryResourceLocked;
-  const primaryText =
-    specialCooldownFrames > 0 ? `${skillHud.primaryLabel} (${specialCooldownFrames})` : skillHud.primaryLabel;
-  const secondaryText =
-    specialCooldownFrames > 0 ? `${skillHud.secondaryLabel} (${specialCooldownFrames})` : skillHud.secondaryLabel;
+  const learnedSkillsHud = useMemo(() => {
+    const skillButtonsLocked = !inCombat || specialCooldownFrames > 0 || combatPhase !== 'player_turn';
+    return learnedSkills.map((skill, index) => {
+      const level = getSkillLevel(skillLevels, skill.id);
+      const needsCombo = !!skill.requiresCombo && comboPoints <= 0;
+      const hasEnoughMana = mana >= skill.manaCost;
+      const isDisabled = skillButtonsLocked || !hasEnoughMana || needsCombo;
+      const label =
+        specialCooldownFrames > 0
+          ? `${skill.name} Lv.${level} [${skill.manaCost}] (${specialCooldownFrames})`
+          : `${skill.name} Lv.${level} [${skill.manaCost}]`;
+      return { skill, level, isDisabled, hasEnoughMana, needsCombo, label, hotkey: ['Q', 'E', 'R', 'F'][index] ?? '' };
+    });
+  }, [learnedSkills, skillLevels, inCombat, specialCooldownFrames, combatPhase, comboPoints, mana]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || menuMode !== 'game') return;
@@ -1255,13 +1206,25 @@ export const MainScreen = () => {
 
       if (key === 'q') {
         event.preventDefault();
-        performPrimarySkill(activeSkillLoadout.primary);
+        if (learnedSkillsHud[0]) performSkill(learnedSkillsHud[0].skill.id);
         return;
       }
 
       if (key === 'e') {
         event.preventDefault();
-        performSecondarySkill(activeSkillLoadout.secondary);
+        if (learnedSkillsHud[1]) performSkill(learnedSkillsHud[1].skill.id);
+        return;
+      }
+
+      if (key === 'r') {
+        event.preventDefault();
+        if (learnedSkillsHud[2]) performSkill(learnedSkillsHud[2].skill.id);
+        return;
+      }
+
+      if (key === 'f') {
+        event.preventDefault();
+        if (learnedSkillsHud[3]) performSkill(learnedSkillsHud[3].skill.id);
         return;
       }
 
@@ -1286,7 +1249,7 @@ export const MainScreen = () => {
         }
 
         if (combatPhase === 'player_turn') {
-          attackCurrentTarget();
+          // Standard attack removed — spacebar no longer auto-attacks; use skill buttons (Q/E/R/F)
         }
       }
     };
@@ -1305,12 +1268,9 @@ export const MainScreen = () => {
     showTalentsWindow,
     openMerchantMenu,
     startCombat,
-    attackCurrentTarget,
     engagePlayerAttack,
-    performPrimarySkill,
-    performSecondarySkill,
-    activeSkillLoadout.primary,
-    activeSkillLoadout.secondary,
+    performSkill,
+    learnedSkillsHud,
   ]);
 
   useEffect(() => {
@@ -1564,13 +1524,9 @@ export const MainScreen = () => {
               {inCombat && (
                 <View style={styles.turnIndicatorRow}>
                   {combatPhase === 'player_turn' ? (
-                    <TouchableOpacity
-                      testID="attack-button"
-                      style={styles.attackButton}
-                      onPress={attackCurrentTarget}
-                    >
-                      <Text style={styles.attackButtonText}>⚔ ATTACK</Text>
-                    </TouchableOpacity>
+                    <View style={styles.playerTurnIndicator}>
+                      <Text style={styles.playerTurnText}>YOUR TURN</Text>
+                    </View>
                   ) : (
                     <View style={styles.enemyTurnIndicator}>
                       <Text style={styles.enemyTurnText}>ENEMY TURN...</Text>
@@ -1579,38 +1535,36 @@ export const MainScreen = () => {
                 </View>
               )}
               <View style={styles.skillBar}>
+                {learnedSkillsHud.length === 0 ? (
+                  <View style={styles.noSkillsMsg}>
+                    <Text style={styles.skillButtonText}>No skills learned</Text>
+                  </View>
+                ) : (
+                  learnedSkillsHud.map((item) => (
+                    <TouchableOpacity
+                      key={item.skill.id}
+                      testID={`skill-button-${item.skill.id}`}
+                      style={[
+                        styles.skillButton,
+                        item.isDisabled && styles.skillButtonDisabled,
+                        !item.hasEnoughMana && styles.skillButtonFaded,
+                        item.skill.isBuff && styles.skillButtonBuff,
+                      ]}
+                      onPress={() => performSkill(item.skill.id)}
+                      disabled={item.isDisabled}
+                    >
+                      <Text style={styles.skillButtonText}>
+                        {item.hotkey ? `[${item.hotkey}] ` : ''}{item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
                 <TouchableOpacity
-                  testID="skill-primary-button"
-                  style={[
-                    styles.skillButton,
-                    primaryDisabled && styles.skillButtonDisabled,
-                    primaryResourceLocked && styles.skillButtonFaded,
-                  ]}
-                  onPress={() => performPrimarySkill(activeSkillLoadout.primary)}
-                  disabled={primaryDisabled}
+                  testID="skill-talents-button"
+                  style={styles.skillButtonMeta}
+                  onPress={toggleTalentsWindow}
                 >
-                  <Text style={styles.skillButtonText}>{primaryText}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="skill-secondary-button"
-                  style={[
-                    styles.skillButtonSecondary,
-                    secondaryDisabled && styles.skillButtonDisabled,
-                    secondaryResourceLocked && styles.skillButtonFaded,
-                  ]}
-                  onPress={() => performSecondarySkill(activeSkillLoadout.secondary)}
-                  disabled={secondaryDisabled}
-                >
-                  <Text style={styles.skillButtonText}>{secondaryText}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="skill-stats-button"
-                  style={[styles.skillButtonMeta, unspentStatPoints > 0 && styles.skillButtonMetaReady]}
-                  onPress={toggleStatsWindow}
-                >
-                  <Text style={styles.skillButtonText}>
-                    Stats {unspentStatPoints > 0 ? `[${unspentStatPoints}]` : ''}
-                  </Text>
+                  <Text style={styles.skillButtonText}>Skills [T]</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1630,8 +1584,8 @@ export const MainScreen = () => {
         key={`player-${sessionSeed}`}
         classLabel={classLabel}
       />
-      <StatPointsWindow
-        visible={showStatPointsWindow}
+      {/* Stats allocation window commented out — level up now grants skill choices */}
+      {/* <StatPointsWindow
         classArchetype={classArchetype}
         level={playerLevel}
         experience={playerXP}
@@ -1641,6 +1595,25 @@ export const MainScreen = () => {
         unspentStatPoints={unspentStatPoints}
         onClose={() => setShowStatPointsWindow(false)}
         onApplyAllocations={applyStatPointAllocations}
+      /> */}
+      <LevelUpSkillModal
+        visible={!!pendingLevelUpSkills && pendingLevelUpSkills.length > 0}
+        offers={pendingLevelUpSkills ?? []}
+        skillLevels={skillLevels}
+        onSelectSkill={async (offer) => {
+          const nextLevels = { ...skillLevels, [offer.skillId]: offer.newLevel };
+          dispatch(setSkillLevels(nextLevels));
+          dispatch(clearPendingLevelUpSkills());
+          // Persist to storage
+          try {
+            const storedData = await AsyncStorage.getItem('characters');
+            const obj = storedData ? JSON.parse(storedData) : {};
+            if (obj?.character) {
+              obj.character.skills = { ...(obj.character.skills || {}), [offer.skillId]: offer.newLevel };
+              await AsyncStorage.setItem('characters', JSON.stringify(obj));
+            }
+          } catch (_) {}
+        }}
       />
       <SkillTalentsWindow
         visible={showTalentsWindow}
@@ -1896,6 +1869,20 @@ const styles = StyleSheet.create({
     fontSize: 9,
     textAlign: 'center',
   },
+  playerTurnIndicator: {
+    backgroundColor: '#0f2a1a',
+    borderWidth: 2,
+    borderColor: '#3dba6f',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  playerTurnText: {
+    color: '#7dffb0',
+    fontFamily: RETRO_FONT,
+    fontSize: 9,
+    textAlign: 'center',
+  },
   enemyTurnIndicator: {
     backgroundColor: '#1a1a1a',
     borderWidth: 2,
@@ -1932,6 +1919,15 @@ const styles = StyleSheet.create({
     borderColor: '#d7d7d7',
     paddingVertical: 6,
     paddingHorizontal: 8,
+  },
+  skillButtonBuff: {
+    backgroundColor: '#131c28',
+    borderColor: '#60a5fa',
+  },
+  noSkillsMsg: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    opacity: 0.5,
   },
   skillButtonMeta: {
     backgroundColor: '#2a2a2a',

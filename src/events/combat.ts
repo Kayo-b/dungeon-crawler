@@ -13,10 +13,13 @@ import {
   setHealth,
   setLevel,
   setStats,
-  setUnspentStatPoints,
+  // setUnspentStatPoints, // stats system commented out — level up grants skills instead
   restoreMana,
   spendMana,
   XP,
+  addArmorBuffer,
+  clearArmorBuffer,
+  setPendingLevelUpSkills,
 } from './../features/player/playerSlice';
 import { Direction } from '../types/map';
 import {
@@ -37,9 +40,8 @@ import itemData from '../data/items.json';
 import {
   SkillId,
   SKILLS,
-  doesMeetSkillRequirements,
   getSkillLevel,
-  getSkillRequirementSummary,
+  getLevelUpSkillOptions,
 } from '../features/skills/skillCatalog';
 
 interface LootObject {
@@ -491,15 +493,12 @@ export const useCombat = () => {
   const canUseSkillByRequirements = (skillId: SkillId | null | undefined): { ok: boolean; reason?: string } => {
     const skill = getSkillById(skillId);
     if (!skill) {
-      return { ok: false, reason: 'No skill equipped for this slot.' };
+      return { ok: false, reason: 'No skill trained for this slot.' };
     }
     if (getTrainedSkillLevel(skill.id) <= 0) {
       return { ok: false, reason: `${skill.name} is not trained yet.` };
     }
-    if (!doesMeetSkillRequirements(skill, playerStats)) {
-      const requirementText = getSkillRequirementSummary(skill);
-      return { ok: false, reason: `Need ${requirementText} for ${skill.name}.` };
-    }
+    // Stat requirements removed — only mana and combo are checked
     if (mana < skill.manaCost) {
       return { ok: false, reason: `Need ${skill.manaCost} mana for ${skill.name}.` };
     }
@@ -595,6 +594,9 @@ export const useCombat = () => {
 
       dispatch(resetComboPoints());
 
+      // Clear armor buffer at end of combat
+      dispatch(clearArmorBuffer());
+
       const data = await AsyncStorage.getItem('characters');
       const obj = data ? JSON.parse(data) : {};
       if (!obj?.character) {
@@ -637,17 +639,25 @@ export const useCombat = () => {
           Number(obj.character.stats.health || 0) + passiveHpGain
         );
 
-        obj.character.unspentStatPoints += levelsGained * STAT_POINTS_PER_LEVEL;
+        // Stats system commented out — level up grants skill choices instead
+        // obj.character.unspentStatPoints += levelsGained * STAT_POINTS_PER_LEVEL;
         dispatch(setLevel(obj.character.level));
         dispatch(setStats(obj.character.stats));
         dispatch(setHealth(obj.character.stats.health));
         dispatch(restoreMana(passiveManaGain));
-        dispatch(setUnspentStatPoints(obj.character.unspentStatPoints));
+        // dispatch(setUnspentStatPoints(obj.character.unspentStatPoints));
         dispatch(
           setCombatLog(
-            `Level up! +${levelsGained * STAT_POINTS_PER_LEVEL} stat points, +${formatPassiveGain(passiveHpGain)} HP, +${formatPassiveGain(passiveManaGain)} Mana, +${formatPassiveGain(passiveStaminaGain)} Stamina.`
+            `Level up! +${formatPassiveGain(passiveHpGain)} HP, +${formatPassiveGain(passiveManaGain)} Mana, +${formatPassiveGain(passiveStaminaGain)} Stamina. Choose a skill!`
           )
         );
+
+        // Offer 3 random skill choices (one per level gained, capped at one popup)
+        const currentSkillLevels = store.getState().player.skillLevels || {};
+        const skillOptions = getLevelUpSkillOptions(currentSkillLevels, 3);
+        if (skillOptions.length > 0) {
+          dispatch(setPendingLevelUpSkills(skillOptions));
+        }
       }
 
       await AsyncStorage.setItem('characters', JSON.stringify(obj));
@@ -811,12 +821,12 @@ export const useCombat = () => {
     beginEnemyTurn();
   };
 
-  const performSkill = (skillId: SkillId | null | undefined, slot: 'primary' | 'secondary') => {
+  const performSkill = (skillId: SkillId | null | undefined) => {
     if (!canUseSkillNow()) return;
 
     const skill = getSkillById(skillId);
     if (!skill) {
-      dispatch(setCombatLog(`No ${slot} skill trained.`));
+      dispatch(setCombatLog('No skill trained.'));
       return;
     }
 
@@ -827,6 +837,16 @@ export const useCombat = () => {
     }
     const skillRank = Math.max(1, getTrainedSkillLevel(skill.id));
     const levelMultiplier = 1 + (skillRank - 1) * 0.24;
+
+    if (skill.id === 'enforce-armor') {
+      dispatch(spendMana(skill.manaCost));
+      const bufferAmount = Math.floor((15 + (playerStats?.vitality || 0) * 1.2) * levelMultiplier);
+      dispatch(addArmorBuffer(bufferAmount));
+      dispatch(setCombatLog(`Enforce Armor Lv.${skillRank} adds ${bufferAmount} armor buffer.`));
+      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
+      beginEnemyTurn();
+      return;
+    }
 
     if (skill.id === 'whirlwind') {
       const targets = aliveEnemyIds(true);
@@ -927,11 +947,11 @@ export const useCombat = () => {
   };
 
   const performPrimarySkill = (skillId?: SkillId | null) => {
-    performSkill(skillId, 'primary');
+    performSkill(skillId);
   };
 
   const performSecondarySkill = (skillId?: SkillId | null) => {
-    performSkill(skillId, 'secondary');
+    performSkill(skillId);
   };
 
   const startCombat = (id: number) => {
@@ -1071,8 +1091,9 @@ export const useCombat = () => {
   return {
     startCombat,
     engagePlayerAttack,
-    attackCurrentTarget,
+    // attackCurrentTarget removed — combat is now skill-only
     performPlayerAttack,
+    performSkill,
     performPrimarySkill,
     performSecondarySkill,
     specialCooldownFrames,

@@ -164,7 +164,16 @@ export const buildCharacterFromArchetype = (archetypeId: ArchetypeId, characterN
   cloned.character.xptolvlup = 16;
   cloned.character.unspentStatPoints = 0;
   cloned.character.gold = 0;
-  cloned.character.skills = {};
+
+  // Each class starts with one appropriate skill scroll
+  const startingSkillByClass: Record<string, string> = {
+    warrior: 'crushing-blow',
+    caster: 'arcane-bolt',
+    ranger: 'quick-stab',
+  };
+  const startingSkill = startingSkillByClass[archetype.id] || 'crushing-blow';
+  cloned.character.skills = { [startingSkill]: 1 };
+
   cloned.character.stats = { ...archetype.stats };
   const startingInventory: Array<{
     ID: number;

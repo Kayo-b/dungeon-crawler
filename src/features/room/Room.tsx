@@ -6,6 +6,7 @@ import { Enemy } from '../enemy/Enemy';
 import { fetchEnemies, setCurrentEnemy } from '../../features/enemy/enemySlice';
 import { changeDir, setHorzRes, setVertRes , setCurrentPos, setCurrentArrPos, invertInitialDirection, setLastTurnDir, setInitialDirection, loadMap, loadMapConfig, resetPosition } from '../../features/room/roomSlice';
 import { dmg2Player, regenResourcesOnTile } from '../player/playerSlice';
+import Svg, { Path } from 'react-native-svg';
 import { getMapConfig, getMapList, MapInfo } from '../../data/maps';
 import { ImageSourcePropType } from 'react-native';
 import { ReactNode, useCallback, useDebugValue, useEffect, useMemo, useRef, useState } from 'react';
@@ -171,6 +172,7 @@ export const Room = ({
     const playerHealth = useAppSelector(state => state.player.health);
     const playerMana = useAppSelector(state => state.player.mana);
     const playerMaxMana = useAppSelector(state => state.player.maxMana);
+    const armorBuffer = useAppSelector(state => (state.player as any).armorBuffer ?? 0);
     const playerStats = useAppSelector(state => state.player.stats as Record<string, any>);
     const playerEquipment = useAppSelector(state => state.player.equipment as Record<string, any>);
     const playerLevel = useAppSelector(state => state.player.level);
@@ -3287,6 +3289,19 @@ const turn = (turnDir:string) => {
                 </View>
             ) : null}
             <View pointerEvents="none" style={styles.bottomResourceBars}>
+                {armorBuffer > 0 && (
+                    <View style={styles.armorBufferRow}>
+                        <Svg width={14} height={14} viewBox="0 0 24 24">
+                            <Path
+                                d="M12 3L19 6V12C19 16 16 19 12 21C8 19 5 16 5 12V6L12 3Z"
+                                fill="#60a5fa"
+                                stroke="#111827"
+                                strokeWidth="1.5"
+                            />
+                        </Svg>
+                        <Text style={styles.armorBufferText}>{armorBuffer}</Text>
+                    </View>
+                )}
                 <View style={styles.resourceTrack}>
                     <View style={[styles.healthBarFill, { width: `${healthPct * 100}%` }]} />
                 </View>
@@ -3460,6 +3475,19 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 2,
         zIndex: 320,
+    },
+    armorBufferRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        paddingLeft: 4,
+        paddingBottom: 2,
+    },
+    armorBufferText: {
+        color: '#60a5fa',
+        fontSize: 9,
+        fontFamily: RETRO_FONT,
+        fontWeight: '700',
     },
     resourceTrack: {
         width: '100%',

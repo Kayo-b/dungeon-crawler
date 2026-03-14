@@ -1,9 +1,8 @@
+import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
-  doesMeetSkillRequirements,
-  getActiveSkillLoadout,
+  getAllLearnedSkills,
   getSkillLevel,
-  getSkillRequirementSummary,
   SKILL_IDS,
   SKILLS,
   SkillDefinition,
@@ -20,15 +19,9 @@ interface SkillTalentsWindowProps {
 
 const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
 
-const sortBySlot = (slot: 'primary' | 'secondary') => {
-  return SKILL_IDS.map((skillId) => SKILLS[skillId]).filter((skill) => skill.slot === slot);
-};
-
-const renderSkillLine = (skill: SkillDefinition, skillLevels: SkillLevels, playerStats: Record<string, any>) => {
+const renderSkillLine = (skill: SkillDefinition, skillLevels: SkillLevels) => {
   const level = getSkillLevel(skillLevels, skill.id);
   const trained = level > 0;
-  const meetsStats = doesMeetSkillRequirements(skill, playerStats);
-  const req = getSkillRequirementSummary(skill);
 
   return (
     <View key={skill.id} style={styles.skillRow}>
@@ -36,12 +29,10 @@ const renderSkillLine = (skill: SkillDefinition, skillLevels: SkillLevels, playe
         <Text style={styles.skillName}>{skill.name}</Text>
         <Text style={trained ? styles.skillLevel : styles.skillLevelLocked}>{trained ? `Lv.${level}` : 'Untrained'}</Text>
       </View>
-      <Text style={styles.skillMeta}>Mana {skill.manaCost}</Text>
-      <Text style={styles.skillMeta}>{req ? `Req: ${req}` : 'Req: None'}</Text>
-      {!meetsStats ? <Text style={styles.skillWarn}>Stats too low</Text> : null}
-      <Text style={styles.skillMeta}>
-        Next upgrade: use a tome with level {Math.max(1, level + 1)}+
-      </Text>
+      <Text style={styles.skillMeta}>Mana: {skill.manaCost}</Text>
+      {skill.isBuff && <Text style={styles.skillTag}>BUFF</Text>}
+      {skill.requiresCombo && <Text style={styles.skillTag}>Requires combo points</Text>}
+      <Text style={styles.skillDesc}>{skill.description}</Text>
     </View>
   );
 };
@@ -55,33 +46,35 @@ export const SkillTalentsWindow: React.FC<SkillTalentsWindowProps> = ({
 }) => {
   if (!visible) return null;
 
-  const active = getActiveSkillLoadout(skillLevels, classArchetype);
-  const primarySkills = sortBySlot('primary');
-  const secondarySkills = sortBySlot('secondary');
+  const learnedSkills = getAllLearnedSkills(skillLevels);
+  const allSkills = SKILL_IDS.map((id) => SKILLS[id]);
 
   return (
     <View style={styles.overlay} pointerEvents="box-none">
       <View style={styles.window}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Talent Tree</Text>
+          <Text style={styles.title}>Skills</Text>
           <Pressable onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>Close</Text>
           </Pressable>
         </View>
 
         <Text style={styles.subTitle}>
-          Active: {active.primary ? SKILLS[active.primary].name : 'None'} /{' '}
-          {active.secondary ? SKILLS[active.secondary].name : 'None'}
+          Learned: {learnedSkills.length} / {allSkills.length} — New skills unlocked on level up
         </Text>
 
         <View style={styles.columns}>
           <View style={styles.column}>
-            <Text style={styles.columnTitle}>Primary Skills</Text>
-            {primarySkills.map((skill) => renderSkillLine(skill, skillLevels, playerStats))}
+            <Text style={styles.columnTitle}>Learned Skills</Text>
+            {learnedSkills.length === 0
+              ? <Text style={styles.skillMeta}>None yet</Text>
+              : learnedSkills.map((skill) => renderSkillLine(skill, skillLevels))}
           </View>
           <View style={styles.column}>
-            <Text style={styles.columnTitle}>Secondary Skills</Text>
-            {secondarySkills.map((skill) => renderSkillLine(skill, skillLevels, playerStats))}
+            <Text style={styles.columnTitle}>Available to Learn</Text>
+            {allSkills
+              .filter((skill) => getSkillLevel(skillLevels, skill.id) === 0)
+              .map((skill) => renderSkillLine(skill, skillLevels))}
           </View>
         </View>
       </View>
@@ -191,9 +184,19 @@ const styles = StyleSheet.create({
     fontFamily: RETRO_FONT,
     fontSize: 7,
   },
-  skillWarn: {
+  skillDesc: {
+    color: '#999999',
+    fontFamily: RETRO_FONT,
+    fontSize: 7,
+    fontStyle: 'italic',
+  },
+  skillTag: {
     color: '#ffb288',
     fontFamily: RETRO_FONT,
     fontSize: 7,
+    borderWidth: 1,
+    borderColor: '#ffb288',
+    paddingHorizontal: 3,
+    alignSelf: 'flex-start',
   },
 });
