@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { store } from './../app/store';
 import { dmg2Enemy, setCurrentEnemy } from './../features/enemy/enemySlice';
-import { isEnemyCombatReachable, isEnemyOccludedByCloserEnemy } from './../features/enemy/enemyPerception';
+import { isEnemyCombatReachable, isEnemyOccludedByCloserEnemy, getEnemySizeCategory } from './../features/enemy/enemyPerception';
 import {
   addComboPoint,
   consumeAllComboPoints,
@@ -24,8 +24,13 @@ import {
   registerPlayerHit,
   setEnemyCount,
   setInCombat,
+  setCombatPhase,
   setSpecialCooldown,
   tickSpecialCooldown,
+  setEnemyLayers,
+  advanceFrontLayerRedux,
+  clearJustAdvanced,
+  clearEnemyLayers,
 } from './combatSlice';
 import { computeDerivedPlayerStats, getClassProgressionProfile } from '../features/player/playerStats';
 import itemData from '../data/items.json';
@@ -111,16 +116,14 @@ export const useCombat = () => {
 
   const combatRef = useRef(false);
   const combatEndingRef = useRef(false);
-  const playerCombatIntRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const enemyCombatIntRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const secEnemyIntervalsRef = useRef<ReturnType<typeof setInterval>[]>([]);
   const cooldownTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const enemyTurnTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const combatPhaseRef = useRef<'idle' | 'player_turn' | 'enemy_turn'>('idle');
 
   const enemyHealthRef = useRef<{ [key: number]: number }>({});
   const processedEnemyIdsRef = useRef<Set<number>>(new Set());
   const pendingEnemyLootRef = useRef<Array<{ mapId: string; x: number; y: number; item: any }>>([]);
   const playerHealthRef = useRef(playerHealth);
-  const playerAttackArmedRef = useRef(false);
   const combatViewRef = useRef({
     x: playerPosX,
     y: playerPosY,
@@ -128,6 +131,12 @@ export const useCombat = () => {
     playerClass,
     mapId: currentMapId,
   });
+
+  // Wave layer refs — source of truth during live combat (Redux is synced for UI)
+  const frontLayerRef = useRef<number[]>([]);
+  const midLayerRef = useRef<number[]>([]);
+  const backLayerRef = useRef<number[]>([]);
+  const justAdvancedIdsRef = useRef<Set<number>>(new Set());
   const [floorLootBags, setFloorLootBags] = useState<FloorLootBag[]>([]);
   const [activeLootBagId, setActiveLootBagId] = useState<string | null>(null);
   const pendingLootItems = useMemo(() => {
@@ -171,20 +180,48 @@ export const useCombat = () => {
   }, [enemies]);
 
   const clearAllIntervals = () => {
-    if (playerCombatIntRef.current) {
-      clearInterval(playerCombatIntRef.current);
-      playerCombatIntRef.current = null;
-    }
-    if (enemyCombatIntRef.current) {
-      clearInterval(enemyCombatIntRef.current);
-      enemyCombatIntRef.current = null;
-    }
     if (cooldownTickRef.current) {
       clearInterval(cooldownTickRef.current);
       cooldownTickRef.current = null;
     }
-    secEnemyIntervalsRef.current.forEach((interval) => clearInterval(interval));
-    secEnemyIntervalsRef.current = [];
+    enemyTurnTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    enemyTurnTimeoutsRef.current = [];
+  };
+
+  // When a front-layer enemy dies, advance one enemy from mid → front and one from back → mid.
+  // The newly-fronted enemy is recorded in justAdvancedIds and cannot attack this same round.
+  const advanceLayersAfterDeath = (deadEnemyId: number) => {
+    frontLayerRef.current = frontLayerRef.current.filter((id) => id !== deadEnemyId);
+
+    // Purge any dead enemies from mid/back (e.g. killed by cleave) before advancing
+    midLayerRef.current = midLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
+    backLayerRef.current = backLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
+
+    if (midLayerRef.current.length > 0) {
+      const [advancing, ...restMid] = midLayerRef.current;
+      frontLayerRef.current.push(advancing);
+      justAdvancedIdsRef.current.add(advancing);
+      midLayerRef.current = restMid;
+
+      if (backLayerRef.current.length > 0) {
+        const [advancingBack, ...restBack] = backLayerRef.current;
+        midLayerRef.current.push(advancingBack);
+        backLayerRef.current = restBack;
+      }
+
+      dispatch(
+        advanceFrontLayerRedux({
+          front: frontLayerRef.current,
+          mid: midLayerRef.current,
+          back: backLayerRef.current,
+          justAdvancedIds: [...justAdvancedIdsRef.current],
+        })
+      );
+
+      const advancedEnemy = enemiesRef.current[advancing];
+      const name = advancedEnemy?.info?.name || 'An enemy';
+      dispatch(setCombatLog(`${name} advances from the ranks!`));
+    }
   };
 
   const startCooldownTicker = () => {
@@ -208,6 +245,11 @@ export const useCombat = () => {
     const enemy = enemiesRef.current[enemyId];
     if (!enemy || enemy.health <= 0) return false;
     if (!isHostileEnemy(enemy)) return false;
+
+    // Only front-layer enemies can be attacked or attack the player
+    if (frontLayerRef.current.length > 0 && !frontLayerRef.current.includes(enemyId)) {
+      return false;
+    }
 
     const { x, y, facing, playerClass: currentClass } = combatViewRef.current;
     const enemiesForLane = enemiesRef.current.map((entry, index) => {
@@ -475,8 +517,14 @@ export const useCombat = () => {
 
   const applyDamageToEnemy = (enemyId: number, dmg: number, crit: boolean, hitType: HitVariant) => {
     dispatch(dmg2Enemy({ id: enemyId, damage: { dmg, crit } }));
-    enemyHealthRef.current[enemyId] = (enemyHealthRef.current[enemyId] ?? 0) - dmg;
+    const newHealth = (enemyHealthRef.current[enemyId] ?? 0) - dmg;
+    enemyHealthRef.current[enemyId] = newHealth;
     dispatch(registerPlayerHit({ enemyId, hitType }));
+
+    // If a front-layer enemy just died, advance the next wave rank immediately
+    if (newHealth <= 0 && frontLayerRef.current.includes(enemyId)) {
+      advanceLayersAfterDeath(enemyId);
+    }
   };
 
   const applyWeaponCleave = (targetId: number, baseDamage: number) => {
@@ -535,8 +583,15 @@ export const useCombat = () => {
 
     try {
       combatRef.current = false;
-      playerAttackArmedRef.current = false;
+      combatPhaseRef.current = 'idle';
       clearAllIntervals();
+
+      // Clear wave layer state
+      frontLayerRef.current = [];
+      midLayerRef.current = [];
+      backLayerRef.current = [];
+      justAdvancedIdsRef.current.clear();
+      dispatch(clearEnemyLayers());
 
       dispatch(resetComboPoints());
 
@@ -626,25 +681,134 @@ export const useCombat = () => {
 
   const canUseSkillNow = () => {
     if (!combatRef.current || !inCombat) return false;
+    if (combatPhaseRef.current !== 'player_turn') return false;
     if (specialCooldownFrames > 0) return false;
     return true;
   };
 
-  const beginPlayerAttackIfNeeded = (targetId: number) => {
-    if (playerAttackArmedRef.current) {
+  const beginPlayerTurn = () => {
+    if (!combatRef.current) return;
+    combatPhaseRef.current = 'player_turn';
+    dispatch(setCombatPhase('player_turn'));
+    dispatch(setSpecialCooldown(0));
+    // Clear the just-advanced block so promoted enemies can attack this coming enemy turn
+    justAdvancedIdsRef.current.clear();
+    dispatch(clearJustAdvanced());
+  };
+
+  const ENEMY_ATTACK_DELAY_MS = 750;
+
+  const beginEnemyTurn = () => {
+    if (!combatRef.current) return;
+
+    combatPhaseRef.current = 'enemy_turn';
+    dispatch(setCombatPhase('enemy_turn'));
+
+    // Enemies that advanced this round are not ready to attack yet
+    const attackingEnemies = aliveEnemyIds(true).filter(
+      (id) => !justAdvancedIdsRef.current.has(id)
+    );
+
+    if (attackingEnemies.length === 0) {
+      // No attackers this round, but there may still be live enemies (just advanced)
+      const stillAlive = aliveEnemyIds(true);
+      if (stillAlive.length === 0) {
+        endCombat({ flushLoot: true });
+      } else {
+        beginPlayerTurn();
+        dispatch(setCombatLog('Your turn.'));
+      }
       return;
     }
 
-    playerAttackArmedRef.current = true;
+    attackingEnemies.forEach((enemyId, index) => {
+      const t = setTimeout(() => {
+        if (!combatRef.current) return;
+        const currentHp = enemyHealthRef.current[enemyId] ?? 0;
+        if (currentHp > 0) {
+          applyEnemyAttackToPlayer(enemyId);
+        }
+      }, index * ENEMY_ATTACK_DELAY_MS);
+      enemyTurnTimeoutsRef.current.push(t);
+    });
+
+    const returnToPlayerTurn = setTimeout(() => {
+      if (!combatRef.current) return;
+      if (playerHealthRef.current <= 0) {
+        endCombat();
+        return;
+      }
+      queueAllDefeatedEnemyRewards();
+      const stillAlive = aliveEnemyIds(true);
+      if (stillAlive.length === 0) {
+        endCombat({ flushLoot: true });
+        return;
+      }
+      beginPlayerTurn();
+      dispatch(setCombatLog('Your turn.'));
+    }, attackingEnemies.length * ENEMY_ATTACK_DELAY_MS + 300);
+    enemyTurnTimeoutsRef.current.push(returnToPlayerTurn);
+  };
+
+  const performPlayerAttack = (targetId: number) => {
+    if (!combatRef.current || combatPhaseRef.current !== 'player_turn') return;
+    if (playerHealthRef.current <= 0) return;
+
     dispatch(setCurrentEnemy(targetId));
 
-    if (playerCombatIntRef.current) {
-      clearInterval(playerCombatIntRef.current);
-      playerCombatIntRef.current = null;
+    queueAllDefeatedEnemyRewards();
+    const currentEnemyHealth = enemyHealthRef.current[targetId] ?? 0;
+
+    let actualTargetId = targetId;
+    if (currentEnemyHealth <= 0) {
+      const next = findNextLivingEnemy(targetId);
+      if (next === null) {
+        endCombat({ flushLoot: true });
+        return;
+      }
+      actualTargetId = next;
+      dispatch(setCurrentEnemy(actualTargetId));
     }
 
-    playerLoop(targetId);
-    dispatch(setCombatLog('You counterattack with a skill.'));
+    if (!isEnemyReachableNow(actualTargetId)) {
+      const next = findNextLivingEnemy(actualTargetId);
+      if (next === null) {
+        endCombat({ flushLoot: true });
+        return;
+      }
+      actualTargetId = next;
+      dispatch(setCurrentEnemy(actualTargetId));
+    }
+
+    const targetEnemy = enemiesRef.current[actualTargetId];
+    if (!targetEnemy) return;
+
+    const enemyDR = targetEnemy.defence;
+    const enemyLVL = targetEnemy.level;
+    const playerHR = hitRate(playerAR, enemyDR, playerLVL, enemyLVL);
+    const randomVal = Math.random();
+    const randomAddDmg = Math.floor(Math.random() * 2);
+    const randomCritVal = Math.random();
+
+    if (randomVal <= playerHR) {
+      let dmg = playerDmg + randomAddDmg;
+      const isCrit = randomCritVal <= baseCrit;
+      if (isCrit) dmg *= 2;
+      const hitType = getClassHitFx();
+      applyDamageToEnemy(actualTargetId, dmg, isCrit, hitType);
+      applyWeaponCleave(actualTargetId, dmg);
+    } else {
+      dispatch(dmg2Enemy({ id: actualTargetId, damage: { dmg: 0, crit: false } }));
+    }
+
+    queueAllDefeatedEnemyRewards();
+    const stillAlive = aliveEnemyIds(true);
+    if (stillAlive.length === 0) {
+      endCombat({ flushLoot: true });
+      return;
+    }
+
+    beginEnemyTurn();
   };
 
   const performSkill = (skillId: SkillId | null | undefined, slot: 'primary' | 'secondary') => {
@@ -668,15 +832,16 @@ export const useCombat = () => {
       const targets = aliveEnemyIds(true);
       if (targets.length <= 0) return;
 
-      beginPlayerAttackIfNeeded(targets[0]);
       dispatch(spendMana(skill.manaCost));
       const damage = Math.max(
         3,
         Math.floor((playerDmg * 1.35 + (playerStats?.strength || 0) * 0.22) * levelMultiplier)
       );
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'slash'));
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
       dispatch(setCombatLog(`Whirlwind Lv.${skillRank} hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
+      queueAllDefeatedEnemyRewards();
+      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      beginEnemyTurn();
       return;
     }
 
@@ -684,21 +849,21 @@ export const useCombat = () => {
       const targets = aliveEnemyIds(true);
       if (targets.length <= 0) return;
 
-      beginPlayerAttackIfNeeded(targets[0]);
       dispatch(spendMana(skill.manaCost));
       const damage = Math.max(
         3,
         Math.floor((playerDmg * 1.2 + (playerStats?.intelligence || 0) * 0.65) * levelMultiplier)
       );
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'fire'));
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
       dispatch(setCombatLog(`Fire Blast Lv.${skillRank} scorches ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
+      queueAllDefeatedEnemyRewards();
+      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      beginEnemyTurn();
       return;
     }
 
     const targetId = getPrimaryTarget();
     if (targetId === null) return;
-    beginPlayerAttackIfNeeded(targetId);
     dispatch(spendMana(skill.manaCost));
 
     if (skill.id === 'crushing-blow') {
@@ -707,8 +872,10 @@ export const useCombat = () => {
         Math.floor((playerDmg * 2.2 + (playerStats?.strength || 0) * 0.35) * levelMultiplier)
       );
       applyDamageToEnemy(targetId, damage, false, 'crush');
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
       dispatch(setCombatLog(`Crushing Blow Lv.${skillRank} lands a heavy hit.`));
+      queueAllDefeatedEnemyRewards();
+      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      beginEnemyTurn();
       return;
     }
 
@@ -718,8 +885,10 @@ export const useCombat = () => {
         Math.floor((playerDmg * 1.6 + (playerStats?.intelligence || 0) * 0.9) * levelMultiplier)
       );
       applyDamageToEnemy(targetId, damage, false, 'fire');
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
       dispatch(setCombatLog(`Arcane Bolt Lv.${skillRank} burns the target.`));
+      queueAllDefeatedEnemyRewards();
+      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      beginEnemyTurn();
       return;
     }
 
@@ -730,8 +899,10 @@ export const useCombat = () => {
         Math.floor((playerDmg * 0.78 + (playerStats?.dexterity || 0) * 0.2) * levelMultiplier)
       );
       applyDamageToEnemy(targetId, damage, false, 'slash');
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
       dispatch(setCombatLog(`Quick Stab Lv.${skillRank} builds combo points.`));
+      queueAllDefeatedEnemyRewards();
+      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      beginEnemyTurn();
       return;
     }
 
@@ -744,12 +915,14 @@ export const useCombat = () => {
         Math.floor(playerDmg * comboMultiplier + (playerStats?.dexterity || 0) * 0.35 * spentCombo)
       );
       applyDamageToEnemy(targetId, damage, false, 'mutilate');
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
       dispatch(
         setCombatLog(
           `Eviscerate Lv.${skillRank} consumes ${spentCombo} combo point${spentCombo > 1 ? 's' : ''}.`
         )
       );
+      queueAllDefeatedEnemyRewards();
+      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      beginEnemyTurn();
     }
   };
 
@@ -759,217 +932,6 @@ export const useCombat = () => {
 
   const performSecondarySkill = (skillId?: SkillId | null) => {
     performSkill(skillId, 'secondary');
-  };
-
-  const playerLoop = (targetId: number) => {
-    const currentEnemies = enemiesRef.current;
-    if (!currentEnemies[targetId]) {
-      return;
-    }
-
-    const targetEnemy = currentEnemies[targetId];
-    const enemyDR = targetEnemy.defence;
-    const enemyLVL = targetEnemy.level;
-    const playerHR = hitRate(playerAR, enemyDR, playerLVL, enemyLVL);
-
-    playerCombatIntRef.current = setInterval(() => {
-      if (!combatRef.current || playerHealthRef.current <= 0) {
-        endCombat();
-        return;
-      }
-
-      queueAllDefeatedEnemyRewards();
-      const currentEnemyHealth = enemyHealthRef.current[targetId];
-
-      if (currentEnemyHealth <= 0) {
-        const nextEnemy = findNextLivingEnemy(targetId);
-        if (nextEnemy !== null) {
-          dispatch(setCurrentEnemy(nextEnemy));
-          clearInterval(playerCombatIntRef.current!);
-          playerCombatIntRef.current = null;
-          playerLoop(nextEnemy);
-        } else {
-          endCombat({ flushLoot: true });
-        }
-        return;
-      }
-
-      if (!isEnemyReachableNow(targetId)) {
-        const nextEnemy = findNextLivingEnemy(targetId);
-        if (nextEnemy !== null) {
-          dispatch(setCurrentEnemy(nextEnemy));
-          clearInterval(playerCombatIntRef.current!);
-          playerCombatIntRef.current = null;
-          playerLoop(nextEnemy);
-        } else {
-          endCombat({ flushLoot: true });
-        }
-        return;
-      }
-
-      const randomVal = Math.random();
-      const randomAddDmg = Math.floor(Math.random() * 2);
-      const randomCritVal = Math.random();
-
-      if (randomVal <= playerHR) {
-        let dmg = playerDmg + randomAddDmg;
-        const isCrit = randomCritVal <= baseCrit;
-
-        if (isCrit) {
-          dmg *= 2;
-        }
-
-        const hitType = getClassHitFx();
-        applyDamageToEnemy(targetId, dmg, isCrit, hitType);
-        applyWeaponCleave(targetId, dmg);
-
-      } else {
-        dispatch(dmg2Enemy({ id: targetId, damage: { dmg: 0, crit: false } }));
-      }
-    }, 1000 / Math.max(playerAtkSpeed, 0.2));
-  };
-
-  const startSecondaryEnemyLoops = (primaryTargetId: number) => {
-    secEnemyIntervalsRef.current.forEach((interval) => clearInterval(interval));
-    secEnemyIntervalsRef.current = [];
-
-    const currentEnemies = enemiesRef.current;
-    currentEnemies.forEach((enemy, index) => {
-      if (index === primaryTargetId || enemy.health <= 0) return;
-      if (!isHostileEnemy(enemy)) return;
-      if (!isEnemyReachableNow(index)) return;
-
-      const enemyDmg = enemy.damage;
-      const enemyName = enemy.info.name;
-      const enemyAtkSpeed = enemy.atkSpeed || 1;
-      const enemyAR = enemy.atkRating || 10;
-      const enemyLVL = enemy.level || 1;
-      const enemyHR = hitRate(enemyAR, playerDR, enemyLVL, playerLVL);
-
-      const attackDelay = 1000 / enemyAtkSpeed + index * 200;
-
-      const interval = setInterval(() => {
-        if (!combatRef.current || playerHealthRef.current <= 0) {
-          return;
-        }
-
-        if (enemyHealthRef.current[index] <= 0) {
-          clearInterval(interval);
-          return;
-        }
-
-        if (!isEnemyReachableNow(index)) {
-          return;
-        }
-
-        const randomVal = Math.random();
-        const randomAddDmg = Math.floor(Math.random() * 2);
-        const randomCritVal = Math.random();
-
-        dispatch(registerEnemyAttack(index));
-
-        if (randomVal <= enemyHR) {
-          const dodgeRoll = Math.random();
-          if (dodgeRoll <= playerDodgeChance) {
-            dispatch(dmg2Player({ dmg: 0, crit: false, enemy: `${enemyName} (${index + 1})` }));
-            return;
-          }
-
-          let dmg = enemyDmg + randomAddDmg;
-          const isCrit = randomCritVal <= 0.1;
-
-          if (isCrit) {
-            dmg *= 2;
-          }
-
-          dispatch(dmg2Player({ dmg, crit: isCrit, enemy: `${enemyName} (${index + 1})` }));
-          playerHealthRef.current -= dmg;
-        } else {
-          dispatch(dmg2Player({ dmg: 0, crit: false, enemy: `${enemyName} (${index + 1})` }));
-        }
-      }, attackDelay);
-
-      secEnemyIntervalsRef.current.push(interval);
-    });
-  };
-
-  const enemyLoop = (id: number) => {
-    const currentEnemies = enemiesRef.current;
-    if (!currentEnemies[id]) {
-      return;
-    }
-    if (!isHostileEnemy(currentEnemies[id])) {
-      return;
-    }
-    if (!isEnemyReachableNow(id)) {
-      return;
-    }
-
-    const enemy = currentEnemies[id];
-    const enemyDmg = enemy.damage;
-    const enemyName = enemy.info.name;
-    const enemyAtkSpeed = enemy.atkSpeed || 1;
-    const enemyAR = enemy.atkRating || 10;
-    const enemyLVL = enemy.level || 1;
-    const enemyHR = hitRate(enemyAR, playerDR, enemyLVL, playerLVL);
-
-    enemyCombatIntRef.current = setInterval(() => {
-      if (!combatRef.current || playerHealthRef.current <= 0) {
-        return;
-      }
-
-      if (enemyHealthRef.current[id] <= 0) {
-        const nextEnemy = findNextLivingEnemy(id);
-        if (nextEnemy !== null) {
-          clearInterval(enemyCombatIntRef.current!);
-          enemyCombatIntRef.current = null;
-          enemyLoop(nextEnemy);
-        } else if (enemyCombatIntRef.current) {
-          clearInterval(enemyCombatIntRef.current);
-          enemyCombatIntRef.current = null;
-        }
-        return;
-      }
-
-      if (!isEnemyReachableNow(id)) {
-        const nextEnemy = findNextLivingEnemy(id);
-        if (nextEnemy !== null) {
-          clearInterval(enemyCombatIntRef.current!);
-          enemyCombatIntRef.current = null;
-          enemyLoop(nextEnemy);
-        } else if (enemyCombatIntRef.current) {
-          clearInterval(enemyCombatIntRef.current);
-          enemyCombatIntRef.current = null;
-        }
-        return;
-      }
-
-      const randomVal = Math.random();
-      const randomAddDmg = Math.floor(Math.random() * 2);
-      const randomCritVal = Math.random();
-
-      dispatch(registerEnemyAttack(id));
-
-      if (randomVal <= enemyHR) {
-        const dodgeRoll = Math.random();
-        if (dodgeRoll <= playerDodgeChance) {
-          dispatch(dmg2Player({ dmg: 0, crit: false, enemy: enemyName }));
-          return;
-        }
-
-        let dmg = enemyDmg + randomAddDmg;
-        const isCrit = randomCritVal <= 0.1;
-
-        if (isCrit) {
-          dmg *= 2;
-        }
-
-        dispatch(dmg2Player({ dmg, crit: isCrit, enemy: enemyName }));
-        playerHealthRef.current -= dmg;
-      } else {
-        dispatch(dmg2Player({ dmg: 0, crit: false, enemy: enemyName }));
-      }
-    }, 1000 / enemyAtkSpeed);
   };
 
   const startCombat = (id: number) => {
@@ -1007,6 +969,52 @@ export const useCombat = () => {
 
     enemyHealthRef.current = healthMap;
 
+    // Assign all encounter enemies to wave layers.
+    // Layer capacity is driven by enemy size: small = 5-6, medium = 3-4, large = 1-2.
+    // Each layer holds `layerCapacity` enemies; one-for-one replacements happen as they die.
+    // Only include enemies from the same pack as the triggered enemy (same spawn position).
+    const triggerPosX = currentEnemies[id]?.positionX;
+    const triggerPosY = currentEnemies[id]?.positionY;
+    const allEncounterIds = Object.keys(healthMap)
+      .map(Number)
+      .filter((eId) => {
+        const e = currentEnemies[eId];
+        return (
+          e && e.health > 0 && isHostileEnemy(e) &&
+          e.positionX === triggerPosX && e.positionY === triggerPosY
+        );
+      })
+      .sort((a, b) => a - b);
+
+    const dominantSize = (() => {
+      const counts = { small: 0, medium: 0, large: 0 };
+      allEncounterIds.forEach((id) => {
+        const size = getEnemySizeCategory(currentEnemies[id]?.id ?? 0);
+        counts[size]++;
+      });
+      if (counts.small >= counts.medium && counts.small >= counts.large) return 'small';
+      if (counts.large > counts.medium) return 'large';
+      return 'medium';
+    })();
+
+    const layerCapacity =
+      dominantSize === 'small' ? 5 + Math.floor(Math.random() * 2) :  // 5-6
+      dominantSize === 'large' ? 1 + Math.floor(Math.random() * 2) :  // 1-2
+      3 + Math.floor(Math.random() * 2);                              // 3-4 (medium)
+
+    frontLayerRef.current = allEncounterIds.slice(0, layerCapacity);
+    midLayerRef.current = allEncounterIds.slice(layerCapacity, layerCapacity * 2);
+    backLayerRef.current = allEncounterIds.slice(layerCapacity * 2);
+    justAdvancedIdsRef.current = new Set();
+
+    dispatch(
+      setEnemyLayers({
+        front: frontLayerRef.current,
+        mid: midLayerRef.current,
+        back: backLayerRef.current,
+      })
+    );
+
     const storeState = store.getState();
     let currentPlayerHealth = storeState.player.health;
 
@@ -1021,26 +1029,12 @@ export const useCombat = () => {
       processedEnemyIdsRef.current.clear();
       pendingEnemyLootRef.current = [];
       combatRef.current = true;
-      playerAttackArmedRef.current = false;
       clearAllIntervals();
       startCooldownTicker();
 
-      if (currentEnemies[id]?.firstStrike) {
-        const firstStrikerName = currentEnemies[id]?.info?.name || 'Ranged enemy';
-        applyEnemyAttackToPlayer(id, `${firstStrikerName} (opening shot)`);
-        if (playerHealthRef.current <= 0) {
-          endCombat();
-          return;
-        }
-      }
-
-      enemyLoop(id);
-
-      if (aliveEnemyIds(true).length > 1) {
-        startSecondaryEnemyLoops(id);
-      }
-
-      dispatch(setCombatLog('Enemy engages first. Click an enemy to start attacking.'));
+      const packSize = reachableEnemyCount > 1 ? ` (${reachableEnemyCount} enemies)` : '';
+      dispatch(setCombatLog(`Combat started${packSize}. Your turn — click Attack or use a skill.`));
+      beginPlayerTurn();
     }
   };
 
@@ -1049,24 +1043,36 @@ export const useCombat = () => {
       return;
     }
 
-    if (!isEnemyReachableNow(id)) {
+    if (combatPhaseRef.current !== 'player_turn') {
       return;
     }
 
-    playerAttackArmedRef.current = true;
-    dispatch(setCurrentEnemy(id));
+    // If the requested target is dead or unreachable, fall through to auto-target
+    const resolvedId = isEnemyReachableNow(id) ? id : (getPrimaryTarget() ?? id);
 
-    if (playerCombatIntRef.current) {
-      clearInterval(playerCombatIntRef.current);
-      playerCombatIntRef.current = null;
+    if (!isEnemyReachableNow(resolvedId)) {
+      return;
     }
 
-    playerLoop(id);
+    dispatch(setCurrentEnemy(resolvedId));
+    performPlayerAttack(resolvedId);
+  };
+
+  // Convenience wrapper for the Attack button: finds the best living target via
+  // internal refs so it never relies on stale React-state selectors in the UI.
+  const attackCurrentTarget = () => {
+    if (!combatRef.current || combatPhaseRef.current !== 'player_turn') return;
+    const targetId = getPrimaryTarget();
+    if (targetId === null) return;
+    dispatch(setCurrentEnemy(targetId));
+    performPlayerAttack(targetId);
   };
 
   return {
     startCombat,
     engagePlayerAttack,
+    attackCurrentTarget,
+    performPlayerAttack,
     performPrimarySkill,
     performSecondarySkill,
     specialCooldownFrames,

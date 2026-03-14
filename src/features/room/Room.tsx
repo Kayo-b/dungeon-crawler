@@ -1,5 +1,5 @@
 import { setStatusBarNetworkActivityIndicatorVisible, StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, Platform, ImageBackground, TouchableOpacity, Touchable, Image } from 'react-native';
+import { StyleSheet, Text, View, Button, Platform, ImageBackground, TouchableOpacity, Touchable, Image, Animated } from 'react-native';
 import { store } from '../../app/store';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { Enemy } from '../enemy/Enemy';
@@ -162,6 +162,10 @@ export const Room = ({
     const dispatch = useAppDispatch(); 
     // const enemyHealth = useAppSelector(state => state.enemy.enemies[0].stats.health); 
     const inCombat = useAppSelector(state => state.combat.inCombat);
+    const frontLayer = useAppSelector(state => state.combat.frontLayer);
+    const midLayer = useAppSelector(state => state.combat.midLayer);
+    const backLayer = useAppSelector(state => state.combat.backLayer);
+    const justAdvancedIds = useAppSelector(state => state.combat.justAdvancedIds);
     const currentLvl = useAppSelector(state => state.room.currentLvlIndex);
     const enemies = useAppSelector(state => state.enemy.enemies)
     const playerHealth = useAppSelector(state => state.player.health);
@@ -322,6 +326,38 @@ export const Room = ({
     const [use3DRendering, setUse3DRendering] = useState(true);
     const rangedShotCooldownRef = useRef<{ [key: number]: number }>({});
     const lastPlayerTileRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
+
+    // Reveal animations: fade in each wave layer in sequence when combat starts
+    const frontRevealOpacity = useRef(new Animated.Value(1)).current;
+    const midRevealOpacity = useRef(new Animated.Value(1)).current;
+    const backRevealOpacity = useRef(new Animated.Value(1)).current;
+    const prevInCombatRef = useRef(false);
+
+    useEffect(() => {
+        if (inCombat && !prevInCombatRef.current) {
+            // Combat just started — reset all layers to invisible then fade in sequentially
+            frontRevealOpacity.setValue(0);
+            midRevealOpacity.setValue(0);
+            backRevealOpacity.setValue(0);
+            Animated.parallel([
+                Animated.timing(frontRevealOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+                Animated.sequence([
+                    Animated.delay(220),
+                    Animated.timing(midRevealOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+                ]),
+                Animated.sequence([
+                    Animated.delay(430),
+                    Animated.timing(backRevealOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+                ]),
+            ]).start();
+        }
+        if (!inCombat) {
+            frontRevealOpacity.setValue(1);
+            midRevealOpacity.setValue(1);
+            backRevealOpacity.setValue(1);
+        }
+        prevInCombatRef.current = inCombat;
+    }, [inCombat]);
 
     const getDoorOverlaySources = (
         tileSprite: NodeRequire,
@@ -2658,6 +2694,14 @@ const turn = (turnDir:string) => {
         const facingDirection = currentDir as FacingDirection;
         const laneEnemies = enemiesVal as any[];
 
+        // Only split into visual layers during active combat with layers assigned
+        const useLayers = inCombat && frontLayer.length > 0;
+
+        // Visual constants for each layer row (relative to the center anchor point)
+        const LAYER_Y: Record<string, number> = { front: 0, mid: -60, back: -110 };
+        const LAYER_SCALE: Record<string, number> = { front: 1.0, mid: 0.72, back: 0.55 };
+        const LAYER_OPACITY: Record<string, number> = { front: 1.0, mid: 0.85, back: 0.65 };
+
         // Group enemies by position for stacking
         const enemiesByPosition: { [key: string]: { enemy: typeof enemiesVal[0], index: number }[] } = {};
 
@@ -2722,6 +2766,32 @@ const turn = (turnDir:string) => {
                 );
             });
 
+            // Split into wave layer sub-groups.
+            // Pre-combat: show only one representative enemy to indicate pack type;
+            // the full pack is revealed with a staggered fade-in once combat starts.
+            const frontSubgroup = useLayers
+                ? enemyGroup.filter(({ index }) => frontLayer.includes(index))
+                : [enemyGroup[0]]; // single representative before combat
+            const midSubgroup = useLayers
+                ? enemyGroup.filter(({ index }) => midLayer.includes(index))
+                : [];
+            const backSubgroup = useLayers
+                ? enemyGroup.filter(({ index }) => backLayer.includes(index))
+                : [];
+
+            type LayerName = 'front' | 'mid' | 'back';
+
+            // Each layer gets its own Animated.View so the reveal fades in front → mid → back
+            const layerDefs: Array<{
+                subgroup: typeof enemyGroup;
+                layer: LayerName;
+                revealAnim: Animated.Value;
+            }> = [
+                { subgroup: backSubgroup,  layer: 'back',  revealAnim: backRevealOpacity },
+                { subgroup: midSubgroup,   layer: 'mid',   revealAnim: midRevealOpacity },
+                { subgroup: frontSubgroup, layer: 'front', revealAnim: frontRevealOpacity },
+            ];
+
             return (
                 <View
                     key={posKey}
@@ -2735,49 +2805,91 @@ const turn = (turnDir:string) => {
                     }}
                 >
                     <View style={{
-                        transform: [{scale: perspectiveScale}],
-                        flexDirection: 'row',
+                        transform: [{ scale: perspectiveScale }],
                     }}>
-                        {/* Render stacked enemies with slight offset */}
-                        {enemyGroup.map(({ enemy, index }, stackIndex) => {
-                            if (enemy.health <= 0) return null;
+                        {layerDefs.map(({ subgroup, layer, revealAnim }) => (
+                            <Animated.View key={layer} style={{ opacity: revealAnim }}>
+                                {subgroup.map(({ enemy, index }) => {
+                                    if (enemy.health <= 0) return null;
 
-                            // Spread stacks from center to reduce heavy overlap in packs.
-                            const stackCenter = (enemyGroup.length - 1) / 2;
-                            const centeredSlot = stackIndex - stackCenter;
-                            const isRat = enemy.id === 1;
-                            const horizontalSpread = isRat ? 52 : 40;
-                            const verticalSpread = isRat ? 8 : 12;
-                            const offsetX = centeredSlot * horizontalSpread;
-                            const offsetY = -Math.abs(centeredSlot) * verticalSpread;
-                            const stackZ = 200 - Math.abs(centeredSlot);
+                                    // Horizontal spread within the layer's own sub-group
+                                    const subIdx = subgroup.findIndex(e => e.index === index);
+                                    const stackCenter = (subgroup.length - 1) / 2;
+                                    const centeredSlot = subIdx - stackCenter;
+                                    const isRat = enemy.id === 1;
+                                    const horizontalSpread = isRat ? 52 : 40;
+                                    const verticalFan = isRat ? 8 : 12;
+                                    const offsetX = centeredSlot * horizontalSpread;
+                                    const offsetY = -Math.abs(centeredSlot) * verticalFan;
 
-                            return (
-                                <View
-                                    key={index}
-                                    style={{
-                                        transform: [
-                                            { translateX: offsetX },
-                                            { translateY: offsetY }
-                                        ],
-                                        zIndex: stackZ,
-                                    }}
-                                >
-                                    <TouchableOpacity
-                                        onPress={() => canEngage ? startCombatAux(index, true) : null}
-                                        disabled={!canEngage}
-                                        style={{ opacity: canEngage ? 1 : 0.9 }}
-                                    >
-                                        <Enemy
-                                            index={index}
-                                            jumpIntoView={enemy.visibilityMode === 'ambush' && distance === 0}
-                                        />
-                                    </TouchableOpacity>
-                                </View>
-                            );
-                        })}
-                        {/* Pack count indicator */}
-                        {enemyGroup.length > 1 && (
+                                    const layerY = LAYER_Y[layer];
+                                    const layerScale = LAYER_SCALE[layer];
+                                    const layerOpacity = LAYER_OPACITY[layer];
+                                    // Back layer renders behind mid, mid behind front
+                                    const stackZ = (layer === 'front' ? 300 : layer === 'mid' ? 200 : 100) - Math.abs(centeredSlot);
+
+                                    const isInteractive = layer === 'front' && canEngage;
+
+                                    return (
+                                        <View
+                                            key={index}
+                                            style={{
+                                                position: 'absolute',
+                                                transform: [
+                                                    { translateX: offsetX },
+                                                    { translateY: layerY + offsetY },
+                                                    { scale: layerScale },
+                                                ],
+                                                opacity: layerOpacity,
+                                                zIndex: stackZ,
+                                            }}
+                                        >
+                                            <TouchableOpacity
+                                                onPress={() => isInteractive ? startCombatAux(index, true) : null}
+                                                disabled={!isInteractive}
+                                                style={{ opacity: isInteractive ? 1 : 0.9 }}
+                                            >
+                                                <Enemy
+                                                    index={index}
+                                                    jumpIntoView={enemy.visibilityMode === 'ambush' && distance === 0}
+                                                    isJustAdvanced={justAdvancedIds.includes(index)}
+                                                />
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                })}
+                            </Animated.View>
+                        ))}
+
+                        {/* Wave layer indicator */}
+                        {useLayers && (midSubgroup.length > 0 || backSubgroup.length > 0) ? (
+                            <View style={{
+                                position: 'absolute',
+                                top: -130,
+                                alignSelf: 'center',
+                                flexDirection: 'row',
+                                gap: 4,
+                                zIndex: 999,
+                            }}>
+                                {[
+                                    { count: frontSubgroup.length, color: '#dc2626' },
+                                    { count: midSubgroup.length,   color: '#a16207' },
+                                    { count: backSubgroup.length,  color: '#6b7280' },
+                                ].filter(r => r.count > 0).map((row, i) => (
+                                    <View key={i} style={{
+                                        backgroundColor: '#1f1f1f',
+                                        borderWidth: 1,
+                                        borderColor: row.color,
+                                        paddingHorizontal: 5,
+                                        paddingVertical: 2,
+                                    }}>
+                                        <Text style={{ color: row.color, fontWeight: 'bold', fontSize: 8, fontFamily: RETRO_FONT }}>
+                                            {row.count}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : enemyGroup.length > 1 ? (
                             <View style={{
                                 position: 'absolute',
                                 top: -20,
@@ -2793,7 +2905,8 @@ const turn = (turnDir:string) => {
                                     x{enemyGroup.length}
                                 </Text>
                             </View>
-                        )}
+                        ) : null}
+
                         {/* Fog overlay for distant enemies */}
                         {fogOpacity > 0 && (
                             <View
