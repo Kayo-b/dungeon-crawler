@@ -34,6 +34,12 @@ import {
   advanceFrontLayerRedux,
   clearJustAdvanced,
   clearEnemyLayers,
+  initScrollDeck,
+  drawScrolls,
+  useScrollCard,
+  discardHand,
+  refillCardMana,
+  clearScrollSystem,
 } from './combatSlice';
 import { computeDerivedPlayerStats, getClassProgressionProfile } from '../features/player/playerStats';
 import itemData from '../data/items.json';
@@ -42,6 +48,7 @@ import {
   SKILLS,
   getSkillLevel,
   getLevelUpSkillOptions,
+  getAllLearnedSkills,
 } from '../features/skills/skillCatalog';
 
 interface LootObject {
@@ -115,6 +122,17 @@ export const useCombat = () => {
 
   const mana = useAppSelector((state) => state.player.mana);
   const comboPoints = useAppSelector((state) => state.player.comboPoints);
+  const cardMana = useAppSelector((state) => (state.combat as any).cardMana ?? 2);
+
+  /** Build a shuffled deck: 3 copies of every learned skill. */
+  const buildScrollDeck = (levels: Record<string, number>): string[] => {
+    const learned = getAllLearnedSkills(levels);
+    const deck: string[] = [];
+    learned.forEach((skillDef) => {
+      deck.push(skillDef.id, skillDef.id, skillDef.id);
+    });
+    return deck.sort(() => Math.random() - 0.5);
+  };
 
   const combatRef = useRef(false);
   const combatEndingRef = useRef(false);
@@ -498,9 +516,9 @@ export const useCombat = () => {
     if (getTrainedSkillLevel(skill.id) <= 0) {
       return { ok: false, reason: `${skill.name} is not trained yet.` };
     }
-    // Stat requirements removed — only mana and combo are checked
-    if (mana < skill.manaCost) {
-      return { ok: false, reason: `Need ${skill.manaCost} mana for ${skill.name}.` };
+    // Card system: each scroll costs 1 cardMana
+    if (cardMana < 1) {
+      return { ok: false, reason: `Not enough energy. (${cardMana}/1 needed)` };
     }
     if (skill.requiresCombo && comboPoints <= 0) {
       return { ok: false, reason: `${skill.name} requires combo points.` };
@@ -596,6 +614,8 @@ export const useCombat = () => {
 
       // Clear armor buffer at end of combat
       dispatch(clearArmorBuffer());
+      // Reset card scroll system
+      dispatch(clearScrollSystem());
 
       const data = await AsyncStorage.getItem('characters');
       const obj = data ? JSON.parse(data) : {};
@@ -704,6 +724,10 @@ export const useCombat = () => {
     // Clear the just-advanced block so promoted enemies can attack this coming enemy turn
     justAdvancedIdsRef.current.clear();
     dispatch(clearJustAdvanced());
+    // Card system: refill energy, discard leftover hand, draw 3 new scrolls
+    dispatch(refillCardMana());
+    dispatch(discardHand());
+    dispatch(drawScrolls(3));
   };
 
   const ENEMY_ATTACK_DELAY_MS = 750;
@@ -821,12 +845,27 @@ export const useCombat = () => {
     beginEnemyTurn();
   };
 
+  /** After spending a card, check if the player's turn should auto-end. */
+  const checkAutoEndTurn = () => {
+    const { cardMana: cm, scrollHand: hand } = store.getState().combat as any;
+    if (cm <= 0 || hand.length === 0) {
+      beginEnemyTurn();
+    }
+  };
+
   const performSkill = (skillId: SkillId | null | undefined) => {
     if (!canUseSkillNow()) return;
 
     const skill = getSkillById(skillId);
     if (!skill) {
       dispatch(setCombatLog('No skill trained.'));
+      return;
+    }
+
+    // Verify the scroll is actually in the hand
+    const hand: string[] = (store.getState().combat as any).scrollHand ?? [];
+    if (!hand.includes(skill.id)) {
+      dispatch(setCombatLog(`${skill.name} scroll is not in your hand.`));
       return;
     }
 
@@ -838,13 +877,14 @@ export const useCombat = () => {
     const skillRank = Math.max(1, getTrainedSkillLevel(skill.id));
     const levelMultiplier = 1 + (skillRank - 1) * 0.24;
 
+    // Spend the scroll card (removes from hand → discard, decrements cardMana)
+    dispatch(useScrollCard(skill.id));
+
     if (skill.id === 'enforce-armor') {
-      dispatch(spendMana(skill.manaCost));
       const bufferAmount = Math.floor((15 + (playerStats?.vitality || 0) * 1.2) * levelMultiplier);
       dispatch(addArmorBuffer(bufferAmount));
       dispatch(setCombatLog(`Enforce Armor Lv.${skillRank} adds ${bufferAmount} armor buffer.`));
-      dispatch(setSpecialCooldown(SKILL_GCD_FRAMES));
-      beginEnemyTurn();
+      checkAutoEndTurn();
       return;
     }
 
@@ -852,7 +892,6 @@ export const useCombat = () => {
       const targets = aliveEnemyIds(true);
       if (targets.length <= 0) return;
 
-      dispatch(spendMana(skill.manaCost));
       const damage = Math.max(
         3,
         Math.floor((playerDmg * 1.35 + (playerStats?.strength || 0) * 0.22) * levelMultiplier)
@@ -861,7 +900,7 @@ export const useCombat = () => {
       dispatch(setCombatLog(`Whirlwind Lv.${skillRank} hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
       queueAllDefeatedEnemyRewards();
       if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
-      beginEnemyTurn();
+      checkAutoEndTurn();
       return;
     }
 
@@ -869,7 +908,6 @@ export const useCombat = () => {
       const targets = aliveEnemyIds(true);
       if (targets.length <= 0) return;
 
-      dispatch(spendMana(skill.manaCost));
       const damage = Math.max(
         3,
         Math.floor((playerDmg * 1.2 + (playerStats?.intelligence || 0) * 0.65) * levelMultiplier)
@@ -878,13 +916,12 @@ export const useCombat = () => {
       dispatch(setCombatLog(`Fire Blast Lv.${skillRank} scorches ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
       queueAllDefeatedEnemyRewards();
       if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
-      beginEnemyTurn();
+      checkAutoEndTurn();
       return;
     }
 
     const targetId = getPrimaryTarget();
     if (targetId === null) return;
-    dispatch(spendMana(skill.manaCost));
 
     if (skill.id === 'crushing-blow') {
       const damage = Math.max(
@@ -895,7 +932,7 @@ export const useCombat = () => {
       dispatch(setCombatLog(`Crushing Blow Lv.${skillRank} lands a heavy hit.`));
       queueAllDefeatedEnemyRewards();
       if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
-      beginEnemyTurn();
+      checkAutoEndTurn();
       return;
     }
 
@@ -908,7 +945,7 @@ export const useCombat = () => {
       dispatch(setCombatLog(`Arcane Bolt Lv.${skillRank} burns the target.`));
       queueAllDefeatedEnemyRewards();
       if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
-      beginEnemyTurn();
+      checkAutoEndTurn();
       return;
     }
 
@@ -922,7 +959,7 @@ export const useCombat = () => {
       dispatch(setCombatLog(`Quick Stab Lv.${skillRank} builds combo points.`));
       queueAllDefeatedEnemyRewards();
       if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
-      beginEnemyTurn();
+      checkAutoEndTurn();
       return;
     }
 
@@ -942,7 +979,7 @@ export const useCombat = () => {
       );
       queueAllDefeatedEnemyRewards();
       if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
-      beginEnemyTurn();
+      checkAutoEndTurn();
     }
   };
 
@@ -952,6 +989,13 @@ export const useCombat = () => {
 
   const performSecondarySkill = (skillId?: SkillId | null) => {
     performSkill(skillId);
+  };
+
+  /** Manual end-turn: discard remaining hand and trigger enemy turn. */
+  const endPlayerTurnManually = () => {
+    if (!combatRef.current || combatPhaseRef.current !== 'player_turn') return;
+    dispatch(discardHand());
+    beginEnemyTurn();
   };
 
   const startCombat = (id: number) => {
@@ -1053,7 +1097,11 @@ export const useCombat = () => {
       startCooldownTicker();
 
       const packSize = reachableEnemyCount > 1 ? ` (${reachableEnemyCount} enemies)` : '';
-      dispatch(setCombatLog(`Combat started${packSize}. Your turn — click Attack or use a skill.`));
+      dispatch(setCombatLog(`Combat started${packSize}. Your turn — play scrolls or end your turn.`));
+      // Initialize scroll deck from learned skills (3 copies each)
+      const currentSkillLevels = store.getState().player.skillLevels || {};
+      const shuffledDeck = buildScrollDeck(currentSkillLevels);
+      dispatch(initScrollDeck(shuffledDeck));
       beginPlayerTurn();
     }
   };
@@ -1096,6 +1144,7 @@ export const useCombat = () => {
     performSkill,
     performPrimarySkill,
     performSecondarySkill,
+    endPlayerTurnManually,
     specialCooldownFrames,
     inCombat,
     floorLootBags,

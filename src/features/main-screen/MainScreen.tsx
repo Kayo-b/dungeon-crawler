@@ -43,7 +43,6 @@ import {
   getActiveSkillLoadout,
   getSkillLevel,
   getSkillRequirementSummary,
-  getAllLearnedSkills,
   readSkillLevelsFromCharacter,
   SKILLS,
   SkillId,
@@ -224,6 +223,7 @@ export const MainScreen = () => {
     performSkill,
     performPrimarySkill,
     performSecondarySkill,
+    endPlayerTurnManually,
     specialCooldownFrames,
     inCombat,
     floorLootBags,
@@ -237,6 +237,9 @@ export const MainScreen = () => {
   } = useCombat();
 
   const combatPhase = useAppSelector((state) => state.combat.combatPhase);
+  const scrollHand = useAppSelector((state) => (state.combat as any).scrollHand as string[] ?? []);
+  const cardMana = useAppSelector((state) => (state.combat as any).cardMana as number ?? 2);
+  const maxCardMana = useAppSelector((state) => (state.combat as any).maxCardMana as number ?? 2);
 
   useEffect(() => {
     const checkSave = async () => {
@@ -1143,22 +1146,27 @@ export const MainScreen = () => {
     }).start();
   }, [menuMode, playerHealth, showDeathOverlay, deathOpacity, revivePending]);
 
-  const learnedSkills = useMemo(() => getAllLearnedSkills(skillLevels), [skillLevels]);
-
-  const learnedSkillsHud = useMemo(() => {
-    const skillButtonsLocked = !inCombat || specialCooldownFrames > 0 || combatPhase !== 'player_turn';
-    return learnedSkills.map((skill, index) => {
-      const level = getSkillLevel(skillLevels, skill.id);
+  /** Build scroll-hand cards from the current hand (used during combat). */
+  const scrollHandCards = useMemo(() => {
+    const isPlayerTurn = inCombat && combatPhase === 'player_turn';
+    return scrollHand.map((skillId, idx) => {
+      const skill = SKILLS[skillId as SkillId];
+      if (!skill) return null;
+      const level = getSkillLevel(skillLevels, skillId as SkillId);
       const needsCombo = !!skill.requiresCombo && comboPoints <= 0;
-      const hasEnoughMana = mana >= skill.manaCost;
-      const isDisabled = skillButtonsLocked || !hasEnoughMana || needsCombo;
-      const label =
-        specialCooldownFrames > 0
-          ? `${skill.name} Lv.${level} [${skill.manaCost}] (${specialCooldownFrames})`
-          : `${skill.name} Lv.${level} [${skill.manaCost}]`;
-      return { skill, level, isDisabled, hasEnoughMana, needsCombo, label, hotkey: ['Q', 'E', 'R', 'F'][index] ?? '' };
-    });
-  }, [learnedSkills, skillLevels, inCombat, specialCooldownFrames, combatPhase, comboPoints, mana]);
+      const canPlay = isPlayerTurn && cardMana >= 1 && !needsCombo;
+      return { skill, level, canPlay, needsCombo, idx };
+    }).filter(Boolean) as { skill: (typeof SKILLS)[SkillId]; level: number; canPlay: boolean; needsCombo: boolean; idx: number }[];
+  }, [scrollHand, inCombat, combatPhase, cardMana, skillLevels, comboPoints]);
+
+  // Keep learnedSkillsHud for hotkey mapping (Q/E/R/F bind to hand positions)
+  const learnedSkillsHud = useMemo(() => {
+    return scrollHandCards.map((item, index) => ({
+      skill: item.skill,
+      isDisabled: !item.canPlay,
+      hotkey: ['Q', 'E', 'R', 'F'][index] ?? '',
+    }));
+  }, [scrollHandCards]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || menuMode !== 'game') return;
@@ -1532,33 +1540,17 @@ export const MainScreen = () => {
                       <Text style={styles.enemyTurnText}>ENEMY TURN...</Text>
                     </View>
                   )}
+                  {combatPhase === 'player_turn' && (
+                    <TouchableOpacity
+                      style={styles.endTurnButton}
+                      onPress={endPlayerTurnManually}
+                    >
+                      <Text style={styles.endTurnButtonText}>End Turn</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
               <View style={styles.skillBar}>
-                {learnedSkillsHud.length === 0 ? (
-                  <View style={styles.noSkillsMsg}>
-                    <Text style={styles.skillButtonText}>No skills learned</Text>
-                  </View>
-                ) : (
-                  learnedSkillsHud.map((item) => (
-                    <TouchableOpacity
-                      key={item.skill.id}
-                      testID={`skill-button-${item.skill.id}`}
-                      style={[
-                        styles.skillButton,
-                        item.isDisabled && styles.skillButtonDisabled,
-                        !item.hasEnoughMana && styles.skillButtonFaded,
-                        item.skill.isBuff && styles.skillButtonBuff,
-                      ]}
-                      onPress={() => performSkill(item.skill.id)}
-                      disabled={item.isDisabled}
-                    >
-                      <Text style={styles.skillButtonText}>
-                        {item.hotkey ? `[${item.hotkey}] ` : ''}{item.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))
-                )}
                 <TouchableOpacity
                   testID="skill-talents-button"
                   style={styles.skillButtonMeta}
@@ -1568,6 +1560,38 @@ export const MainScreen = () => {
                 </TouchableOpacity>
               </View>
             </View>
+          }
+          scrollHandOverlay={
+            inCombat ? (
+              <View style={styles.scrollHandRow}>
+                {scrollHandCards.map((item) => (
+                  <TouchableOpacity
+                    key={`${item.skill.id}-${item.idx}`}
+                    testID={`scroll-card-${item.skill.id}`}
+                    style={[
+                      styles.scrollCard,
+                      !item.canPlay && styles.scrollCardDisabled,
+                      item.skill.isBuff && styles.scrollCardBuff,
+                    ]}
+                    onPress={() => performSkill(item.skill.id as SkillId)}
+                    disabled={!item.canPlay}
+                  >
+                    <Text style={styles.scrollCardName} numberOfLines={1}>
+                      {item.skill.name}
+                    </Text>
+                    <Text style={styles.scrollCardCost}>⚡ 1</Text>
+                    {item.needsCombo && (
+                      <Text style={styles.scrollCardComboWarn}>Need combo</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+                {inCombat && combatPhase === 'player_turn' && scrollHandCards.length === 0 && (
+                  <View style={styles.scrollCardEmpty}>
+                    <Text style={styles.scrollCardEmptyText}>No scrolls in hand</Text>
+                  </View>
+                )}
+              </View>
+            ) : null
           }
           rightOverlay={
             <View style={styles.roomRightHud}>
@@ -1854,6 +1878,23 @@ const styles = StyleSheet.create({
   },
   turnIndicatorRow: {
     width: 192,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  endTurnButton: {
+    backgroundColor: '#3a1a0a',
+    borderWidth: 2,
+    borderColor: '#e07830',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    flex: 1,
+  },
+  endTurnButtonText: {
+    color: '#ffcc88',
+    fontFamily: RETRO_FONT,
+    fontSize: 9,
+    textAlign: 'center',
   },
   attackButton: {
     backgroundColor: '#7a1c1c',
@@ -1928,6 +1969,61 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 8,
     opacity: 0.5,
+  },
+  scrollHandRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  scrollCard: {
+    backgroundColor: '#0d1a2e',
+    borderWidth: 2,
+    borderColor: '#4a90d9',
+    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    minWidth: 72,
+    maxWidth: 96,
+    alignItems: 'center',
+  },
+  scrollCardDisabled: {
+    opacity: 0.45,
+    borderColor: '#555555',
+  },
+  scrollCardBuff: {
+    backgroundColor: '#0e1e10',
+    borderColor: '#3dba6f',
+  },
+  scrollCardName: {
+    color: '#c8dff8',
+    fontFamily: RETRO_FONT,
+    fontSize: 8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  scrollCardCost: {
+    color: '#7dc4ff',
+    fontFamily: RETRO_FONT,
+    fontSize: 8,
+    marginTop: 2,
+  },
+  scrollCardComboWarn: {
+    color: '#ff8844',
+    fontFamily: RETRO_FONT,
+    fontSize: 7,
+    marginTop: 1,
+  },
+  scrollCardEmpty: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    opacity: 0.4,
+  },
+  scrollCardEmptyText: {
+    color: '#888888',
+    fontFamily: RETRO_FONT,
+    fontSize: 8,
   },
   skillButtonMeta: {
     backgroundColor: '#2a2a2a',

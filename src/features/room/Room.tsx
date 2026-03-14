@@ -147,6 +147,7 @@ interface RoomProps {
     onMerchantInteract?: () => void;
     skillOverlay?: ReactNode;
     rightOverlay?: ReactNode;
+    scrollHandOverlay?: ReactNode;
     floorLootBags?: Array<{ id: string; mapId: string; x: number; y: number; items: any[] }>;
     onLootBagPress?: (bagId: string) => void;
 }
@@ -157,6 +158,7 @@ export const Room = ({
     onMerchantInteract,
     skillOverlay,
     rightOverlay,
+    scrollHandOverlay,
     floorLootBags = [],
     onLootBagPress,
 }: RoomProps) => {
@@ -173,6 +175,8 @@ export const Room = ({
     const playerMana = useAppSelector(state => state.player.mana);
     const playerMaxMana = useAppSelector(state => state.player.maxMana);
     const armorBuffer = useAppSelector(state => (state.player as any).armorBuffer ?? 0);
+    const cardMana = useAppSelector(state => (state.combat as any).cardMana as number ?? 2);
+    const maxCardMana = useAppSelector(state => (state.combat as any).maxCardMana as number ?? 2);
     const playerStats = useAppSelector(state => state.player.stats as Record<string, any>);
     const playerEquipment = useAppSelector(state => state.player.equipment as Record<string, any>);
     const playerLevel = useAppSelector(state => state.player.level);
@@ -207,7 +211,10 @@ export const Room = ({
         return Math.max(1, Number(derived.maxHealth || 1));
     }, [playerStats, playerEquipment, playerClass, playerLevel]);
     const healthPct = Math.max(0, Math.min(1, playerHealth / Math.max(1, maxHealth)));
-    const manaPct = Math.max(0, Math.min(1, playerMana / Math.max(1, playerMaxMana || 1)));
+    // During combat use card energy for the mana bar; outside combat show real mana pool
+    const displayMana = inCombat ? cardMana : playerMana;
+    const displayMaxMana = inCombat ? maxCardMana : Math.max(1, playerMaxMana || 1);
+    const manaPct = Math.max(0, Math.min(1, displayMana / Math.max(1, displayMaxMana)));
     const merchantSprite = require('../../resources/vecteezy_an-8-bit-retro-styled-pixel-art-illustration-of-a-merchant_26547538.png');
     const floorLootSprite = require('../../../RainbowTreasureBag.gif');
 
@@ -3309,6 +3316,11 @@ const turn = (turnDir:string) => {
                     <View style={[styles.manaBarFill, { width: `${manaPct * 100}%` }]} />
                 </View>
             </View>
+            {scrollHandOverlay ? (
+                <View style={styles.scrollHandOverlayWrap}>
+                    {scrollHandOverlay}
+                </View>
+            ) : null}
             </View>
             {skillOverlay ? (
                 <View style={styles.skillOverlayWrap}>
@@ -3462,6 +3474,14 @@ const styles = StyleSheet.create({
         left: 0,
         bottom: 0,
         zIndex: 250,
+    },
+    scrollHandOverlayWrap: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 20,   // sits above the health/mana bars
+        zIndex: 319,
+        alignItems: 'center',
     },
     rightOverlayWrap: {
         position: 'absolute',
