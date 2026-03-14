@@ -149,6 +149,14 @@ const combatSlice = createSlice({
             state.scrollDiscard = [];
             state.cardMana = state.maxCardMana;
         },
+        /** Move a living enemy from the front layer to the mid layer (knockback). */
+        knockbackEnemy(state, action: PayloadAction<number>) {
+            const enemyId = action.payload;
+            const frontIdx = state.frontLayer.indexOf(enemyId);
+            if (frontIdx === -1) return;
+            state.frontLayer.splice(frontIdx, 1);
+            state.midLayer.unshift(enemyId);
+        },
     }
 });
 
@@ -171,6 +179,7 @@ export const {
     discardHand,
     refillCardMana,
     clearScrollSystem,
+    knockbackEnemy,
 } = combatSlice.actions;
 
 export default combatSlice.reducer

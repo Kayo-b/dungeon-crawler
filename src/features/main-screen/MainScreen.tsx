@@ -1572,6 +1572,7 @@ export const MainScreen = () => {
                       styles.scrollCard,
                       !item.canPlay && styles.scrollCardDisabled,
                       item.skill.isBuff && styles.scrollCardBuff,
+                      item.skill.hasKnockback && styles.scrollCardKnockback,
                     ]}
                     onPress={() => performSkill(item.skill.id as SkillId)}
                     disabled={!item.canPlay}
@@ -1580,6 +1581,9 @@ export const MainScreen = () => {
                       {item.skill.name}
                     </Text>
                     <Text style={styles.scrollCardCost}>⚡ 1</Text>
+                    {item.skill.hasKnockback && (
+                      <Text style={styles.scrollCardKnockbackTag}>↩ KB</Text>
+                    )}
                     {item.needsCombo && (
                       <Text style={styles.scrollCardComboWarn}>Need combo</Text>
                     )}
@@ -2011,6 +2015,16 @@ const styles = StyleSheet.create({
   },
   scrollCardComboWarn: {
     color: '#ff8844',
+    fontFamily: RETRO_FONT,
+    fontSize: 7,
+    marginTop: 1,
+  },
+  scrollCardKnockback: {
+    borderColor: '#c084fc',
+    backgroundColor: '#1a0d2e',
+  },
+  scrollCardKnockbackTag: {
+    color: '#c084fc',
     fontFamily: RETRO_FONT,
     fontSize: 7,
     marginTop: 1,
