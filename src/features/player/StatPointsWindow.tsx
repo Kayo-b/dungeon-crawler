@@ -239,6 +239,10 @@ export const StatPointsWindow: React.FC<StatPointsWindowProps> = ({
     return null;
   }
 
+  // Stats allocation system is commented out — level up now grants skill choices instead.
+  // The stat window is preserved for reference but renders nothing meaningful.
+  return null;
+  /* eslint-disable no-unreachable */
   return (
     <View style={styles.overlay}>
       <View style={styles.panel}>
