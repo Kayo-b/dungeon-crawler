@@ -765,6 +765,11 @@ export const useCombat = () => {
     dispatch(refillCardMana());
     dispatch(discardHand());
     dispatch(drawScrolls(3));
+    // Auto-end immediately if no scrolls could be drawn (empty deck with no learned skills)
+    const { scrollHand: hand } = store.getState().combat as any;
+    if (!hand || hand.length === 0) {
+      setTimeout(() => beginEnemyTurn(), 100);
+    }
   };
 
   const ENEMY_ATTACK_DELAY_MS = 750;
@@ -781,8 +786,8 @@ export const useCombat = () => {
     );
 
     if (attackingEnemies.length === 0) {
-      // No attackers this round, but there may still be live enemies (just advanced)
-      const stillAlive = aliveEnemyIds(true);
+      // No attackers this round, but there may still be live enemies (just advanced or knocked back)
+      const stillAlive = aliveEnemyIds(false);
       if (stillAlive.length === 0) {
         endCombat({ flushLoot: true });
       } else {
@@ -810,7 +815,7 @@ export const useCombat = () => {
         return;
       }
       queueAllDefeatedEnemyRewards();
-      const stillAlive = aliveEnemyIds(true);
+      const stillAlive = aliveEnemyIds(false);
       if (stillAlive.length === 0) {
         endCombat({ flushLoot: true });
         return;
@@ -942,7 +947,7 @@ export const useCombat = () => {
         `Whirlwind Lv.${skillRank} hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}${knockedCount > 0 ? ` — ${knockedCount} knocked back!` : ''}.`
       ));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -958,13 +963,17 @@ export const useCombat = () => {
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'fire'));
       dispatch(setCombatLog(`Fire Blast Lv.${skillRank} scorches ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
 
     const targetId = getPrimaryTarget();
-    if (targetId === null) return;
+    if (targetId === null) {
+      // Card already spent — no valid target; still trigger auto-end check
+      checkAutoEndTurn();
+      return;
+    }
 
     if (skill.id === 'crushing-blow') {
       const damage = Math.max(
@@ -978,7 +987,7 @@ export const useCombat = () => {
         `Crushing Blow Lv.${skillRank} lands a heavy hit${wasKnockedBack ? ' — enemy knocked back!' : '.'}`
       ));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -991,7 +1000,7 @@ export const useCombat = () => {
       applyDamageToEnemy(targetId, damage, false, 'fire');
       dispatch(setCombatLog(`Arcane Bolt Lv.${skillRank} burns the target.`));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1005,7 +1014,7 @@ export const useCombat = () => {
       applyDamageToEnemy(targetId, damage, false, 'slash');
       dispatch(setCombatLog(`Quick Stab Lv.${skillRank} builds combo points.`));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1025,7 +1034,7 @@ export const useCombat = () => {
         )
       );
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(true).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
     }
   };
