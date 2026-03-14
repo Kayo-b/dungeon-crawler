@@ -177,6 +177,26 @@ export const Room = ({
     const armorBuffer = useAppSelector(state => (state.player as any).armorBuffer ?? 0);
     const cardMana = useAppSelector(state => (state.combat as any).cardMana as number ?? 2);
     const maxCardMana = useAppSelector(state => (state.combat as any).maxCardMana as number ?? 2);
+    const goldLootEffect = useAppSelector(state => (state.combat as any).goldLootEffect as { amount: number; pulse: number } ?? { amount: 0, pulse: 0 });
+
+    const goldFadeAnim = useRef(new Animated.Value(0)).current;
+    const goldSlideAnim = useRef(new Animated.Value(0)).current;
+    const goldPulseRef = useRef(0);
+
+    useEffect(() => {
+        if (goldLootEffect.pulse === goldPulseRef.current || goldLootEffect.amount === 0) return;
+        goldPulseRef.current = goldLootEffect.pulse;
+        goldFadeAnim.setValue(0);
+        goldSlideAnim.setValue(0);
+        Animated.parallel([
+            Animated.sequence([
+                Animated.timing(goldFadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+                Animated.delay(800),
+                Animated.timing(goldFadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+            ]),
+            Animated.timing(goldSlideAnim, { toValue: -28, duration: 1550, useNativeDriver: true }),
+        ]).start();
+    }, [goldLootEffect.pulse]);
     const playerStats = useAppSelector(state => state.player.stats as Record<string, any>);
     const playerEquipment = useAppSelector(state => state.player.equipment as Record<string, any>);
     const playerLevel = useAppSelector(state => state.player.level);
@@ -3321,6 +3341,12 @@ const turn = (turnDir:string) => {
                     {scrollHandOverlay}
                 </View>
             ) : null}
+            <Animated.View
+                pointerEvents="none"
+                style={[styles.goldLootEffectWrap, { opacity: goldFadeAnim, transform: [{ translateY: goldSlideAnim }] }]}
+            >
+                <Text style={styles.goldLootEffectText}>+{goldLootEffect.amount} 🪙</Text>
+            </Animated.View>
             </View>
             {skillOverlay ? (
                 <View style={styles.skillOverlayWrap}>
@@ -3482,6 +3508,24 @@ const styles = StyleSheet.create({
         bottom: 20,   // sits above the health/mana bars
         zIndex: 319,
         alignItems: 'center',
+    },
+    goldLootEffectWrap: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 80,
+        zIndex: 400,
+        alignItems: 'center',
+        pointerEvents: 'none',
+    },
+    goldLootEffectText: {
+        color: '#ffd700',
+        fontSize: 20,
+        fontWeight: '900',
+        textShadowColor: '#000',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+        letterSpacing: 1,
     },
     rightOverlayWrap: {
         position: 'absolute',

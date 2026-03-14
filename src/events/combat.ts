@@ -20,6 +20,7 @@ import {
   addArmorBuffer,
   clearArmorBuffer,
   setPendingLevelUpSkills,
+  addGold,
 } from './../features/player/playerSlice';
 import { Direction } from '../types/map';
 import {
@@ -41,6 +42,7 @@ import {
   refillCardMana,
   clearScrollSystem,
   knockbackEnemy,
+  triggerGoldLootEffect,
 } from './combatSlice';
 import { computeDerivedPlayerStats, getClassProgressionProfile } from '../features/player/playerStats';
 import itemData from '../data/items.json';
@@ -356,7 +358,8 @@ export const useCombat = () => {
 
   // Scroll (tomes) drops are removed — skills are granted only through level-up.
   // Potion (consumable) drops are commented out.
-  const FILTERED_DROP_TYPES = new Set(['tomes', 'consumable']);
+  // Currency is auto-looted directly, not dropped as floor loot.
+  const FILTERED_DROP_TYPES = new Set(['tomes', 'consumable', 'currency']);
 
   const queueEnemyLootDrop = (enemyId: number, enemyState: any, lootTable: LootObject[]) => {
     if (processedEnemyIdsRef.current.has(enemyId)) return;
@@ -403,6 +406,8 @@ export const useCombat = () => {
   };
 
   const queueAllDefeatedEnemyRewards = () => {
+    let autoLootedGold = 0;
+
     Object.keys(enemyHealthRef.current)
       .map(Number)
       .forEach((enemyId) => {
@@ -416,9 +421,17 @@ export const useCombat = () => {
         }
 
         dispatch(XP(Number(defeatedEnemy.xp || 0)));
+        // Auto-loot gold: each enemy drops 1 or 2 whole gold
+        autoLootedGold += Math.floor(Math.random() * 2) + 1;
+
         const lootTable = Array.isArray(defeatedEnemy.loot) ? defeatedEnemy.loot : [];
         queueEnemyLootDrop(enemyId, defeatedEnemy, lootTable as LootObject[]);
       });
+
+    if (autoLootedGold > 0) {
+      dispatch(addGold(autoLootedGold));
+      dispatch(triggerGoldLootEffect(autoLootedGold));
+    }
   };
 
   const addFloorLootBag = useCallback((params: { x: number; y: number; mapId: string; items: any[] }) => {
@@ -652,6 +665,8 @@ export const useCombat = () => {
 
       obj.character.stats.health = playerHealthRef.current;
       obj.character.experience = Math.max(0, Number(store.getState().player.experience || obj.character.experience || 0));
+      // Save auto-looted gold (always whole numbers)
+      obj.character.gold = Math.round(Math.max(0, Number(store.getState().player.gold || obj.character.gold || 0)));
       obj.character.level = Math.max(1, Number(obj.character.level || 1));
       obj.character.xptolvlup = Math.max(16, Number(obj.character.xptolvlup || 16));
       obj.character.unspentStatPoints = Math.max(0, Number(obj.character.unspentStatPoints || 0));

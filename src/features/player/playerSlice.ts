@@ -298,8 +298,8 @@ const playerSlice = createSlice({
       state.skillLevels = { ...(action.payload || {}) };
     },
     addGold(state, action: PayloadAction<number>) {
-      const increment = Math.max(0, Number(action.payload || 0));
-      state.gold = Math.max(0, Number((state.gold + increment).toFixed(2)));
+      const increment = Math.round(Math.max(0, Number(action.payload || 0)));
+      state.gold = Math.round(Math.max(0, state.gold + increment));
     },
     gainRage(state, action: PayloadAction<number>) {
       if (state.classArchetype !== 'warrior') return;

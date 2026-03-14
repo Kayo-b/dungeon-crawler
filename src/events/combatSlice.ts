@@ -24,6 +24,8 @@ interface CombatInfo {
     scrollDiscard: string[];    // used/spent cards this combat
     cardMana: number;           // energy available this turn
     maxCardMana: number;        // max energy per turn (always 2)
+    // Auto-loot gold effect
+    goldLootEffect: { amount: number; pulse: number };
 }
 
 const initialState: CombatInfo = {
@@ -46,6 +48,7 @@ const initialState: CombatInfo = {
     scrollDiscard: [],
     cardMana: 2,
     maxCardMana: 2,
+    goldLootEffect: { amount: 0, pulse: 0 },
 };
 
 const combatSlice = createSlice({
@@ -157,6 +160,10 @@ const combatSlice = createSlice({
             state.frontLayer.splice(frontIdx, 1);
             state.midLayer.unshift(enemyId);
         },
+        /** Trigger the floating gold loot animation with the given total amount. */
+        triggerGoldLootEffect(state, action: PayloadAction<number>) {
+            state.goldLootEffect = { amount: action.payload, pulse: state.goldLootEffect.pulse + 1 };
+        },
     }
 });
 
@@ -180,6 +187,7 @@ export const {
     refillCardMana,
     clearScrollSystem,
     knockbackEnemy,
+    triggerGoldLootEffect,
 } = combatSlice.actions;
 
 export default combatSlice.reducer
