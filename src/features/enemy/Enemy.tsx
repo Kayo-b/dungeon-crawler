@@ -7,9 +7,10 @@ import { HitEffect } from '../../components/HitEffect';
 interface EnemyProps {
   index: number;
   jumpIntoView?: boolean;
+  isJustAdvanced?: boolean;
 }
 
-export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false }) => {
+export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false, isJustAdvanced = false }) => {
   const dispatch = useAppDispatch();
   const enemy = useAppSelector((state) => state.enemy.enemies[index]);
   const enemyAttackPulse = useAppSelector((state) => state.combat.enemyAttackPulse);
@@ -21,6 +22,9 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false }) => 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const attackAnim = useRef(new Animated.Value(0)).current;
   const ambushJumpAnim = useRef(new Animated.Value(0)).current;
+  // Advancement animation: springs from mid-row offset (-60) down to front-row (0)
+  const advanceAnim = useRef(new Animated.Value(0)).current;
+  const prevJustAdvancedRef = useRef(false);
   const [showHitEffect, setShowHitEffect] = useState(false);
 
   const resources = [
@@ -91,13 +95,28 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false }) => 
     }).start();
   }, [jumpIntoView, index]);
 
+  // When this enemy advances from a back row to the front, spring it into the front row position
+  useEffect(() => {
+    const wasAdvanced = prevJustAdvancedRef.current;
+    prevJustAdvancedRef.current = isJustAdvanced;
+    if (!isJustAdvanced || wasAdvanced) return;
+
+    advanceAnim.setValue(-60);
+    Animated.spring(advanceAnim, {
+      toValue: 0,
+      speed: 5,
+      bounciness: 6,
+      useNativeDriver: true,
+    }).start();
+  }, [isJustAdvanced]);
+
   if (!enemy) return null;
   const enemySprite = resources[enemy.id] || resources[0];
   const isRat = enemy.id === 1;
 
   const maxHealth = Math.max(Math.floor((enemy as any)?.stats?.health || enemy.health || 1), 1);
   const currentHealth = Math.max(0, Math.min(maxHealth, Math.floor(enemy.health || 0)));
-  const hpTrackWidth = Math.floor((isRat ? 84 : 110) * 0.65);
+  const hpTrackWidth = Math.floor((isRat ? 62 : 110) * 0.65);
   const hpGap = maxHealth > 34 ? 0 : 1;
   const desiredSegmentSize = isRat ? 3 : 4;
   const desiredTotalWidth = maxHealth * desiredSegmentSize + Math.max(0, maxHealth - 1) * hpGap;
@@ -107,7 +126,7 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false }) => 
 
   return (
     <View style={[styles.enemyRoot, isRat && styles.enemyRootRat]}>
-      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: ambushJumpAnim }, { translateX: attackAnim }] }}>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: ambushJumpAnim }, { translateY: advanceAnim }, { translateX: attackAnim }] }}>
         <View style={styles.enemyFrame}>
           <View style={[styles.healthBarWrap, isRat && styles.healthBarWrapRat]}>
             <View style={[styles.healthBarTrack, { minHeight: hpSegmentSize + 2, width: hpTrackWidth }]}>
@@ -154,9 +173,9 @@ const styles = StyleSheet.create({
     top: 54,
   },
   enemyRootRat: {
-    width: 120,
-    height: 142,
-    top: 68,
+    width: 90,
+    height: 108,
+    top: 76,
   },
   enemyFrame: {
     width: '100%',
@@ -171,8 +190,8 @@ const styles = StyleSheet.create({
     top: 20,
   },
   enemyRat: {
-    width: 120,
-    height: 120,
+    width: 80,
+    height: 80,
     top: 14,
   },
   healthBarWrap: {

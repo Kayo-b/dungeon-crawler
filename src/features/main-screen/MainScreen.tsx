@@ -34,7 +34,7 @@ import { ARCHETYPES, ArchetypeId, buildCharacterFromArchetype } from '../../data
 import { getMapConfig } from '../../data/maps';
 import itemData from '../../data/items.json';
 import { pickSpawnEnemyTypeForDepth } from '../enemy/enemySpawn';
-import { getEnemyBehaviorForType } from '../enemy/enemyPerception';
+import { getEnemyBehaviorForType, getEnemySizeCategory } from '../enemy/enemyPerception';
 import { getMapDepth } from '../../data/maps/transitions';
 import { computeDerivedPlayerStats } from '../player/playerStats';
 import {
@@ -104,44 +104,44 @@ interface DepthSpawnProfile {
 
 const DEPTH_SPAWN_PROFILES: Record<number, DepthSpawnProfile> = {
   1: {
-    targetEnemiesSmall: [4, 6],
-    targetEnemiesLarge: [7, 9],
-    packCountSmall: [2, 3],
-    packCountLarge: [3, 4],
+    targetEnemiesSmall: [9, 15],
+    targetEnemiesLarge: [12, 18],
+    packCountSmall: [1, 2],
+    packCountLarge: [2, 3],
     composition: { rats: 55, skeletons: 35, mixed: 10 },
     mixedArcherBias: 0.35,
-    respawnPackCapSmall: 2,
-    respawnPackCapLarge: 3,
+    respawnPackCapSmall: 6,
+    respawnPackCapLarge: 6,
   },
   2: {
-    targetEnemiesSmall: [5, 8],
-    targetEnemiesLarge: [8, 11],
-    packCountSmall: [2, 4],
-    packCountLarge: [3, 5],
+    targetEnemiesSmall: [9, 15],
+    targetEnemiesLarge: [12, 18],
+    packCountSmall: [1, 2],
+    packCountLarge: [2, 3],
     composition: { rats: 35, skeletons: 35, mixed: 30 },
     mixedArcherBias: 0.45,
-    respawnPackCapSmall: 2,
-    respawnPackCapLarge: 3,
+    respawnPackCapSmall: 6,
+    respawnPackCapLarge: 6,
   },
   3: {
-    targetEnemiesSmall: [7, 10],
-    targetEnemiesLarge: [10, 13],
-    packCountSmall: [3, 5],
-    packCountLarge: [4, 6],
+    targetEnemiesSmall: [9, 15],
+    targetEnemiesLarge: [12, 18],
+    packCountSmall: [1, 2],
+    packCountLarge: [2, 3],
     composition: { rats: 20, skeletons: 30, mixed: 50 },
     mixedArcherBias: 0.55,
-    respawnPackCapSmall: 3,
-    respawnPackCapLarge: 3,
+    respawnPackCapSmall: 6,
+    respawnPackCapLarge: 6,
   },
   4: {
-    targetEnemiesSmall: [8, 11],
-    targetEnemiesLarge: [11, 14],
-    packCountSmall: [3, 5],
-    packCountLarge: [4, 6],
+    targetEnemiesSmall: [9, 15],
+    targetEnemiesLarge: [12, 18],
+    packCountSmall: [1, 2],
+    packCountLarge: [2, 3],
     composition: { rats: 10, skeletons: 25, mixed: 65 },
     mixedArcherBias: 0.65,
-    respawnPackCapSmall: 3,
-    respawnPackCapLarge: 4,
+    respawnPackCapSmall: 6,
+    respawnPackCapLarge: 6,
   },
 };
 
@@ -154,8 +154,9 @@ const getDepthSpawnProfile = (depth: number): DepthSpawnProfile => {
 export const MainScreen = () => {
   const SMALL_MAP_MAX_TILES = 100;
   const RESPAWN_STEP_INTERVAL = 5;
-  const MAX_DYNAMIC_ENEMIES = 14;
+  const MAX_DYNAMIC_ENEMIES = 18;
   const MAX_PACK_ANCHORS = 6;
+  const PACK_LAYER_COUNT = 3; // each pack spawns enemies for this many wave layers
   const MAX_FIXED_PACKS_PER_CORRIDOR = 1;
   const MAX_AMBUSH_PACKS_PER_CORRIDOR = 2;
 
@@ -214,6 +215,8 @@ export const MainScreen = () => {
   const {
     startCombat,
     engagePlayerAttack,
+    attackCurrentTarget,
+    performPlayerAttack,
     performPrimarySkill,
     performSecondarySkill,
     specialCooldownFrames,
@@ -227,6 +230,8 @@ export const MainScreen = () => {
     addFloorLootBag,
     pendingLootItems,
   } = useCombat();
+
+  const combatPhase = useAppSelector((state) => state.combat.combatPhase);
 
   useEffect(() => {
     const checkSave = async () => {
@@ -824,29 +829,46 @@ export const MainScreen = () => {
     const kind = forceMixed ? 'mixed' : choosePackKind(depth);
 
     if (kind === 'rats') {
-      const ratCount = cap === 1 ? 1 : randInt(2, Math.min(4, cap));
-      return Array.from({ length: ratCount }, () => ENEMY_TYPE.RAT);
+      const sizeCategory = getEnemySizeCategory(ENEMY_TYPE.RAT); // 'small'
+      const perLayerMin = sizeCategory === 'small' ? 5 : sizeCategory === 'medium' ? 3 : 1;
+      const perLayerMax = sizeCategory === 'small' ? 6 : sizeCategory === 'medium' ? 4 : 1;
+      const perLayer = cap < 2 ? 1 : randInt(
+        Math.min(perLayerMin, Math.floor(cap / PACK_LAYER_COUNT)),
+        Math.min(perLayerMax, Math.floor(cap / PACK_LAYER_COUNT))
+      );
+      const totalCount = Math.min(cap, perLayer * PACK_LAYER_COUNT);
+      return Array.from({ length: totalCount }, () => ENEMY_TYPE.RAT);
     }
 
     if (kind === 'skeletons') {
-      const skeletonCount = randInt(1, Math.min(2, cap));
-      const remaining = Math.max(0, cap - skeletonCount);
+      const sizeCategory = getEnemySizeCategory(ENEMY_TYPE.SKELETON); // 'medium'
+      const perLayerMin = sizeCategory === 'small' ? 5 : sizeCategory === 'medium' ? 3 : 1;
+      const perLayerMax = sizeCategory === 'small' ? 6 : sizeCategory === 'medium' ? 4 : 1;
+      const perLayer = cap < 2 ? 1 : randInt(
+        Math.min(perLayerMin, Math.floor(cap / PACK_LAYER_COUNT)),
+        Math.min(perLayerMax, Math.floor(cap / PACK_LAYER_COUNT))
+      );
+      const skeletonTotal = Math.min(cap, perLayer * PACK_LAYER_COUNT);
+      const remaining = Math.max(0, cap - skeletonTotal);
       const archerCap = Math.min(1, remaining);
       const archerChance = Math.max(0, profile.composition.mixed - 20) / 100;
       const archerCount = archerCap > 0 && Math.random() < archerChance ? 1 : 0;
       return [
-        ...Array.from({ length: skeletonCount }, () => ENEMY_TYPE.SKELETON),
+        ...Array.from({ length: skeletonTotal }, () => ENEMY_TYPE.SKELETON),
         ...Array.from({ length: archerCount }, () => ENEMY_TYPE.ARCHER),
       ];
     }
 
+    // Mixed pack — medium enemies (skeletons + archers): 3-4 per layer × PACK_LAYER_COUNT
     if (cap === 1) {
       return [ENEMY_TYPE.SKELETON];
     }
 
-    const desiredArchers = Math.max(1, Math.min(2, Math.round(cap * profile.mixedArcherBias)));
-    const archerCount = Math.max(1, Math.min(2, Math.min(desiredArchers, cap - 1)));
-    const skeletonCount = Math.max(1, Math.min(2, cap - archerCount));
+    const perLayerMixed = randInt(Math.min(3, Math.floor(cap / PACK_LAYER_COUNT)), Math.min(4, Math.floor(cap / PACK_LAYER_COUNT)));
+    const totalMixed = Math.min(cap, Math.max(2, perLayerMixed * PACK_LAYER_COUNT));
+    const desiredArchers = Math.max(1, Math.min(2, Math.round(totalMixed * profile.mixedArcherBias)));
+    const archerCount = Math.max(1, Math.min(2, Math.min(desiredArchers, totalMixed - 1)));
+    const skeletonCount = Math.max(1, totalMixed - archerCount);
     return [
       ...Array.from({ length: skeletonCount }, () => ENEMY_TYPE.SKELETON),
       ...Array.from({ length: archerCount }, () => ENEMY_TYPE.ARCHER),
@@ -1177,7 +1199,7 @@ export const MainScreen = () => {
     secondarySkillMeetsStats,
   ]);
 
-  const skillButtonsLocked = !inCombat || specialCooldownFrames > 0;
+  const skillButtonsLocked = !inCombat || specialCooldownFrames > 0 || combatPhase !== 'player_turn';
   const primaryResourceLocked = skillHud.primaryDisabled;
   const secondaryResourceLocked = skillHud.secondaryDisabled;
   const primaryDisabled = skillButtonsLocked || primaryResourceLocked;
@@ -1249,19 +1271,23 @@ export const MainScreen = () => {
           openMerchantMenu();
           return;
         }
-        const aliveEnemyIds = Object.entries(enemies)
-          .filter(([, enemy]) => !!enemy && enemy.health > 0)
-          .map(([id]) => Number(id))
-          .sort((a, b) => a - b);
-
-        if (aliveEnemyIds.length <= 0) return;
-        const preferred = Number(currentEnemyId);
-        const targetId = aliveEnemyIds.includes(preferred) ? preferred : aliveEnemyIds[0];
 
         if (!inCombat) {
+          // Need a target to start combat — use selectors only for the initial engage
+          const aliveEnemyIds = Object.entries(enemies)
+            .filter(([, enemy]) => !!enemy && enemy.health > 0)
+            .map(([id]) => Number(id))
+            .sort((a, b) => a - b);
+          if (aliveEnemyIds.length <= 0) return;
+          const preferred = Number(currentEnemyId);
+          const targetId = aliveEnemyIds.includes(preferred) ? preferred : aliveEnemyIds[0];
           startCombat(targetId);
+          return;
         }
-        engagePlayerAttack(targetId);
+
+        if (combatPhase === 'player_turn') {
+          attackCurrentTarget();
+        }
       }
     };
 
@@ -1272,12 +1298,14 @@ export const MainScreen = () => {
     enemies,
     currentEnemyId,
     inCombat,
+    combatPhase,
     merchantInteractable,
     showMerchantModal,
     showStatPointsWindow,
     showTalentsWindow,
     openMerchantMenu,
     startCombat,
+    attackCurrentTarget,
     engagePlayerAttack,
     performPrimarySkill,
     performSecondarySkill,
@@ -1533,6 +1561,23 @@ export const MainScreen = () => {
           onLootBagPress={handleFloorLootBagPress}
           skillOverlay={
             <View style={styles.leftHud}>
+              {inCombat && (
+                <View style={styles.turnIndicatorRow}>
+                  {combatPhase === 'player_turn' ? (
+                    <TouchableOpacity
+                      testID="attack-button"
+                      style={styles.attackButton}
+                      onPress={attackCurrentTarget}
+                    >
+                      <Text style={styles.attackButtonText}>⚔ ATTACK</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.enemyTurnIndicator}>
+                      <Text style={styles.enemyTurnText}>ENEMY TURN...</Text>
+                    </View>
+                  )}
+                </View>
+              )}
               <View style={styles.skillBar}>
                 <TouchableOpacity
                   testID="skill-primary-button"
@@ -1833,6 +1878,37 @@ const styles = StyleSheet.create({
   leftHud: {
     gap: 4,
     alignItems: 'flex-start',
+  },
+  turnIndicatorRow: {
+    width: 192,
+  },
+  attackButton: {
+    backgroundColor: '#7a1c1c',
+    borderWidth: 2,
+    borderColor: '#ff4444',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  attackButtonText: {
+    color: '#ffdddd',
+    fontFamily: RETRO_FONT,
+    fontSize: 9,
+    textAlign: 'center',
+  },
+  enemyTurnIndicator: {
+    backgroundColor: '#1a1a1a',
+    borderWidth: 2,
+    borderColor: '#888888',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  enemyTurnText: {
+    color: '#aaaaaa',
+    fontFamily: RETRO_FONT,
+    fontSize: 9,
+    textAlign: 'center',
   },
   skillBar: {
     opacity: 1,

@@ -4,6 +4,7 @@ import data from '../../data/characters.json';
 export type EnemyVisibilityMode = 'distance' | 'ambush';
 export type EnemyAttackStyle = 'melee' | 'ranged';
 export type EnemyDisposition = 'hostile' | 'neutral' | 'friendly';
+export type EnemySizeCategory = 'small' | 'medium' | 'large';
 
 export interface EnemyBehavior {
   visibilityMode: EnemyVisibilityMode;
@@ -90,6 +91,13 @@ const ENEMY_BEHAVIORS_BY_TYPE: Record<number, EnemyBehavior> = ((data as any).en
 
 export const getEnemyBehaviorForType = (enemyType: number): EnemyBehavior => {
   return ENEMY_BEHAVIORS_BY_TYPE[enemyType] || DEFAULT_BEHAVIOR;
+};
+
+export const getEnemySizeCategory = (enemyType: number): EnemySizeCategory => {
+  const enemy = (data.enemies as any[])[enemyType];
+  const cat = enemy?.behavior?.sizeCategory;
+  if (cat === 'small' || cat === 'medium' || cat === 'large') return cat;
+  return 'medium';
 };
 
 export const getPlayerEngageRange = (playerClass: string | undefined): number => {
@@ -223,11 +231,6 @@ export const isEnemyCombatReachable = (
 
   if ((enemy.visibilityMode || DEFAULT_BEHAVIOR.visibilityMode) === 'ambush') {
     return distance === 0;
-  }
-
-  if ((enemy.attackStyle || DEFAULT_BEHAVIOR.attackStyle) === 'ranged') {
-    const requiredRange = enemy.playerEngageRange ?? DEFAULT_BEHAVIOR.playerEngageRange;
-    return distance <= requiredRange;
   }
 
   return distance <= getPlayerEngageRange(playerClass);
