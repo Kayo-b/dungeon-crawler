@@ -18,6 +18,12 @@ interface CombatInfo {
     midLayer: number[];         // waiting one layer back
     backLayer: number[];        // furthest back, advances when mid is depleted
     justAdvancedIds: number[];  // promoted this round — cannot attack until next round
+    // Card-game scroll system
+    scrollDeck: string[];       // remaining undrawn cards (shuffled)
+    scrollHand: string[];       // current hand (drawn this turn)
+    scrollDiscard: string[];    // used/spent cards this combat
+    cardMana: number;           // energy available this turn
+    maxCardMana: number;        // max energy per turn (always 2)
 }
 
 const initialState: CombatInfo = {
@@ -35,6 +41,11 @@ const initialState: CombatInfo = {
     midLayer: [],
     backLayer: [],
     justAdvancedIds: [],
+    scrollDeck: [],
+    scrollHand: [],
+    scrollDiscard: [],
+    cardMana: 2,
+    maxCardMana: 2,
 };
 
 const combatSlice = createSlice({
@@ -96,6 +107,48 @@ const combatSlice = createSlice({
             state.justAdvancedIds = [];
         },
 
+        // --- Card-game scroll system ---
+        initScrollDeck(state, action: PayloadAction<string[]>) {
+            // Receives a pre-shuffled deck; resets hand/discard/mana
+            state.scrollDeck = action.payload;
+            state.scrollHand = [];
+            state.scrollDiscard = [];
+            state.cardMana = state.maxCardMana;
+        },
+        drawScrolls(state, action: PayloadAction<number>) {
+            const count = action.payload;
+            for (let i = 0; i < count; i++) {
+                if (state.scrollDeck.length === 0) {
+                    if (state.scrollDiscard.length === 0) break;
+                    // Reshuffle discard back into deck
+                    const reshuffled = [...state.scrollDiscard].sort(() => Math.random() - 0.5);
+                    state.scrollDeck = reshuffled;
+                    state.scrollDiscard = [];
+                }
+                const card = state.scrollDeck.pop()!;
+                state.scrollHand.push(card);
+            }
+        },
+        useScrollCard(state, action: PayloadAction<string>) {
+            const idx = state.scrollHand.indexOf(action.payload);
+            if (idx === -1) return;
+            state.scrollHand.splice(idx, 1);
+            state.scrollDiscard.push(action.payload);
+            state.cardMana = Math.max(0, state.cardMana - 1);
+        },
+        discardHand(state) {
+            state.scrollDiscard.push(...state.scrollHand);
+            state.scrollHand = [];
+        },
+        refillCardMana(state) {
+            state.cardMana = state.maxCardMana;
+        },
+        clearScrollSystem(state) {
+            state.scrollDeck = [];
+            state.scrollHand = [];
+            state.scrollDiscard = [];
+            state.cardMana = state.maxCardMana;
+        },
     }
 });
 
@@ -112,6 +165,12 @@ export const {
     advanceFrontLayerRedux,
     clearJustAdvanced,
     clearEnemyLayers,
+    initScrollDeck,
+    drawScrolls,
+    useScrollCard,
+    discardHand,
+    refillCardMana,
+    clearScrollSystem,
 } = combatSlice.actions;
 
 export default combatSlice.reducer
