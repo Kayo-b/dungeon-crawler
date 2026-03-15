@@ -146,6 +146,7 @@ export const useCombat = () => {
   const enemyHealthRef = useRef<{ [key: number]: number }>({});
   const processedEnemyIdsRef = useRef<Set<number>>(new Set());
   const pendingEnemyLootRef = useRef<Array<{ mapId: string; x: number; y: number; item: any }>>([]);
+  const pendingGoldRef = useRef(0);
   const playerHealthRef = useRef(playerHealth);
   const combatViewRef = useRef({
     x: playerPosX,
@@ -417,7 +418,6 @@ export const useCombat = () => {
   };
 
   const queueAllDefeatedEnemyRewards = () => {
-    let autoLootedGold = 0;
 
     Object.keys(enemyHealthRef.current)
       .map(Number)
@@ -432,17 +432,13 @@ export const useCombat = () => {
         }
 
         dispatch(XP(Number(defeatedEnemy.xp || 0)));
-        // Auto-loot gold: each enemy drops 1 or 2 whole gold
-        autoLootedGold += Math.floor(Math.random() * 2) + 1;
+        // Auto-loot gold: each enemy drops 1 or 2 whole gold — accumulated until combat ends
+        pendingGoldRef.current += Math.floor(Math.random() * 2) + 1;
 
         const lootTable = Array.isArray(defeatedEnemy.loot) ? defeatedEnemy.loot : [];
         queueEnemyLootDrop(enemyId, defeatedEnemy, lootTable as LootObject[]);
       });
 
-    if (autoLootedGold > 0) {
-      dispatch(addGold(autoLootedGold));
-      dispatch(triggerGoldLootEffect(autoLootedGold));
-    }
   };
 
   const addFloorLootBag = useCallback((params: { x: number; y: number; mapId: string; items: any[] }) => {
@@ -665,6 +661,11 @@ export const useCombat = () => {
 
       // Dispatch UI state synchronously before any async work so the UI
       // always exits combat even if the async save throws.
+      if (pendingGoldRef.current > 0) {
+        dispatch(addGold(pendingGoldRef.current));
+        dispatch(triggerGoldLootEffect(pendingGoldRef.current));
+        pendingGoldRef.current = 0;
+      }
       dispatch(setInCombat(false));
       dispatch(setSpecialCooldown(0));
       dispatch(setCombatLog('Combat ended.'));
@@ -673,6 +674,7 @@ export const useCombat = () => {
       const obj = data ? JSON.parse(data) : {};
       if (!obj?.character) {
         pendingEnemyLootRef.current = [];
+        pendingGoldRef.current = 0;
         processedEnemyIdsRef.current.clear();
         return;
       }
@@ -742,6 +744,7 @@ export const useCombat = () => {
     } catch (error) {
       console.warn('[endCombat] AsyncStorage save failed:', error);
       pendingEnemyLootRef.current = [];
+      pendingGoldRef.current = 0;
       processedEnemyIdsRef.current.clear();
     } finally {
       combatEndingRef.current = false;
@@ -1160,6 +1163,7 @@ export const useCombat = () => {
       combatEndingRef.current = false;
       processedEnemyIdsRef.current.clear();
       pendingEnemyLootRef.current = [];
+      pendingGoldRef.current = 0;
       combatRef.current = true;
       clearAllIntervals();
       startCooldownTicker();
