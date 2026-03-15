@@ -113,11 +113,11 @@ const FRAME_SURFACE_PROFILES: Record<FrameSurface, FrameSurfaceProfile> = {
     },
     ceiling: {
         scaleDistanceFactor: 0.4,
-        scaleBase: 0.5,
-        widthBase: 0.51,
+        scaleBase: 0.48,
+        widthBase: 0.54,
         widthDistanceFactor: 0.1,
         heightBase: 0.8,
-        heightDistanceFactor: 0.04,
+        heightDistanceFactor: 0.05,
         horizontalDivisor: 1.8,
         topDivisorBase: 1.8,
         topDivisorDistanceFactor: 0,
@@ -416,7 +416,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             // Wall rotation - moderate angle for visibility while creating depth
             const wallRotation = 65 + (d - 1) * 4;
             const floorRotation = 60;
-            const ceilingRotation = 100;
+            const ceilingRotation = 95;
             const lastTileCeilingRotation = -65;
 
             // LEFT WALL - full height from near.top to near.bottom
@@ -526,6 +526,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             // FLOOR - full width, tilting AWAY (top edge goes back into distance)
             const floorHeight = floorNear.bottom - floorFar.bottom;
             if (floorHeight > 0) {
+                {console.log(floorHeight,'FLOOR COUNT <<<')}
                 frames.push(
                     <View
                         key={`floor-${d}`}
@@ -566,41 +567,49 @@ export const Room3D: React.FC<Room3DProps> = ({
             }
 
             // CEILING - full width, tilting AWAY (bottom edge goes back into distance)
-            const ceilingHeight = ceilingFar.top - ceilingNear.top;
-            if (ceilingHeight > 0) {
+            const ceilingHeight = (ceilingFar.top - ceilingNear.top) + 20;
+            console.log(ceilingFar, 'ceiling far stats')
+            console.log(ceilingNear, 'ceiling near stats')
+            console.log(floorFar, 'floor far stats')
+            console.log(floorNear, 'floor near stats')
+            if (ceilingHeight >  0) {
                 const isLastTile = d === 1 && isWall;
-                const ceilingTop = isLastTile ? Math.max(0, ceilingNear.top - 6) : ceilingNear.top +  110;
-                const ceilingOuterHeight = isLastTile ? Math.max(70, ceilingHeight + 56) : ceilingHeight + 10;
-                const ceilingOuterZ = isLastTile ? 100 - d : 100 - d;
-                const ceilingInnerHeight = isLastTile ? '450%' : '450%';
-                const ceilingInnerMarginTop = isLastTile ? '0%' : '-100%';
+                const isPreLastTile = (ceilingHeight === 36.32202922525502) ? true : false;
+                const ceilingTop = isLastTile ? Math.max(0, ceilingNear.top - 6) : ceilingNear.top +  90;
+                const ceilingOuterHeight = isLastTile ? Math.max(70, ceilingHeight + 56) : ceilingHeight + 25;
+                const ceilingOuterZ = isLastTile ? 130 - d : 150 - d;
+                const ceilingInnerHeight = isLastTile ? '340%' : '360%';
+                const ceilingInnerMarginTop = isLastTile ? '-32%' : '-110%';
                 const ceilingTransform = isLastTile
                     ? `rotateX(${lastTileCeilingRotation}deg)`
-                    : `rotateX(-${ceilingRotation}deg)`;
-                const ceilingTransformOrigin = isLastTile ? '50% 0%' : '50% 100%';
+                    : `rotateX(${ceilingRotation}deg)`;
+                const ceilingTransformOrigin = isLastTile ? '50% 90% 30px' : '50% 90% 30px';
 
+                {console.log(ceilingHeight,'CEILING COUNT <<<')}
                 frames.push(
                     <View
                         key={`ceiling-${d}`}
+                        testID={`ceilingTestId-${ceilingHeight}`}
                         style={[
                             styles.segment,
                             {
-                                left: ceilingNear.left - 20,
-                                top: ceilingTop,
-                                width: ceilingNear.right - ceilingNear.left + 10,// this relates to perspective for ceiling length
+                                left: ceilingNear.left - 40,// tile alignment depends on this value
+                                top: ceilingTop - d*10,
+                                width: ceilingNear.right - ceilingNear.left + d,// this relates to perspective for ceiling length
                                 height: ceilingOuterHeight,
-                                zIndex: ceilingOuterZ,
+                                zIndex: isPreLastTile ? ceilingOuterZ - d *10 : ceilingOuterZ + d *10,
                             },
                             isWeb && {
                                 // @ts-ignore
-                                perspective: '360px',
+                                perspective: `${560 - d*100}px`,
+                                perspectiveOrigin: `${CENTER_X - (ceilingNear.left - 40)}px 50%`,//tile alignment
                             }
                         ]}
                     >
                         <View
                             style={[
                                 {
-                                    width: '100%',
+                                    width: '126%',
                                     height: ceilingInnerHeight,
                                     marginTop: ceilingInnerMarginTop,
                                     opacity: 1,//isLastTile ? brightness * 0.85 : brightness * 0.7,
@@ -628,14 +637,14 @@ export const Room3D: React.FC<Room3DProps> = ({
             <View style={styles.viewport}>
                 <View style={styles.background} />
                 {renderFrames()}
-                <View style={styles.debugOverlay}>
+                {/* <View style={styles.debugOverlay}>
                     <Text style={styles.debugText}>
                         3D Mode | Pos: ({positionX}, {positionY}) | Dir: {direction}
                     </Text>
                     <Text style={styles.debugText}>
                         Tiles ahead: {tilesAhead.length}
                     </Text>
-                </View>
+                </View> */}
             </View>
         </View>
     );
