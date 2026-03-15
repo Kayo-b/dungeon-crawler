@@ -13,6 +13,8 @@ interface CombatInfo {
     playerHitPulse: number;
     lastPlayerHitId: number | null;
     lastPlayerHitType: 'pow' | 'slash' | 'fire' | 'crush' | 'mutilate';
+    lastPlayerHitDmg: number;
+    lastPlayerHitCrit: boolean;
     // Wave layer system: enemies advance from back → mid → front as the front falls
     frontLayer: number[];       // enemy indices that can attack and be attacked
     midLayer: number[];         // waiting one layer back
@@ -39,6 +41,8 @@ const initialState: CombatInfo = {
     playerHitPulse: 0,
     lastPlayerHitId: null,
     lastPlayerHitType: 'pow',
+    lastPlayerHitDmg: 0,
+    lastPlayerHitCrit: false,
     frontLayer: [],
     midLayer: [],
     backLayer: [],
@@ -82,9 +86,11 @@ const combatSlice = createSlice({
             state.lastEnemyAttackId = action.payload;
             state.enemyAttackPulse += 1;
         },
-        registerPlayerHit(state, action: PayloadAction<{ enemyId: number; hitType: 'pow' | 'slash' | 'fire' | 'crush' | 'mutilate' }>) {
+        registerPlayerHit(state, action: PayloadAction<{ enemyId: number; hitType: 'pow' | 'slash' | 'fire' | 'crush' | 'mutilate'; dmg: number; crit: boolean }>) {
             state.lastPlayerHitId = action.payload.enemyId;
             state.lastPlayerHitType = action.payload.hitType;
+            state.lastPlayerHitDmg = action.payload.dmg;
+            state.lastPlayerHitCrit = action.payload.crit;
             state.playerHitPulse += 1;
         },
         setEnemyLayers(state, action: PayloadAction<{ front: number[]; mid: number[]; back: number[] }>) {

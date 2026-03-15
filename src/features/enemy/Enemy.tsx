@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, ImageBackground, ImageSourcePropType, StyleSheet, View } from 'react-native';
+import { Animated, ImageBackground, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchEnemies, setAttackRating } from '../../features/enemy/enemySlice';
 import { HitEffect } from '../../components/HitEffect';
@@ -18,6 +18,8 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false, isJus
   const playerHitPulse = useAppSelector((state) => state.combat.playerHitPulse);
   const lastPlayerHitId = useAppSelector((state) => state.combat.lastPlayerHitId);
   const lastPlayerHitType = useAppSelector((state) => state.combat.lastPlayerHitType);
+  const lastPlayerHitDmg = useAppSelector((state) => state.combat.lastPlayerHitDmg);
+  const lastPlayerHitCrit = useAppSelector((state) => state.combat.lastPlayerHitCrit);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const attackAnim = useRef(new Animated.Value(0)).current;
@@ -26,6 +28,10 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false, isJus
   const advanceAnim = useRef(new Animated.Value(0)).current;
   const prevJustAdvancedRef = useRef(false);
   const [showHitEffect, setShowHitEffect] = useState(false);
+  // Floating damage number
+  const dmgFadeAnim = useRef(new Animated.Value(0)).current;
+  const dmgSlideAnim = useRef(new Animated.Value(0)).current;
+  const [dmgDisplay, setDmgDisplay] = useState<{ value: number; crit: boolean } | null>(null);
 
   const resources = [
     require('../../resources/skeleton_01.png'),
@@ -81,6 +87,20 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false, isJus
     setShowHitEffect(true);
     const timeout = setTimeout(() => setShowHitEffect(false), 320);
     return () => clearTimeout(timeout);
+  }, [playerHitPulse]);
+
+  useEffect(() => {
+    if (lastPlayerHitId !== index) return;
+    setDmgDisplay({ value: lastPlayerHitDmg, crit: lastPlayerHitCrit });
+    dmgFadeAnim.setValue(1);
+    dmgSlideAnim.setValue(0);
+    Animated.parallel([
+      Animated.sequence([
+        Animated.delay(400),
+        Animated.timing(dmgFadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.timing(dmgSlideAnim, { toValue: -32, duration: 800, useNativeDriver: true }),
+    ]).start();
   }, [playerHitPulse]);
 
   useEffect(() => {
@@ -158,6 +178,16 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false, isJus
               </View>
             )}
           </ImageBackground>
+          {dmgDisplay && (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.dmgNumberWrap, isRat && styles.dmgNumberWrapRat, { opacity: dmgFadeAnim, transform: [{ translateY: dmgSlideAnim }] }]}
+            >
+              <Text style={[styles.dmgNumberText, dmgDisplay.crit && styles.dmgNumberCrit]}>
+                -{dmgDisplay.value}
+              </Text>
+            </Animated.View>
+          )}
         </View>
       </Animated.View>
     </View>
@@ -235,6 +265,30 @@ const styles = StyleSheet.create({
   hitEffectWrapRat: {
     top: -16,
     left: 30,
+  },
+  dmgNumberWrap: {
+    position: 'absolute',
+    top: 16,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 10,
+    pointerEvents: 'none',
+  },
+  dmgNumberWrapRat: {
+    top: 10,
+  },
+  dmgNumberText: {
+    color: '#ff4444',
+    fontSize: 18,
+    fontWeight: '900',
+    textShadowColor: '#000',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  dmgNumberCrit: {
+    color: '#ffd700',
+    fontSize: 22,
   },
   archerTint: {
     tintColor: '#8fc6ff',
