@@ -311,6 +311,17 @@ export const useCombat = () => {
       .filter((id) => (reachableOnly ? isEnemyReachableNow(id) : true));
   };
 
+  /** True when every enemy in the current encounter's wave layers is dead. */
+  const allEncounterEnemiesDead = (): boolean => {
+    const encounterIds = [
+      ...frontLayerRef.current,
+      ...midLayerRef.current,
+      ...backLayerRef.current,
+    ];
+    if (encounterIds.length === 0) return true;
+    return encounterIds.every((id) => (enemyHealthRef.current[id] ?? 0) <= 0);
+  };
+
   const resolveLootEntry = (drop: LootObject): any | null => {
     const sourceItems = (itemData as any)?.items || {};
     const baseItem = sourceItems?.[drop.type]?.[`${drop.ID}`];
@@ -652,14 +663,17 @@ export const useCombat = () => {
       // Reset card scroll system
       dispatch(clearScrollSystem());
 
+      // Dispatch UI state synchronously before any async work so the UI
+      // always exits combat even if the async save throws.
+      dispatch(setInCombat(false));
+      dispatch(setSpecialCooldown(0));
+      dispatch(setCombatLog('Combat ended.'));
+
       const data = await AsyncStorage.getItem('characters');
       const obj = data ? JSON.parse(data) : {};
       if (!obj?.character) {
         pendingEnemyLootRef.current = [];
         processedEnemyIdsRef.current.clear();
-        dispatch(setInCombat(false));
-        dispatch(setSpecialCooldown(0));
-        dispatch(setCombatLog('Combat ended.'));
         return;
       }
 
@@ -725,10 +739,10 @@ export const useCombat = () => {
         pendingEnemyLootRef.current = [];
       }
       processedEnemyIdsRef.current.clear();
-
-      dispatch(setInCombat(false));
-      dispatch(setSpecialCooldown(0));
-      dispatch(setCombatLog('Combat ended.'));
+    } catch (error) {
+      console.warn('[endCombat] AsyncStorage save failed:', error);
+      pendingEnemyLootRef.current = [];
+      processedEnemyIdsRef.current.clear();
     } finally {
       combatEndingRef.current = false;
     }
@@ -780,15 +794,15 @@ export const useCombat = () => {
     combatPhaseRef.current = 'enemy_turn';
     dispatch(setCombatPhase('enemy_turn'));
 
-    // Enemies that advanced this round are not ready to attack yet
-    const attackingEnemies = aliveEnemyIds(true).filter(
-      (id) => !justAdvancedIdsRef.current.has(id)
+    // Enemies that advanced this round are not ready to attack yet;
+    // use the front layer directly so reachability filters don't exclude anyone.
+    const attackingEnemies = frontLayerRef.current.filter(
+      (id) => !justAdvancedIdsRef.current.has(id) && (enemyHealthRef.current[id] ?? 0) > 0
     );
 
     if (attackingEnemies.length === 0) {
       // No attackers this round, but there may still be live enemies (just advanced or knocked back)
-      const stillAlive = aliveEnemyIds(false);
-      if (stillAlive.length === 0) {
+      if (allEncounterEnemiesDead()) {
         endCombat({ flushLoot: true });
       } else {
         beginPlayerTurn();
@@ -815,8 +829,7 @@ export const useCombat = () => {
         return;
       }
       queueAllDefeatedEnemyRewards();
-      const stillAlive = aliveEnemyIds(false);
-      if (stillAlive.length === 0) {
+      if (allEncounterEnemiesDead()) {
         endCombat({ flushLoot: true });
         return;
       }
@@ -878,8 +891,7 @@ export const useCombat = () => {
     }
 
     queueAllDefeatedEnemyRewards();
-    const stillAlive = aliveEnemyIds(true);
-    if (stillAlive.length === 0) {
+    if (allEncounterEnemiesDead()) {
       endCombat({ flushLoot: true });
       return;
     }
@@ -947,7 +959,7 @@ export const useCombat = () => {
         `Whirlwind Lv.${skillRank} hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}${knockedCount > 0 ? ` — ${knockedCount} knocked back!` : ''}.`
       ));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -963,7 +975,7 @@ export const useCombat = () => {
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'fire'));
       dispatch(setCombatLog(`Fire Blast Lv.${skillRank} scorches ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -987,7 +999,7 @@ export const useCombat = () => {
         `Crushing Blow Lv.${skillRank} lands a heavy hit${wasKnockedBack ? ' — enemy knocked back!' : '.'}`
       ));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1000,7 +1012,7 @@ export const useCombat = () => {
       applyDamageToEnemy(targetId, damage, false, 'fire');
       dispatch(setCombatLog(`Arcane Bolt Lv.${skillRank} burns the target.`));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1014,7 +1026,7 @@ export const useCombat = () => {
       applyDamageToEnemy(targetId, damage, false, 'slash');
       dispatch(setCombatLog(`Quick Stab Lv.${skillRank} builds combo points.`));
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1034,7 +1046,7 @@ export const useCombat = () => {
         )
       );
       queueAllDefeatedEnemyRewards();
-      if (aliveEnemyIds(false).length === 0) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
       checkAutoEndTurn();
     }
   };
