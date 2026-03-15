@@ -1114,13 +1114,8 @@ export const Room = ({
             console.log("Starting combat with enemy index:", index);
             dispatch(setCurrentEnemy(index));
             startCombat(index);
-            if (armPlayer) {
-                engagePlayerAttack(index);
-            }
-        } else {
-            console.log("Combat active: arming player attack on target:", index);
-            engagePlayerAttack(index);
         }
+        // Click-to-attack disabled — combat is skill-only via scroll cards
     }
 
     const findAutoMeleeAggressor = (): number => {

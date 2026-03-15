@@ -1212,25 +1212,9 @@ export const useCombat = () => {
     }
   };
 
-  const engagePlayerAttack = (id: number) => {
-    if (!combatRef.current) {
-      return;
-    }
-
-    if (combatPhaseRef.current !== 'player_turn') {
-      return;
-    }
-
-    // If the requested target is dead or unreachable, fall through to auto-target
-    const resolvedId = isEnemyReachableNow(id) ? id : (getPrimaryTarget() ?? id);
-
-    if (!isEnemyReachableNow(resolvedId)) {
-      return;
-    }
-
-    dispatch(setCurrentEnemy(resolvedId));
-    performPlayerAttack(resolvedId);
-  };
+  // Click-to-attack disabled — combat is skill-only via scroll cards.
+  // Kept as a stub so call sites compile without changes.
+  const engagePlayerAttack = (_id: number) => {};
 
   // Convenience wrapper for the Attack button: finds the best living target via
   // internal refs so it never relies on stale React-state selectors in the UI.
