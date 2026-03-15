@@ -161,6 +161,7 @@ export const useCombat = () => {
   const midLayerRef = useRef<number[]>([]);
   const backLayerRef = useRef<number[]>([]);
   const justAdvancedIdsRef = useRef<Set<number>>(new Set());
+  const layerCapacityRef = useRef(3);
   const [floorLootBags, setFloorLootBags] = useState<FloorLootBag[]>([]);
   const [activeLootBagId, setActiveLootBagId] = useState<string | null>(null);
   const pendingLootItems = useMemo(() => {
@@ -797,6 +798,38 @@ export const useCombat = () => {
     combatPhaseRef.current = 'enemy_turn';
     dispatch(setCombatPhase('enemy_turn'));
 
+    // Advance mid/back enemies to fill any open front-layer slots before resolving attacks.
+    // Advancing counts as their round action — they're added to justAdvancedIdsRef
+    // so they cannot also attack this same round.
+    const frontSlotsFree = layerCapacityRef.current - frontLayerRef.current.length;
+    const advancedNames: string[] = [];
+    for (let i = 0; i < frontSlotsFree && midLayerRef.current.length > 0; i++) {
+      const [advancing, ...restMid] = midLayerRef.current;
+      frontLayerRef.current.push(advancing);
+      justAdvancedIdsRef.current.add(advancing);
+      midLayerRef.current = restMid;
+      const name = enemiesRef.current[advancing]?.info?.name || 'An enemy';
+      advancedNames.push(name);
+      // Pull one back-layer enemy up to fill the mid slot
+      if (backLayerRef.current.length > 0) {
+        const [advancingBack, ...restBack] = backLayerRef.current;
+        midLayerRef.current.push(advancingBack);
+        backLayerRef.current = restBack;
+      }
+    }
+    if (advancedNames.length > 0) {
+      dispatch(
+        advanceFrontLayerRedux({
+          front: frontLayerRef.current,
+          mid: midLayerRef.current,
+          back: backLayerRef.current,
+          justAdvancedIds: [...justAdvancedIdsRef.current],
+        })
+      );
+      const nameList = advancedNames.join(', ');
+      dispatch(setCombatLog(`${nameList} advance${advancedNames.length === 1 ? 's' : ''} to the front!`));
+    }
+
     // Enemies that advanced this round are not ready to attack yet;
     // use the front layer directly so reachability filters don't exclude anyone.
     const attackingEnemies = frontLayerRef.current.filter(
@@ -1141,6 +1174,7 @@ export const useCombat = () => {
     midLayerRef.current = allEncounterIds.slice(layerCapacity, layerCapacity * 2);
     backLayerRef.current = allEncounterIds.slice(layerCapacity * 2);
     justAdvancedIdsRef.current = new Set();
+    layerCapacityRef.current = layerCapacity;
 
     dispatch(
       setEnemyLayers({
