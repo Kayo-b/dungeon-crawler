@@ -2730,7 +2730,7 @@ const turn = (turnDir:string) => {
         const enemiesByPosition: { [key: string]: { enemy: typeof enemiesVal[0], index: number }[] } = {};
 
         enemiesVal.forEach((val, index) => {
-            if (!val || val.health <= 0) return;
+            if (!val) return;
             const key = `${val.positionX ?? 0},${val.positionY ?? 0}`;
             if (!enemiesByPosition[key]) {
                 enemiesByPosition[key] = [];
@@ -2762,7 +2762,14 @@ const turn = (turnDir:string) => {
                 return !isEnemyOccludedByCloserEnemy(index, laneEnemies, positionX, positionY, facingDirection);
             });
 
-            if (!canSeeGroup) {
+            // Keep group mounted if any dead enemy still needs to play its damage number / death-fade animation.
+            // Dead enemies are removed from layer arrays by advanceLayersAfterDeath, so they won't be
+            // included in any subgroup unless we track them separately below.
+            const hasAnimatingDeadEnemy = enemyGroup.some(({ enemy }) =>
+                enemy && (enemy.health ?? 1) <= 0
+            );
+
+            if (!canSeeGroup && !hasAnimatingDeadEnemy) {
                 return null;
             }
 
@@ -2793,15 +2800,33 @@ const turn = (turnDir:string) => {
             // Split into wave layer sub-groups.
             // Pre-combat: show only one representative enemy to indicate pack type;
             // the full pack is revealed with a staggered fade-in once combat starts.
+            // Build subgroups in layer-array order (not store-index order) so the oldest/existing
+            // enemy in each layer is always at position 0, which maps to the center slot.
             const frontSubgroup = useLayers
-                ? enemyGroup.filter(({ index }) => frontLayer.includes(index))
+                ? frontLayer
+                    .map(id => enemyGroup.find(e => e.index === id))
+                    .filter((e): e is NonNullable<typeof e> => e != null)
                 : [enemyGroup[0]]; // single representative before combat
             const midSubgroup = useLayers
-                ? enemyGroup.filter(({ index }) => midLayer.includes(index))
+                ? midLayer
+                    .map(id => enemyGroup.find(e => e.index === id))
+                    .filter((e): e is NonNullable<typeof e> => e != null)
                 : [];
             const backSubgroup = useLayers
-                ? enemyGroup.filter(({ index }) => backLayer.includes(index))
+                ? backLayer
+                    .map(id => enemyGroup.find(e => e.index === id))
+                    .filter((e): e is NonNullable<typeof e> => e != null)
                 : [];
+
+            // Dead enemies get removed from all layer arrays by advanceLayersAfterDeath but still need
+            // to render their damage number and fade-out. Re-attach them to the front subgroup.
+            if (useLayers) {
+                const assignedToLayer = new Set([...frontLayer, ...midLayer, ...backLayer]);
+                const dyingOrphans = enemyGroup.filter(({ index, enemy }) =>
+                    (enemy?.health ?? 1) <= 0 && !assignedToLayer.has(index)
+                );
+                frontSubgroup.push(...dyingOrphans);
+            }
 
             type LayerName = 'front' | 'mid' | 'back';
 
@@ -2834,12 +2859,20 @@ const turn = (turnDir:string) => {
                         {layerDefs.map(({ subgroup, layer, revealAnim }) => (
                             <Animated.View key={layer} style={{ opacity: revealAnim }}>
                                 {subgroup.map(({ enemy, index }) => {
-                                    if (enemy.health <= 0) return null;
+                                    // Dead enemies stay mounted so their damage number + fade-out animation can play.
+                                    // Enemy.tsx's fadeAnim handles transparency; combat logic already ignores health<=0 enemies.
 
-                                    // Horizontal spread within the layer's own sub-group
+                                    // Horizontal spread within the layer's own sub-group.
+                                    // Center-first slot assignment: the first enemy in the layer
+                                    // array (subIdx 0) gets the center, then alternating left/right:
+                                    //   subIdx 0 → slot  0 (center)
+                                    //   subIdx 1 → slot -1 (left)
+                                    //   subIdx 2 → slot +1 (right)
+                                    //   subIdx 3 → slot -2 (far left)  …etc.
                                     const subIdx = subgroup.findIndex(e => e.index === index);
-                                    const stackCenter = (subgroup.length - 1) / 2;
-                                    const centeredSlot = subIdx - stackCenter;
+                                    const centeredSlot = subIdx === 0 ? 0
+                                        : subIdx % 2 === 1 ? -Math.ceil(subIdx / 2)
+                                        : Math.ceil(subIdx / 2);
                                     const isRat = enemy.id === 1;
                                     const horizontalSpread = isRat ? 52 : 40;
                                     const verticalFan = isRat ? 8 : 12;
