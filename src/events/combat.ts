@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from './../app/hooks';
 import { store } from './../app/store';
-import { dmg2Enemy, setCurrentEnemy } from './../features/enemy/enemySlice';
+import { dmg2Enemy, setCurrentEnemy, clearEnemies } from './../features/enemy/enemySlice';
 import { isEnemyCombatReachable, isEnemyOccludedByCloserEnemy, getEnemySizeCategory } from './../features/enemy/enemyPerception';
 import {
   addComboPoint,
@@ -562,16 +562,42 @@ export const useCombat = () => {
     return CLASS_HIT_FX.warrior;
   };
 
-  const applyDamageToEnemy = (enemyId: number, dmg: number, crit: boolean, hitType: HitVariant) => {
+  const applyDamageToEnemy = (enemyId: number, dmg: number, crit: boolean, hitType: HitVariant, skipVisual = false) => {
     dispatch(dmg2Enemy({ id: enemyId, damage: { dmg, crit } }));
     const newHealth = (enemyHealthRef.current[enemyId] ?? 0) - dmg;
     enemyHealthRef.current[enemyId] = newHealth;
-    dispatch(registerPlayerHit({ enemyId, hitType, dmg, crit }));
 
-    // If a front-layer enemy just died, advance the next wave rank immediately
-    if (newHealth <= 0 && frontLayerRef.current.includes(enemyId)) {
-      advanceLayersAfterDeath(enemyId);
+    if (!skipVisual) {
+      dispatch(registerPlayerHit({ enemyId, hitType, dmg, crit }));
     }
+
+    // If a front-layer enemy just died, advance the next wave rank after a short delay
+    // so the layer-shift animation doesn't stack with the killed enemy's death fade.
+    if (newHealth <= 0 && frontLayerRef.current.includes(enemyId)) {
+      // Update refs immediately so combat logic is consistent (targeting, reachability, etc.)
+      frontLayerRef.current = frontLayerRef.current.filter((id) => id !== enemyId);
+      midLayerRef.current = midLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
+      backLayerRef.current = backLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
+
+      setTimeout(() => advanceLayersAfterDeath(enemyId), 200);
+    }
+  };
+
+  // Sort enemy IDs by their X position (left → right) for staggered area visuals.
+  const sortedByPositionX = (ids: number[]): number[] => {
+    const enemies = store.getState().enemy.enemies;
+    return [...ids].sort((a, b) => (enemies[a]?.positionX ?? 0) - (enemies[b]?.positionX ?? 0));
+  };
+
+  // Stagger registerPlayerHit dispatches across multiple enemies, left to right.
+  const staggerHitVisuals = (ids: number[], dmg: number, crit: boolean, hitType: HitVariant, intervalMs = 150) => {
+    sortedByPositionX(ids).forEach((id, i) => {
+      if (i === 0) {
+        dispatch(registerPlayerHit({ enemyId: id, hitType, dmg, crit }));
+      } else {
+        setTimeout(() => dispatch(registerPlayerHit({ enemyId: id, hitType, dmg, crit })), i * intervalMs);
+      }
+    });
   };
 
   /**
@@ -597,8 +623,9 @@ export const useCombat = () => {
     const splashDamage = Math.max(1, Math.floor(baseDamage * WEAPON_CLEAVE_MULTIPLIER));
 
     others.forEach((id) => {
-      applyDamageToEnemy(id, splashDamage, false, 'slash');
+      applyDamageToEnemy(id, splashDamage, false, 'slash', true);
     });
+    staggerHitVisuals(others, splashDamage, false, 'slash');
 
     dispatch(setCombatLog(`Cleave hit ${others.length} nearby enemy${others.length > 1 ? 'ies' : ''}.`));
   };
@@ -670,6 +697,15 @@ export const useCombat = () => {
       dispatch(setInCombat(false));
       dispatch(setSpecialCooldown(0));
       dispatch(setCombatLog('Combat ended.'));
+
+      // Clear dead enemies from the store after their animations finish (~750ms max).
+      // Delayed so damage numbers and death fades complete before the components unmount.
+      // Guard against clearing enemies from a new combat that starts within the window.
+      setTimeout(() => {
+        if (!combatRef.current) {
+          dispatch(clearEnemies());
+        }
+      }, 900);
 
       const data = await AsyncStorage.getItem('characters');
       const obj = data ? JSON.parse(data) : {};
@@ -875,6 +911,14 @@ export const useCombat = () => {
     enemyTurnTimeoutsRef.current.push(returnToPlayerTurn);
   };
 
+  // Delay endCombat so damage-number and death-fade animations have time to play before
+  // the UI transitions to loot/gold/level-up screens. Setting phase to 'idle' blocks
+  // further player input during the wait without needing a new phase type.
+  const endCombatAfterAnimation = (options?: { flushLoot?: boolean }) => {
+    combatPhaseRef.current = 'idle';
+    setTimeout(() => endCombat(options), 800);
+  };
+
   const performPlayerAttack = (targetId: number) => {
     if (!combatRef.current || combatPhaseRef.current !== 'player_turn') return;
     if (playerHealthRef.current <= 0) return;
@@ -928,7 +972,7 @@ export const useCombat = () => {
 
     queueAllDefeatedEnemyRewards();
     if (allEncounterEnemiesDead()) {
-      endCombat({ flushLoot: true });
+      endCombatAfterAnimation({ flushLoot: true });
       return;
     }
 
@@ -986,7 +1030,8 @@ export const useCombat = () => {
         3,
         Math.floor((playerDmg * 1.35 + (playerStats?.strength || 0) * 0.22) * levelMultiplier)
       );
-      targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'slash'));
+      targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'slash', true));
+      staggerHitVisuals(targets, damage, false, 'slash');
       // Knock back all surviving front-layer enemies
       const survivingFront = [...frontLayerRef.current].filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
       survivingFront.forEach((id) => applyKnockback(id));
@@ -995,7 +1040,7 @@ export const useCombat = () => {
         `Whirlwind Lv.${skillRank} hits ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}${knockedCount > 0 ? ` — ${knockedCount} knocked back!` : ''}.`
       ));
       queueAllDefeatedEnemyRewards();
-      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombatAfterAnimation({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1008,10 +1053,11 @@ export const useCombat = () => {
         3,
         Math.floor((playerDmg * 1.2 + (playerStats?.intelligence || 0) * 0.65) * levelMultiplier)
       );
-      targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'fire'));
+      targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'fire', true));
+      staggerHitVisuals(targets, damage, false, 'fire');
       dispatch(setCombatLog(`Fire Blast Lv.${skillRank} scorches ${targets.length} enemy${targets.length > 1 ? 'ies' : ''}.`));
       queueAllDefeatedEnemyRewards();
-      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombatAfterAnimation({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1035,7 +1081,7 @@ export const useCombat = () => {
         `Crushing Blow Lv.${skillRank} lands a heavy hit${wasKnockedBack ? ' — enemy knocked back!' : '.'}`
       ));
       queueAllDefeatedEnemyRewards();
-      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombatAfterAnimation({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1048,7 +1094,7 @@ export const useCombat = () => {
       applyDamageToEnemy(targetId, damage, false, 'fire');
       dispatch(setCombatLog(`Arcane Bolt Lv.${skillRank} burns the target.`));
       queueAllDefeatedEnemyRewards();
-      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombatAfterAnimation({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1062,7 +1108,7 @@ export const useCombat = () => {
       applyDamageToEnemy(targetId, damage, false, 'slash');
       dispatch(setCombatLog(`Quick Stab Lv.${skillRank} builds combo points.`));
       queueAllDefeatedEnemyRewards();
-      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombatAfterAnimation({ flushLoot: true }); return; }
       checkAutoEndTurn();
       return;
     }
@@ -1082,7 +1128,7 @@ export const useCombat = () => {
         )
       );
       queueAllDefeatedEnemyRewards();
-      if (allEncounterEnemiesDead()) { endCombat({ flushLoot: true }); return; }
+      if (allEncounterEnemiesDead()) { endCombatAfterAnimation({ flushLoot: true }); return; }
       checkAutoEndTurn();
     }
   };
