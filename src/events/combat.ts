@@ -566,7 +566,7 @@ export const useCombat = () => {
     dispatch(dmg2Enemy({ id: enemyId, damage: { dmg, crit } }));
     const newHealth = (enemyHealthRef.current[enemyId] ?? 0) - dmg;
     enemyHealthRef.current[enemyId] = newHealth;
-    dispatch(registerPlayerHit({ enemyId, hitType }));
+    dispatch(registerPlayerHit({ enemyId, hitType, dmg, crit }));
 
     // If a front-layer enemy just died, advance the next wave rank immediately
     if (newHealth <= 0 && frontLayerRef.current.includes(enemyId)) {
