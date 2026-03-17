@@ -96,11 +96,11 @@ const FRAME_SURFACE_PROFILES: Record<FrameSurface, FrameSurfaceProfile> = {
     },
     frontWall: {
         scaleDistanceFactor: 0.4,
-        scaleBase: 0.5,
+        scaleBase: 0.4,
         widthBase: 0.51,
-        widthDistanceFactor: 0.1,
+        widthDistanceFactor: 0.5,
         heightBase: 0.5,
-        heightDistanceFactor: 1.8,//0.05,
+        heightDistanceFactor: 0.05,//0.05,
         horizontalDivisor: 1.8,
         topDivisorBase: 1.8,
         topDivisorDistanceFactor: 0.25,
@@ -263,7 +263,7 @@ export const Room3D: React.FC<Room3DProps> = ({
     ): FrameDimensions => {
         const profile = FRAME_SURFACE_PROFILES[surface];
         const phaseProfile = profile.phase[phase];
-        const clampedDistance = Math.max(0, distance);
+        const clampedDistance =  Math.max(0, distance);
         const topDivisor = Math.max(
             0.7,
             profile.topDivisorBase - clampedDistance * profile.topDivisorDistanceFactor
@@ -347,14 +347,16 @@ export const Room3D: React.FC<Room3DProps> = ({
 
             // Front wall face
             if (isWall) {
-                const wallFaceLeft = isImmediateWall ? frontNear.left : frontFar.left;
-                const wallFaceTop = isImmediateWall ? frontNear.top - 40 : frontFar.top;
-                const wallFaceWidth = isImmediateWall ? frontNear.right - frontNear.left : frontFar.width + 40;
-                const wallFaceHeight = isImmediateWall ? frontNear.bottom - frontNear.top - 40 : frontFar.height - 40;
+                const wallFaceLeft = isImmediateWall ? frontNear.left : 110;//frontFar.left;
+                const wallFaceTop = isImmediateWall ? frontNear.top - 40 : 120;
+                const wallFaceWidth = isImmediateWall ? frontNear.right - frontNear.left : 360//frontFar.width + 40;
+                const wallFaceHeight = isImmediateWall ? frontNear.bottom - frontNear.top - 40 : 180;//frontFar.height - 40;
                 const wallFaceZ = isImmediateWall ? 89 : 89 - d;
+                console.log('FRONT WALL : ', wallFaceTop)
                 frames.push(
                     <View
                         key={`wall-front-${d}`}
+                        testID='wall-front-facing'
                         style={[
                             styles.segment,
                             {
@@ -364,7 +366,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 height: wallFaceHeight,
                                 opacity: brightness,
                                 zIndex: wallFaceZ,
-                            }
+                            },
                         ]}
                     >
                         <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
@@ -416,8 +418,8 @@ export const Room3D: React.FC<Room3DProps> = ({
             // Wall rotation - moderate angle for visibility while creating depth
             const wallRotation = 65 + (d - 1) * 4;
             const floorRotation = 60;
-            const ceilingRotation = 95;
-            const lastTileCeilingRotation = -65;
+            const ceilingRotation = d === 2 ? 110 : 95;
+            const lastTileCeilingRotation = -70;
 
             // LEFT WALL - full height from near.top to near.bottom
             const isLastTile = d === 1 && isWall;
@@ -575,10 +577,10 @@ export const Room3D: React.FC<Room3DProps> = ({
             if (ceilingHeight >  0) {
                 const isLastTile = d === 1 && isWall;
                 const isPreLastTile = (ceilingHeight === 36.32202922525502) ? true : false;
-                const ceilingTop = isLastTile ? Math.max(0, ceilingNear.top - 6) : ceilingNear.top +  90;
+                const ceilingTop = isLastTile ? Math.max(0, ceilingNear.top - 6) : ceilingNear.top +  75;
                 const ceilingOuterHeight = isLastTile ? Math.max(70, ceilingHeight + 56) : ceilingHeight + 25;
                 const ceilingOuterZ = isLastTile ? 130 - d : 150 - d;
-                const ceilingInnerHeight = isLastTile ? '340%' : '360%';
+                const ceilingInnerHeight = isLastTile ? '340%' : '350%';
                 const ceilingInnerMarginTop = isLastTile ? '-32%' : '-110%';
                 const ceilingTransform = isLastTile
                     ? `rotateX(${lastTileCeilingRotation}deg)`
