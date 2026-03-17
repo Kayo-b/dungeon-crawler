@@ -1154,10 +1154,10 @@ export const MainScreen = () => {
       if (!skill) return null;
       const level = getSkillLevel(skillLevels, skillId as SkillId);
       const needsCombo = !!skill.requiresCombo && comboPoints <= 0;
-      const canPlay = isPlayerTurn && cardMana >= 1 && !needsCombo;
+      const canPlay = isPlayerTurn && cardMana >= 1 && !needsCombo && mana >= skill.manaCost;
       return { skill, level, canPlay, needsCombo, idx };
     }).filter(Boolean) as { skill: (typeof SKILLS)[SkillId]; level: number; canPlay: boolean; needsCombo: boolean; idx: number }[];
-  }, [scrollHand, inCombat, combatPhase, cardMana, skillLevels, comboPoints]);
+  }, [scrollHand, inCombat, combatPhase, cardMana, skillLevels, comboPoints, mana]);
 
   // Keep learnedSkillsHud for hotkey mapping (Q/E/R/F bind to hand positions)
   const learnedSkillsHud = useMemo(() => {
@@ -1580,7 +1580,9 @@ export const MainScreen = () => {
                     <Text style={styles.scrollCardName} numberOfLines={1}>
                       {item.skill.name}
                     </Text>
-                    <Text style={styles.scrollCardCost}>⚡ 1</Text>
+                    <Text style={styles.scrollCardCost}>
+                      {item.skill.manaCost > 0 ? `💧 ${item.skill.manaCost}` : 'Free'}
+                    </Text>
                     {item.skill.hasKnockback && (
                       <Text style={styles.scrollCardKnockbackTag}>↩ KB</Text>
                     )}

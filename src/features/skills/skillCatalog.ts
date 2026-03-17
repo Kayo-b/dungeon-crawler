@@ -5,7 +5,9 @@ export type SkillId =
   | 'fire-blast'
   | 'quick-stab'
   | 'eviscerate'
-  | 'enforce-armor';
+  | 'enforce-armor'
+  | 'shadow-step'
+  | 'power-strike';
 
 export type SkillLevels = Partial<Record<SkillId, number>>;
 
@@ -57,19 +59,19 @@ export const SKILLS: Record<SkillId, SkillDefinition> = {
   'fire-blast': {
     id: 'fire-blast',
     name: 'Fire Blast',
-    manaCost: 1,
+    manaCost: 0,
     description: 'Unleash a wave of fire that scorches all enemies in the front row.',
   },
   'quick-stab': {
     id: 'quick-stab',
     name: 'Quick Stab',
-    manaCost: 1,
+    manaCost: 0,
     description: 'A swift precise strike that builds combo points for a follow-up Eviscerate.',
   },
   eviscerate: {
     id: 'eviscerate',
     name: 'Eviscerate',
-    manaCost: 1,
+    manaCost: 2,
     description: 'Spend all combo points to deal massive burst damage. Requires at least 1 combo point.',
     requiresCombo: true,
   },
@@ -79,6 +81,18 @@ export const SKILLS: Record<SkillId, SkillDefinition> = {
     manaCost: 1,
     description: 'Reinforce your armor with arcane energy, creating a damage-absorbing buffer before your health.',
     isBuff: true,
+  },
+  'shadow-step': {
+    id: 'shadow-step',
+    name: 'Shadow Step',
+    manaCost: 0,
+    description: '[Placeholder] Dart toward the target with blinding speed, landing a swift slashing blow.',
+  },
+  'power-strike': {
+    id: 'power-strike',
+    name: 'Power Strike',
+    manaCost: 2,
+    description: '[Placeholder] Channel raw physical force into a single devastating strike.',
   },
 };
 

@@ -215,25 +215,23 @@ export const useCombat = () => {
 
   // When a front-layer enemy dies, advance one enemy from mid → front and one from back → mid.
   // The newly-fronted enemy is recorded in justAdvancedIds and cannot attack this same round.
-  const advanceLayersAfterDeath = (deadEnemyId: number) => {
-    frontLayerRef.current = frontLayerRef.current.filter((id) => id !== deadEnemyId);
-
-    // Purge any dead enemies from mid/back (e.g. killed by cleave) before advancing
+  const flushLayerAdvances = (onDone: () => void) => {
+    // Purge dead enemies from mid/back before filling
     midLayerRef.current = midLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
     backLayerRef.current = backLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
 
-    if (midLayerRef.current.length > 0) {
-      const [advancing, ...restMid] = midLayerRef.current;
-      frontLayerRef.current.push(advancing);
-      justAdvancedIdsRef.current.add(advancing);
-      midLayerRef.current = restMid;
+    const frontSlotsFree = layerCapacityRef.current - frontLayerRef.current.length;
 
-      if (backLayerRef.current.length > 0) {
-        const [advancingBack, ...restBack] = backLayerRef.current;
-        midLayerRef.current.push(advancingBack);
-        backLayerRef.current = restBack;
+    // If mid is depleted but back has enemies, refill mid from back first so the
+    // pipeline doesn't stall — then immediately continue to fill front from mid.
+    if (midLayerRef.current.length === 0 && backLayerRef.current.length > 0) {
+      const refillCount = Math.min(layerCapacityRef.current, backLayerRef.current.length);
+      for (let i = 0; i < refillCount; i++) {
+        const [next, ...rest] = backLayerRef.current;
+        midLayerRef.current.push(next);
+        backLayerRef.current = rest;
       }
-
+      // Dispatch the back→mid refill so Room.tsx shows them in mid position
       dispatch(
         advanceFrontLayerRedux({
           front: frontLayerRef.current,
@@ -242,11 +240,59 @@ export const useCombat = () => {
           justAdvancedIds: [...justAdvancedIdsRef.current],
         })
       );
-
-      const advancedEnemy = enemiesRef.current[advancing];
-      const name = advancedEnemy?.info?.name || 'An enemy';
-      dispatch(setCombatLog(`${name} advances from the ranks!`));
     }
+
+    if (frontSlotsFree === 0 || midLayerRef.current.length === 0) {
+      onDone();
+      return;
+    }
+
+    const advancedNames: string[] = [];
+    let backFillCount = 0;
+    for (let i = 0; i < frontSlotsFree && midLayerRef.current.length > 0; i++) {
+      const [advancing, ...restMid] = midLayerRef.current;
+      frontLayerRef.current.push(advancing);
+      midLayerRef.current = restMid;
+      advancedNames.push(enemiesRef.current[advancing]?.info?.name || 'An enemy');
+      if (backLayerRef.current.length > backFillCount) backFillCount++;
+    }
+
+    dispatch(
+      advanceFrontLayerRedux({
+        front: frontLayerRef.current,
+        mid: midLayerRef.current,
+        back: backLayerRef.current,
+        justAdvancedIds: [...justAdvancedIdsRef.current],
+      })
+    );
+    const nameList = advancedNames.join(', ');
+    dispatch(setCombatLog(`${nameList} advance${advancedNames.length === 1 ? 's' : ''} to the front!`));
+
+    if (backFillCount === 0) {
+      const t = setTimeout(onDone, 300);
+      enemyTurnTimeoutsRef.current.push(t);
+      return;
+    }
+
+    // Delay back→mid fill so it happens after the mid enemy has visually moved forward
+    const t = setTimeout(() => {
+      for (let i = 0; i < backFillCount && backLayerRef.current.length > 0; i++) {
+        const [advancingBack, ...restBack] = backLayerRef.current;
+        midLayerRef.current.push(advancingBack);
+        backLayerRef.current = restBack;
+      }
+      dispatch(
+        advanceFrontLayerRedux({
+          front: frontLayerRef.current,
+          mid: midLayerRef.current,
+          back: backLayerRef.current,
+          justAdvancedIds: [...justAdvancedIdsRef.current],
+        })
+      );
+      const t2 = setTimeout(onDone, 300);
+      enemyTurnTimeoutsRef.current.push(t2);
+    }, 400);
+    enemyTurnTimeoutsRef.current.push(t);
   };
 
   const startCooldownTicker = () => {
@@ -550,6 +596,9 @@ export const useCombat = () => {
     if (cardMana < 1) {
       return { ok: false, reason: `Not enough energy. (${cardMana}/1 needed)` };
     }
+    if (skill.manaCost > 0 && mana < skill.manaCost) {
+      return { ok: false, reason: `Not enough mana. (${mana}/${skill.manaCost} needed)` };
+    }
     if (skill.requiresCombo && comboPoints <= 0) {
       return { ok: false, reason: `${skill.name} requires combo points.` };
     }
@@ -571,15 +620,12 @@ export const useCombat = () => {
       dispatch(registerPlayerHit({ enemyId, hitType, dmg, crit }));
     }
 
-    // If a front-layer enemy just died, advance the next wave rank after a short delay
-    // so the layer-shift animation doesn't stack with the killed enemy's death fade.
+    // If a front-layer enemy just died, purge refs immediately so combat targeting
+    // stays consistent. Layer filling happens at the end of the enemy turn via flushLayerAdvances.
     if (newHealth <= 0 && frontLayerRef.current.includes(enemyId)) {
-      // Update refs immediately so combat logic is consistent (targeting, reachability, etc.)
       frontLayerRef.current = frontLayerRef.current.filter((id) => id !== enemyId);
       midLayerRef.current = midLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
       backLayerRef.current = backLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
-
-      setTimeout(() => advanceLayersAfterDeath(enemyId), 200);
     }
   };
 
@@ -834,51 +880,19 @@ export const useCombat = () => {
     combatPhaseRef.current = 'enemy_turn';
     dispatch(setCombatPhase('enemy_turn'));
 
-    // Advance mid/back enemies to fill any open front-layer slots before resolving attacks.
-    // Advancing counts as their round action — they're added to justAdvancedIdsRef
-    // so they cannot also attack this same round.
-    const frontSlotsFree = layerCapacityRef.current - frontLayerRef.current.length;
-    const advancedNames: string[] = [];
-    for (let i = 0; i < frontSlotsFree && midLayerRef.current.length > 0; i++) {
-      const [advancing, ...restMid] = midLayerRef.current;
-      frontLayerRef.current.push(advancing);
-      justAdvancedIdsRef.current.add(advancing);
-      midLayerRef.current = restMid;
-      const name = enemiesRef.current[advancing]?.info?.name || 'An enemy';
-      advancedNames.push(name);
-      // Pull one back-layer enemy up to fill the mid slot
-      if (backLayerRef.current.length > 0) {
-        const [advancingBack, ...restBack] = backLayerRef.current;
-        midLayerRef.current.push(advancingBack);
-        backLayerRef.current = restBack;
-      }
-    }
-    if (advancedNames.length > 0) {
-      dispatch(
-        advanceFrontLayerRedux({
-          front: frontLayerRef.current,
-          mid: midLayerRef.current,
-          back: backLayerRef.current,
-          justAdvancedIds: [...justAdvancedIdsRef.current],
-        })
-      );
-      const nameList = advancedNames.join(', ');
-      dispatch(setCombatLog(`${nameList} advance${advancedNames.length === 1 ? 's' : ''} to the front!`));
-    }
-
-    // Enemies that advanced this round are not ready to attack yet;
-    // use the front layer directly so reachability filters don't exclude anyone.
+    // All living front-layer enemies attack. Layer filling happens AFTER attacks via flushLayerAdvances.
     const attackingEnemies = frontLayerRef.current.filter(
-      (id) => !justAdvancedIdsRef.current.has(id) && (enemyHealthRef.current[id] ?? 0) > 0
+      (id) => (enemyHealthRef.current[id] ?? 0) > 0
     );
 
     if (attackingEnemies.length === 0) {
-      // No attackers this round, but there may still be live enemies (just advanced or knocked back)
       if (allEncounterEnemiesDead()) {
         endCombat({ flushLoot: true });
       } else {
-        beginPlayerTurn();
-        dispatch(setCombatLog('Your turn.'));
+        flushLayerAdvances(() => {
+          beginPlayerTurn();
+          dispatch(setCombatLog('Your turn.'));
+        });
       }
       return;
     }
@@ -905,8 +919,10 @@ export const useCombat = () => {
         endCombat({ flushLoot: true });
         return;
       }
-      beginPlayerTurn();
-      dispatch(setCombatLog('Your turn.'));
+      flushLayerAdvances(() => {
+        beginPlayerTurn();
+        dispatch(setCombatLog('Your turn.'));
+      });
     }, attackingEnemies.length * ENEMY_ATTACK_DELAY_MS + 300);
     enemyTurnTimeoutsRef.current.push(returnToPlayerTurn);
   };
@@ -984,6 +1000,20 @@ export const useCombat = () => {
     const { cardMana: cm, scrollHand: hand } = store.getState().combat as any;
     if (cm <= 0 || hand.length === 0) {
       beginEnemyTurn();
+      return;
+    }
+    // Also auto-end if every card remaining in hand is unplayable (mana or combo unmet)
+    const currentMana = (store.getState().player as any).mana ?? 0;
+    const currentCombo = (store.getState().player as any).comboPoints ?? 0;
+    const anyPlayable = (hand as string[]).some((skillId) => {
+      const skill = SKILLS[skillId as SkillId];
+      if (!skill) return false;
+      if (skill.manaCost > currentMana) return false;
+      if (skill.requiresCombo && currentCombo <= 0) return false;
+      return true;
+    });
+    if (!anyPlayable) {
+      beginEnemyTurn();
     }
   };
 
@@ -1013,9 +1043,12 @@ export const useCombat = () => {
 
     // Spend the scroll card (removes from hand → discard, decrements cardMana)
     dispatch(useScrollCard(skill.id));
+    if (skill.manaCost > 0) {
+      dispatch(spendMana(skill.manaCost));
+    }
 
     if (skill.id === 'enforce-armor') {
-      const bufferAmount = Math.floor((15 + (playerStats?.vitality || 0) * 1.2) * levelMultiplier);
+      const bufferAmount = Math.floor((10 + (playerStats?.vitality || 0) * 0.8) * levelMultiplier);
       dispatch(addArmorBuffer(bufferAmount));
       dispatch(setCombatLog(`Enforce Armor Lv.${skillRank} adds ${bufferAmount} armor buffer.`));
       checkAutoEndTurn();
@@ -1028,7 +1061,7 @@ export const useCombat = () => {
 
       const damage = Math.max(
         3,
-        Math.floor((playerDmg * 1.35 + (playerStats?.strength || 0) * 0.22) * levelMultiplier)
+        Math.floor((playerDmg * 1.0 + (playerStats?.strength || 0) * 0.15) * levelMultiplier)
       );
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'slash', true));
       staggerHitVisuals(targets, damage, false, 'slash');
@@ -1050,8 +1083,8 @@ export const useCombat = () => {
       if (targets.length <= 0) return;
 
       const damage = Math.max(
-        3,
-        Math.floor((playerDmg * 1.2 + (playerStats?.intelligence || 0) * 0.65) * levelMultiplier)
+        2,
+        Math.floor((playerDmg * 0.8 + (playerStats?.intelligence || 0) * 0.35) * levelMultiplier)
       );
       targets.forEach((id) => applyDamageToEnemy(id, damage, false, 'fire', true));
       staggerHitVisuals(targets, damage, false, 'fire');
@@ -1072,7 +1105,7 @@ export const useCombat = () => {
     if (skill.id === 'crushing-blow') {
       const damage = Math.max(
         4,
-        Math.floor((playerDmg * 2.2 + (playerStats?.strength || 0) * 0.35) * levelMultiplier)
+        Math.floor((playerDmg * 1.5 + (playerStats?.strength || 0) * 0.2) * levelMultiplier)
       );
       applyDamageToEnemy(targetId, damage, false, 'crush');
       const wasKnockedBack = (enemyHealthRef.current[targetId] ?? 0) > 0;
@@ -1088,8 +1121,8 @@ export const useCombat = () => {
 
     if (skill.id === 'arcane-bolt') {
       const damage = Math.max(
-        4,
-        Math.floor((playerDmg * 1.6 + (playerStats?.intelligence || 0) * 0.9) * levelMultiplier)
+        3,
+        Math.floor((playerDmg * 1.3 + (playerStats?.intelligence || 0) * 0.6) * levelMultiplier)
       );
       applyDamageToEnemy(targetId, damage, false, 'fire');
       dispatch(setCombatLog(`Arcane Bolt Lv.${skillRank} burns the target.`));
@@ -1103,7 +1136,7 @@ export const useCombat = () => {
       dispatch(addComboPoint(1 + Math.floor((skillRank - 1) / 2)));
       const damage = Math.max(
         2,
-        Math.floor((playerDmg * 0.78 + (playerStats?.dexterity || 0) * 0.2) * levelMultiplier)
+        Math.floor((playerDmg * 0.65 + (playerStats?.dexterity || 0) * 0.04) * levelMultiplier)
       );
       applyDamageToEnemy(targetId, damage, false, 'slash');
       dispatch(setCombatLog(`Quick Stab Lv.${skillRank} builds combo points.`));
@@ -1113,13 +1146,39 @@ export const useCombat = () => {
       return;
     }
 
+    if (skill.id === 'shadow-step') {
+      const damage = Math.max(
+        2,
+        Math.floor((playerDmg * 0.85 + (playerStats?.dexterity || 0) * 0.05) * levelMultiplier)
+      );
+      applyDamageToEnemy(targetId, damage, false, 'slash');
+      dispatch(setCombatLog(`Shadow Step Lv.${skillRank} strikes the target.`));
+      queueAllDefeatedEnemyRewards();
+      if (allEncounterEnemiesDead()) { endCombatAfterAnimation({ flushLoot: true }); return; }
+      checkAutoEndTurn();
+      return;
+    }
+
+    if (skill.id === 'power-strike') {
+      const damage = Math.max(
+        5,
+        Math.floor((playerDmg * 2.0 + (playerStats?.strength || 0) * 0.3) * levelMultiplier)
+      );
+      applyDamageToEnemy(targetId, damage, false, 'crush');
+      dispatch(setCombatLog(`Power Strike Lv.${skillRank} delivers a crushing blow.`));
+      queueAllDefeatedEnemyRewards();
+      if (allEncounterEnemiesDead()) { endCombatAfterAnimation({ flushLoot: true }); return; }
+      checkAutoEndTurn();
+      return;
+    }
+
     if (skill.id === 'eviscerate') {
       const spentCombo = comboPoints;
       dispatch(consumeAllComboPoints());
-      const comboMultiplier = (1.1 + spentCombo * 0.6) * levelMultiplier;
+      const comboMultiplier = (1.0 + spentCombo * 0.45) * levelMultiplier;
       const damage = Math.max(
         5,
-        Math.floor(playerDmg * comboMultiplier + (playerStats?.dexterity || 0) * 0.35 * spentCombo)
+        Math.floor(playerDmg * comboMultiplier + (playerStats?.dexterity || 0) * 0.07 * spentCombo)
       );
       applyDamageToEnemy(targetId, damage, false, 'mutilate');
       dispatch(

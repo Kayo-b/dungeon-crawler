@@ -2722,7 +2722,7 @@ const turn = (turnDir:string) => {
         const useLayers = inCombat && frontLayer.length > 0;
 
         // Visual constants for each layer row (relative to the center anchor point)
-        const LAYER_Y: Record<string, number> = { front: 0, mid: -60, back: -110 };
+        const LAYER_Y: Record<string, number> = { front: 0, mid: -50, back: -100 };
         const LAYER_SCALE: Record<string, number> = { front: 1.0, mid: 0.72, back: 0.55 };
         const LAYER_OPACITY: Record<string, number> = { front: 1.0, mid: 0.85, back: 0.65 };
 
@@ -2874,7 +2874,7 @@ const turn = (turnDir:string) => {
                                         : subIdx % 2 === 1 ? -Math.ceil(subIdx / 2)
                                         : Math.ceil(subIdx / 2);
                                     const isRat = enemy.id === 1;
-                                    const horizontalSpread = isRat ? 52 : 40;
+                                    const horizontalSpread = isRat ? 55 : 43;
                                     const verticalFan = isRat ? 8 : 12;
                                     const offsetX = centeredSlot * horizontalSpread;
                                     const offsetY = -Math.abs(centeredSlot) * verticalFan;
