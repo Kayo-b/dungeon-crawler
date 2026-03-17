@@ -90,7 +90,10 @@ export const Enemy: React.FC<EnemyProps> = ({ index, jumpIntoView = false, isJus
 
     setShowHitEffect(true);
     const timeout = setTimeout(() => setShowHitEffect(false), 320);
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      setShowHitEffect(false);
+    };
   }, [playerHitPulse]);
 
   useEffect(() => {
