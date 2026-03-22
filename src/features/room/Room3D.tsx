@@ -228,10 +228,12 @@ export const Room3D: React.FC<Room3DProps> = ({
 
     const getTilesAhead = () => {
         const tiles: { x: number; y: number; type: number; distance: number }[] = [];
+        const maxScanDistance = Math.max(mapWidth, mapHeight) + 1;
 
-        for (let d = 1; d <= viewDistance; d++) {
+        for (let d = 1; d <= maxScanDistance; d++) {
             let tileX = positionX;
             let tileY = positionY;
+            const isWithinViewDistance = d <= viewDistance;
 
             switch (direction) {
                 case 'N': tileY = positionY - d; break;
@@ -241,7 +243,10 @@ export const Room3D: React.FC<Room3DProps> = ({
             }
             if (tileX >= 0 && tileX < mapWidth && tileY >= 0 && tileY < mapHeight) {
                 const type = mapTiles[tileY]?.[tileX] ?? 0;
-                tiles.push({ x: tileX, y: tileY, type, distance: d });
+                    tiles.push({ x: tileX, y: tileY, type, distance: d });
+                // if (isWithinViewDistance || type === 0) {
+                //     tiles.push({ x: tileX, y: tileY, type, distance: d });
+                // }
                 if (type === 0) break;
             } else {
                 tiles.push({ x: tileX, y: tileY, type: 0, distance: d });
@@ -324,10 +329,8 @@ export const Room3D: React.FC<Room3DProps> = ({
             const frontNear = d === 1
                 ? FULLSCREEN_FRAME
                 : getFrameDimensions('frontWall', d - 1, 'near');
-            const ceilingFar = getFrameDimensions('ceiling', d, 'far');
-            const ceilingNear = d === 1
-                ? FULLSCREEN_FRAME
-                : getFrameDimensions('ceiling', d - 1, 'near');
+            const ceilingFar = getFrameDimensions('ceiling', d + 1, 'far');
+            const ceilingNear = getFrameDimensions('ceiling', d, 'near');
             const floorFar = getFrameDimensions('floor', d, 'far');
             const floorNear = d === 1
                 ? FULLSCREEN_FRAME
@@ -418,8 +421,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             // Wall rotation - moderate angle for visibility while creating depth
             const wallRotation = 65 + (d - 1) * 4;
             const floorRotation = 60;
-            const ceilingRotation = d === 2 ? 110 : 95;
-            const lastTileCeilingRotation = -70;
+            const ceilingRotation = d === 1 ? 102 : 90;
 
             // LEFT WALL - full height from near.top to near.bottom
             const isLastTile = d === 1 && isWall;
@@ -429,6 +431,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                 frames.push(
                     <View
                         key={`wall-left-${d}`}
+                        testID={`wall-test-id${d}`}
                         style={[
                             styles.segment,
                             {
@@ -436,7 +439,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 top: isLastTile ? wallNear.top - 95 : wallNear.top - 40, // Extend beyond to fill gaps
                                 width: isLastTile ? leftWidth + 100 : leftWidth + 100,
                                 height: isLastTile ? 450 : wallNear.bottom - wallNear.top + 10 + (d - 1) * 4,
-                                zIndex: 90 - d,
+                                zIndex: d === 1 ? 280 : 91 - d,
                             },
                             isWeb && {
                                 // @ts-ignore
@@ -461,7 +464,6 @@ export const Room3D: React.FC<Room3DProps> = ({
                             <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
                             {doorPlacement === 'left' && (
                                 <Image
-                                    testID={`door-side-left-${d}`}
                                     source={doorSprite}
                                     style={[styles.doorPlane, styles.doorLeftCentered]}
                                     resizeMode= {isLastTile ? "cover" : "repeat"}
@@ -487,7 +489,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 top: wallNear.top - 40,
                                 width: rightWidth + 100,
                                 height: wallNear.bottom - wallNear.top + 10 + (d - 1) * 4,
-                                zIndex: 90 - d,
+                                zIndex: d === 1 ? 280 : 91 - d,
                             },
                             isWeb && {
                                 // @ts-ignore
@@ -575,36 +577,33 @@ export const Room3D: React.FC<Room3DProps> = ({
             console.log(floorFar, 'floor far stats')
             console.log(floorNear, 'floor near stats')
             if (ceilingHeight >  0) {
-                const isLastTile = d === 1 && isWall;
-                const isPreLastTile = (ceilingHeight === 36.32202922525502) ? true : false;
-                const ceilingTop = isLastTile ? Math.max(0, ceilingNear.top - 6) : ceilingNear.top +  75;
-                const ceilingOuterHeight = isLastTile ? Math.max(70, ceilingHeight + 56) : ceilingHeight + 25;
-                const ceilingOuterZ = isLastTile ? 130 - d : 150 - d;
-                const ceilingInnerHeight = isLastTile ? '340%' : '350%';
-                const ceilingInnerMarginTop = isLastTile ? '-32%' : '-110%';
-                const ceilingTransform = isLastTile
-                    ? `rotateX(${lastTileCeilingRotation}deg)`
-                    : `rotateX(${ceilingRotation}deg)`;
-                const ceilingTransformOrigin = isLastTile ? '50% 90% 30px' : '50% 90% 30px';
+                const ceilingTop = d === 2 ? ceilingNear.top + 25 : ceilingNear.top + 75;
+                const ceilingOuterHeight = ceilingHeight + 25;
+                const sideWallZ = (d === 1 && isWall) ? 280 : 91 - d;
+                const ceilingZ = sideWallZ + 1;
+                const ceilingInnerHeight = '350%';
+                const ceilingInnerMarginTop = '-110%';
+                const ceilingTransform = `rotateX(${ceilingRotation}deg)`;
+                const ceilingTransformOrigin = '50% 90% 30px';
 
                 {console.log(ceilingHeight,'CEILING COUNT <<<')}
                 frames.push(
                     <View
                         key={`ceiling-${d}`}
-                        testID={`ceilingTestId-${ceilingHeight}`}
+                        testID={`ceilingTestId-${ceilingHeight}---${d} ${isLastTile}`}
                         style={[
                             styles.segment,
                             {
-                                left: ceilingNear.left - 40,// tile alignment depends on this value
+                                left: ceilingNear.left - 60,// tile alignment depends on this value
                                 top: ceilingTop - d*10,
-                                width: ceilingNear.right - ceilingNear.left + d,// this relates to perspective for ceiling length
-                                height: ceilingOuterHeight,
-                                zIndex: isPreLastTile ? ceilingOuterZ - d *10 : ceilingOuterZ + d *10,
+                                width: ceilingNear.right - ceilingNear.left  + d*8,// this relates to perspective for ceiling length
+                                height: ceilingOuterHeight + (d < 3 ? d* 3 : d * 3),
+                                zIndex: ceilingZ,
                             },
                             isWeb && {
                                 // @ts-ignore
-                                perspective: `${560 - d*100}px`,
-                                perspectiveOrigin: `${CENTER_X - (ceilingNear.left - 40)}px 50%`,//tile alignment
+                                perspective: `${560 - d*45}px`,
+                                perspectiveOrigin: `${CENTER_X - (ceilingNear.left - 50)}px 50%`,//tile alignment
                             }
                         ]}
                     >
