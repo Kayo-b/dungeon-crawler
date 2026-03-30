@@ -157,15 +157,7 @@ const ITEM_CATALOG: ItemCatalogEntry[] = (() => {
   return catalog;
 })();
 
-const getCurrencyDrop = (enemyPower: number, rewardScale: number): LootItem => {
-  if (enemyPower >= 22) {
-    return { name: 'Gold Coin', type: 'currency', ID: 3, dropChance: Math.min(0.85, 0.35 + (rewardScale - 1) * 0.12), amount: 1 };
-  }
-  if (enemyPower >= 13) {
-    return { name: 'Silver Coin', type: 'currency', ID: 2, dropChance: Math.min(0.9, 0.52 + (rewardScale - 1) * 0.14), amount: 1 };
-  }
-  return { name: 'Copper Coin', type: 'currency', ID: 1, dropChance: Math.min(0.95, 0.7 + (rewardScale - 1) * 0.1), amount: 1 };
-};
+// getCurrencyDrop removed — gold is auto-looted directly in combat.ts (1-2 per enemy)
 
 const pickTieredItems = (pool: ItemCatalogEntry[], count: number): ItemCatalogEntry[] => {
   if (pool.length <= 0 || count <= 0) return [];
@@ -183,63 +175,34 @@ const buildScaledLootTable = (
   const maxTier = 8 + enemyPower * 1.75;
   const minTier = Math.max(0, maxTier - 24);
 
-  const consumables = ITEM_CATALOG.filter((entry) => entry.category === 'consumable');
-  const tomeCandidates = ITEM_CATALOG.filter((entry) => entry.type === 'tome');
+  // Only armors and bags drop as floor loot — all other gear is excluded
+  const FLOOR_LOOT_CATEGORIES = new Set(['armors', 'bags']);
   const gearCandidates = ITEM_CATALOG.filter((entry) => {
-    if (entry.type === 'currency' || entry.type === 'consumable') return false;
+    if (!FLOOR_LOOT_CATEGORIES.has(entry.category)) return false;
     return entry.tier >= minTier && entry.tier <= maxTier + 10;
   });
 
   const highTierCandidates = ITEM_CATALOG.filter((entry) => {
-    if (entry.type === 'currency' || entry.type === 'consumable') return false;
+    if (!FLOOR_LOOT_CATEGORIES.has(entry.category)) return false;
     return entry.tier > maxTier && entry.tier <= maxTier + 26;
   });
 
-  const selectedGearCount = Math.max(1, Math.min(3, 1 + Math.floor((rewardScale - 1) * 1.3)));
+  const selectedGearCount = Math.max(1, Math.min(2, 1 + Math.floor((rewardScale - 1) * 0.8)));
   const selectedGear = pickTieredItems(gearCandidates.length > 0 ? gearCandidates : highTierCandidates, selectedGearCount);
 
   const loot: LootItem[] = [];
-  loot.push(getCurrencyDrop(enemyPower, rewardScale));
-
-  const healPotion = consumables.find((entry) => entry.id === 1);
-  const manaPotion = consumables.find((entry) => entry.id === 2);
-
-  if (healPotion) {
-    loot.push({
-      name: 'Minor Healing Potion',
-      type: healPotion.category,
-      ID: healPotion.id,
-      dropChance: Math.min(0.9, 0.28 + (rewardScale - 1) * 0.11),
-    });
-  }
-  if (manaPotion) {
-    loot.push({
-      name: 'Minor Mana Flask',
-      type: manaPotion.category,
-      ID: manaPotion.id,
-      dropChance: Math.min(0.9, 0.24 + (rewardScale - 1) * 0.12),
-    });
-  }
-
-  if (tomeCandidates.length > 0) {
-    const selectedTome = pickTieredItems(tomeCandidates, 1)[0];
-    if (selectedTome) {
-      loot.push({
-        name: '',
-        type: selectedTome.category,
-        ID: selectedTome.id,
-        dropChance: Math.min(0.42, 0.08 + (rewardScale - 1) * 0.06),
-      });
-    }
-  }
+  // Currency is auto-looted — not added to floor loot table
+  // Consumable (potions) commented out — not dropped
+  // Tomes commented out — skills granted only through level-up
 
   selectedGear.forEach((entry, index) => {
-    const baseChance = 0.16 + index * 0.08 + (rewardScale - 1) * 0.06;
+    // Rare drop chances: base 5-10%, capped at 30%
+    const baseChance = 0.05 + index * 0.03 + (rewardScale - 1) * 0.02;
     loot.push({
       name: '',
       type: entry.category,
       ID: entry.id,
-      dropChance: Math.min(0.88, Math.max(0.08, baseChance)),
+      dropChance: Math.min(0.30, Math.max(0.03, baseChance)),
     });
   });
 
@@ -250,7 +213,7 @@ const buildScaledLootTable = (
         name: '',
         type: bonus.category,
         ID: bonus.id,
-        dropChance: Math.min(0.45, 0.12 + (rewardScale - 1) * 0.07),
+        dropChance: Math.min(0.18, 0.04 + (rewardScale - 1) * 0.03),
       });
     }
   }

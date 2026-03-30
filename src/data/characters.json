@@ -1,80 +1,94 @@
-  {
-"character": {
-  "name": "Test Demork",
-  "stats": {
-    "health": 90,
-    "strength": 8,
-    "dexterity": 40,
-    "stamina": 12,
-    "vitality": 10,
-    "intelligence": 3,
-    "defense": 2,
-    "crit": 0.05,
-    "dodge": 0.05
-  },
-  "level": 1,
-  "experience": 0,
-  "xptolvlup": 16,
-  "unspentStatPoints": 0,
-  "gold": 0,
-  "skills": {},
-  "inventory": [
-    { "ID": 1, "name": "Minor Healing Potion", "type": "consumable", "stats": { "amount": 8 } },
-    { "ID": 2, "name": "Minor Mana Flask", "type": "consumable", "stats": { "mana": 14 } }
-  ],
-  "consumableStash": [],
-  "equipment": {
-    "weapon": {
-      "name": "Rusty Sword",
-      "type": "weapon",
-      "stats": {
-        "damage": 1,
-        "atkSpeed": 1.0,
-        "critMod": 0.01
+{
+  "character": {
+    "name": "Test Demork",
+    "stats": {
+      "health": 90,
+      "strength": 8,
+      "dexterity": 40,
+      "stamina": 12,
+      "vitality": 10,
+      "intelligence": 3,
+      "defense": 2,
+      "crit": 0.05,
+      "dodge": 0.05
+    },
+    "level": 1,
+    "experience": 0,
+    "xptolvlup": 16,
+    "unspentStatPoints": 0,
+    "gold": 0,
+    "skills": {},
+    "inventory": [
+      {
+        "ID": 1,
+        "name": "Minor Healing Potion",
+        "type": "consumable",
+        "stats": {
+          "amount": 8
+        }
+      },
+      {
+        "ID": 2,
+        "name": "Minor Mana Flask",
+        "type": "consumable",
+        "stats": {
+          "mana": 14
+        }
       }
-    },
-    "armor": {
-      "name": "Leather Armor",
-      "stats": {
-        "defence": 2
+    ],
+    "consumableStash": [],
+    "equipment": {
+      "weapon": {
+        "name": "Rusty Sword",
+        "type": "weapon",
+        "stats": {
+          "damage": 1,
+          "atkSpeed": 1.0,
+          "critMod": 0.01
+        }
+      },
+      "armor": {
+        "name": "Leather Armor",
+        "stats": {
+          "defence": 2
+        }
+      },
+      "helmet": {
+        "type": "helmet",
+        "name": "",
+        "stats": {}
+      },
+      "belt": {
+        "name": "Starter Belt",
+        "type": "belt",
+        "stats": {
+          "consumableSlots": 2
+        }
+      },
+      "bag": {
+        "name": "Small Pouch",
+        "type": "bag",
+        "stats": {
+          "bagSlots": 4
+        }
+      },
+      "ring": {
+        "name": "",
+        "type": "ring",
+        "stats": {}
+      },
+      "amulet": {
+        "name": "",
+        "type": "amulet",
+        "stats": {}
+      },
+      "boots": {
+        "name": "",
+        "type": "boots",
+        "stats": {}
       }
-    },
-    "helmet": {
-      "type": "helmet",
-      "name": "",
-      "stats": {}
-    },
-    "belt": {
-      "name": "Starter Belt",
-      "type": "belt",
-      "stats": {
-        "consumableSlots": 2
-      }
-    },
-    "bag": {
-      "name": "Small Pouch",
-      "type": "bag",
-      "stats": {
-        "bagSlots": 4
-      }
-    },
-    "ring": {
-      "name": "",
-      "type": "ring",
-      "stats": {}
-    },
-    "amulet": {
-      "name": "",
-      "type": "amulet",
-      "stats": {}
-    },
-    "boots": {
-      "name": "",
-      "type": "boots",
-      "stats": {}
     }
-  }
-},
+  },
   "enemies": [
     {
       "stats": {
@@ -91,12 +105,32 @@
         "dodge": 0.55
       },
       "loot": [
-        { "name": "Rusty Dagger", "type": "daggers", "ID":1, "dropChance": 1.5 },
-        {"name":"Minor Healing Potion", "type":"consumable", "ID":1, "dropChance":1.5},
-        {"name":"Minor Mana Flask", "type":"consumable", "ID":2, "dropChance":0.9},
-        {"name":"Scout Sash", "type":"belts", "ID":1, "dropChance":0.15}
+        {
+          "name": "Rusty Dagger",
+          "type": "daggers",
+          "ID": 1,
+          "dropChance": 1.5
+        },
+        {
+          "name": "Minor Healing Potion",
+          "type": "consumable",
+          "ID": 1,
+          "dropChance": 1.5
+        },
+        {
+          "name": "Minor Mana Flask",
+          "type": "consumable",
+          "ID": 2,
+          "dropChance": 0.9
+        },
+        {
+          "name": "Scout Sash",
+          "type": "belts",
+          "ID": 1,
+          "dropChance": 0.15
+        }
       ],
-      "info" : {
+      "info": {
         "name": "Skell",
         "description": "A skeleton warrior, armed with a rusty sword.",
         "level": 2,
@@ -109,30 +143,52 @@
         "attackRange": 1,
         "playerEngageRange": 1,
         "firstStrike": false,
-        "disposition": "hostile"
+        "disposition": "hostile",
+        "sizeCategory": "medium"
       }
     },
     {
       "stats": {
         "health": 10,
         "attack": 1,
-        "strength": 3,      
-        "dexterity": 9,      
-        "stamina": 5,      
-        "vitality": 5,     
-        "intelligence": 1,              
+        "strength": 3,
+        "dexterity": 9,
+        "stamina": 5,
+        "vitality": 5,
+        "intelligence": 1,
         "defence": 6,
         "atkSpeed": 1.1,
         "crit": 0.05,
         "dodge": 0.05
       },
       "loot": [
-        { "name": "Cooper coin", "type": "currency", "amout": 1, "ID": 1, "dropChance": 0.7},
-        { "name": "Minor Mana Flask", "type": "consumable", "ID": 2, "dropChance": 0.45 },
-        { "name": "Wooden Ring", "type": "ring", "ID": 3, "dropChance": 1 },
-        { "ID": 33, "type":"shield", "name": "Spiked Shield", "dropChance": 0.3 }
+        {
+          "name": "Cooper coin",
+          "type": "currency",
+          "amout": 1,
+          "ID": 1,
+          "dropChance": 0.7
+        },
+        {
+          "name": "Minor Mana Flask",
+          "type": "consumable",
+          "ID": 2,
+          "dropChance": 0.45
+        },
+        {
+          "name": "Wooden Ring",
+          "type": "ring",
+          "ID": 3,
+          "dropChance": 1
+        },
+        {
+          "ID": 33,
+          "type": "shield",
+          "name": "Spiked Shield",
+          "dropChance": 0.3
+        }
       ],
-      "info" : {
+      "info": {
         "name": "Ratazana",
         "description": "A giant rat, spawn from the depts.",
         "level": 1,
@@ -145,7 +201,8 @@
         "attackRange": 1,
         "playerEngageRange": 0,
         "firstStrike": false,
-        "disposition": "hostile"
+        "disposition": "hostile",
+        "sizeCategory": "small"
       }
     },
     {
@@ -163,13 +220,38 @@
         "dodge": 0.08
       },
       "loot": [
-        { "name": "Bone Arrow", "type": "ammo", "ID": 1, "dropChance": 0.4 },
-        { "name": "Rusted Bow", "type": "weapon", "ID": 2, "dropChance": 0.2 },
-        { "name": "Minor Mana Flask", "type": "consumable", "ID": 2, "dropChance": 1.1 },
-        { "name": "Hunter Belt", "type": "belts", "ID": 2, "dropChance": 0.1 },
-        { "name": "War Belt", "type": "belts", "ID": 3, "dropChance": 0.05 }
+        {
+          "name": "Bone Arrow",
+          "type": "ammo",
+          "ID": 1,
+          "dropChance": 0.4
+        },
+        {
+          "name": "Rusted Bow",
+          "type": "weapon",
+          "ID": 2,
+          "dropChance": 0.2
+        },
+        {
+          "name": "Minor Mana Flask",
+          "type": "consumable",
+          "ID": 2,
+          "dropChance": 1.1
+        },
+        {
+          "name": "Hunter Belt",
+          "type": "belts",
+          "ID": 2,
+          "dropChance": 0.1
+        },
+        {
+          "name": "War Belt",
+          "type": "belts",
+          "ID": 3,
+          "dropChance": 0.05
+        }
       ],
-      "info" : {
+      "info": {
         "name": "Skell Archer",
         "description": "A ranged skeleton that fires from distance.",
         "level": 2,
@@ -178,12 +260,13 @@
       "behavior": {
         "visibilityMode": "distance",
         "visibilityRange": 7,
-        "attackStyle": "ranged",
-        "attackRange": 4,
+        "attackStyle": "melee",
+        "attackRange": 1,
         "playerEngageRange": 1,
-        "firstStrike": true,
-        "disposition": "hostile"
+        "firstStrike": false,
+        "disposition": "hostile",
+        "sizeCategory": "medium"
       }
     }
   ]
-} 
+}

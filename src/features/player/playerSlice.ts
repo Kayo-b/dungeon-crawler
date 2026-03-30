@@ -2,7 +2,7 @@ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import data from '../../data/characters.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { computeDerivedPlayerStats } from './playerStats';
-import { readSkillLevelsFromCharacter, SkillLevels } from '../skills/skillCatalog';
+import { readSkillLevelsFromCharacter, SkillLevels, SkillOffer } from '../skills/skillCatalog';
 
 let health = data.character.stats.health;
 let experience = data.character.experience;
@@ -52,6 +52,10 @@ interface CounterState {
   maxComboPoints: number;
   gold: number;
   skillLevels: SkillLevels;
+  /** Absorbs incoming damage before health is reduced */
+  armorBuffer: number;
+  /** Skill choices pending player selection after a level up (null = none pending) */
+  pendingLevelUpSkills: SkillOffer[] | null;
 }
 
 interface DmgPayload {
@@ -187,6 +191,8 @@ const initialState: CounterState = {
   maxComboPoints: 5,
   gold: Math.max(0, gold),
   skillLevels,
+  armorBuffer: 0,
+  pendingLevelUpSkills: null,
 };
 
 export const fetchEquipment = createAsyncThunk('counter/fetchEquipment', async () => {
@@ -203,10 +209,23 @@ const playerSlice = createSlice({
       state.health -= 1;
     },
     dmg2Player(state, action: PayloadAction<DmgPayload>) {
-      state.health -= action.payload.dmg;
-      state.dmgLog.push(action.payload);
+      let remainingDmg = action.payload.dmg;
 
-      saveData(state.health);
+      // Armor buffer absorbs damage before health is reduced
+      if (state.armorBuffer > 0 && remainingDmg > 0) {
+        const absorbed = Math.min(state.armorBuffer, remainingDmg);
+        state.armorBuffer -= absorbed;
+        remainingDmg -= absorbed;
+      }
+
+      if (remainingDmg > 0) {
+        state.health -= remainingDmg;
+        state.dmgLog.push({ ...action.payload, dmg: remainingDmg });
+        saveData(state.health);
+      } else {
+        // Fully absorbed — record 0-damage hit for visual feedback
+        state.dmgLog.push({ ...action.payload, dmg: 0 });
+      }
     },
     restoreHealth(state, action: PayloadAction<number>) {
       state.health += action.payload;
@@ -279,8 +298,8 @@ const playerSlice = createSlice({
       state.skillLevels = { ...(action.payload || {}) };
     },
     addGold(state, action: PayloadAction<number>) {
-      const increment = Math.max(0, Number(action.payload || 0));
-      state.gold = Math.max(0, Number((state.gold + increment).toFixed(2)));
+      const increment = Math.round(Math.max(0, Number(action.payload || 0)));
+      state.gold = Math.round(Math.max(0, state.gold + increment));
     },
     gainRage(state, action: PayloadAction<number>) {
       if (state.classArchetype !== 'warrior') return;
@@ -315,6 +334,18 @@ const playerSlice = createSlice({
       if (state.manaRegenPerTile > 0) {
         state.mana = clampResource(state.mana + state.manaRegenPerTile, state.maxMana);
       }
+    },
+    addArmorBuffer(state, action: PayloadAction<number>) {
+      state.armorBuffer = Math.max(0, state.armorBuffer + action.payload);
+    },
+    clearArmorBuffer(state) {
+      state.armorBuffer = 0;
+    },
+    setPendingLevelUpSkills(state, action: PayloadAction<SkillOffer[]>) {
+      state.pendingLevelUpSkills = action.payload;
+    },
+    clearPendingLevelUpSkills(state) {
+      state.pendingLevelUpSkills = null;
     },
   },
   extraReducers: (builder) => {
@@ -360,6 +391,10 @@ export const {
   resetComboPoints,
   consumeAllComboPoints,
   regenResourcesOnTile,
+  addArmorBuffer,
+  clearArmorBuffer,
+  setPendingLevelUpSkills,
+  clearPendingLevelUpSkills,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;

@@ -19,6 +19,7 @@ import {
   setStats,
   setUnspentStatPoints,
   setXP,
+  clearPendingLevelUpSkills,
 } from '../player/playerSlice';
 import { setAllInventory } from '../inventory/inventorySlice';
 import { ConsumableBelt } from '../inventory/ConsumableBelt';
@@ -34,7 +35,7 @@ import { ARCHETYPES, ArchetypeId, buildCharacterFromArchetype } from '../../data
 import { getMapConfig } from '../../data/maps';
 import itemData from '../../data/items.json';
 import { pickSpawnEnemyTypeForDepth } from '../enemy/enemySpawn';
-import { getEnemyBehaviorForType } from '../enemy/enemyPerception';
+import { getEnemyBehaviorForType, getEnemySizeCategory } from '../enemy/enemyPerception';
 import { getMapDepth } from '../../data/maps/transitions';
 import { computeDerivedPlayerStats } from '../player/playerStats';
 import {
@@ -44,7 +45,9 @@ import {
   getSkillRequirementSummary,
   readSkillLevelsFromCharacter,
   SKILLS,
+  SkillId,
 } from '../skills/skillCatalog';
+import { LevelUpSkillModal } from '../skills/LevelUpSkillModal';
 import {
   getCarryLoadSummary,
   getInventoryCapacities,
@@ -104,44 +107,44 @@ interface DepthSpawnProfile {
 
 const DEPTH_SPAWN_PROFILES: Record<number, DepthSpawnProfile> = {
   1: {
-    targetEnemiesSmall: [4, 6],
-    targetEnemiesLarge: [7, 9],
-    packCountSmall: [2, 3],
-    packCountLarge: [3, 4],
+    targetEnemiesSmall: [9, 15],
+    targetEnemiesLarge: [12, 18],
+    packCountSmall: [1, 2],
+    packCountLarge: [2, 3],
     composition: { rats: 55, skeletons: 35, mixed: 10 },
     mixedArcherBias: 0.35,
-    respawnPackCapSmall: 2,
-    respawnPackCapLarge: 3,
+    respawnPackCapSmall: 6,
+    respawnPackCapLarge: 6,
   },
   2: {
-    targetEnemiesSmall: [5, 8],
-    targetEnemiesLarge: [8, 11],
-    packCountSmall: [2, 4],
-    packCountLarge: [3, 5],
+    targetEnemiesSmall: [9, 15],
+    targetEnemiesLarge: [12, 18],
+    packCountSmall: [1, 2],
+    packCountLarge: [2, 3],
     composition: { rats: 35, skeletons: 35, mixed: 30 },
     mixedArcherBias: 0.45,
-    respawnPackCapSmall: 2,
-    respawnPackCapLarge: 3,
+    respawnPackCapSmall: 6,
+    respawnPackCapLarge: 6,
   },
   3: {
-    targetEnemiesSmall: [7, 10],
-    targetEnemiesLarge: [10, 13],
-    packCountSmall: [3, 5],
-    packCountLarge: [4, 6],
+    targetEnemiesSmall: [9, 15],
+    targetEnemiesLarge: [12, 18],
+    packCountSmall: [1, 2],
+    packCountLarge: [2, 3],
     composition: { rats: 20, skeletons: 30, mixed: 50 },
     mixedArcherBias: 0.55,
-    respawnPackCapSmall: 3,
-    respawnPackCapLarge: 3,
+    respawnPackCapSmall: 6,
+    respawnPackCapLarge: 6,
   },
   4: {
-    targetEnemiesSmall: [8, 11],
-    targetEnemiesLarge: [11, 14],
-    packCountSmall: [3, 5],
-    packCountLarge: [4, 6],
+    targetEnemiesSmall: [9, 15],
+    targetEnemiesLarge: [12, 18],
+    packCountSmall: [1, 2],
+    packCountLarge: [2, 3],
     composition: { rats: 10, skeletons: 25, mixed: 65 },
     mixedArcherBias: 0.65,
-    respawnPackCapSmall: 3,
-    respawnPackCapLarge: 4,
+    respawnPackCapSmall: 6,
+    respawnPackCapLarge: 6,
   },
 };
 
@@ -154,8 +157,9 @@ const getDepthSpawnProfile = (depth: number): DepthSpawnProfile => {
 export const MainScreen = () => {
   const SMALL_MAP_MAX_TILES = 100;
   const RESPAWN_STEP_INTERVAL = 5;
-  const MAX_DYNAMIC_ENEMIES = 14;
+  const MAX_DYNAMIC_ENEMIES = 18;
   const MAX_PACK_ANCHORS = 6;
+  const PACK_LAYER_COUNT = 3; // each pack spawns enemies for this many wave layers
   const MAX_FIXED_PACKS_PER_CORRIDOR = 1;
   const MAX_AMBUSH_PACKS_PER_CORRIDOR = 2;
 
@@ -196,6 +200,7 @@ export const MainScreen = () => {
   const playerStats = useAppSelector((state) => state.player.stats as Record<string, any>);
   const playerEquipment = useAppSelector((state) => state.player.equipment as Record<string, any>);
   const unspentStatPoints = useAppSelector((state) => state.player.unspentStatPoints);
+  const pendingLevelUpSkills = useAppSelector((state) => state.player.pendingLevelUpSkills || null);
   const playerGold = useAppSelector((state) => state.player.gold || 0);
   const bagInventory = useAppSelector((state) => state.inventory.inventory as any[]);
   const consumableStash = useAppSelector((state) => state.inventory.consumableStash as any[]);
@@ -214,8 +219,11 @@ export const MainScreen = () => {
   const {
     startCombat,
     engagePlayerAttack,
+    performPlayerAttack,
+    performSkill,
     performPrimarySkill,
     performSecondarySkill,
+    endPlayerTurnManually,
     specialCooldownFrames,
     inCombat,
     floorLootBags,
@@ -227,6 +235,11 @@ export const MainScreen = () => {
     addFloorLootBag,
     pendingLootItems,
   } = useCombat();
+
+  const combatPhase = useAppSelector((state) => state.combat.combatPhase);
+  const scrollHand = useAppSelector((state) => (state.combat as any).scrollHand as string[] ?? []);
+  const cardMana = useAppSelector((state) => (state.combat as any).cardMana as number ?? 2);
+  const maxCardMana = useAppSelector((state) => (state.combat as any).maxCardMana as number ?? 2);
 
   useEffect(() => {
     const checkSave = async () => {
@@ -251,10 +264,11 @@ export const MainScreen = () => {
       return;
     }
 
-    const previousPoints = previousUnspentPointsRef.current;
-    if (unspentStatPoints > 0 && unspentStatPoints > previousPoints) {
-      setShowStatPointsWindow(true);
-    }
+    // Stats system commented out — level up now grants skill choices instead
+    // const previousPoints = previousUnspentPointsRef.current;
+    // if (unspentStatPoints > 0 && unspentStatPoints > previousPoints) {
+    //   setShowStatPointsWindow(true);
+    // }
     previousUnspentPointsRef.current = unspentStatPoints;
   }, [menuMode, unspentStatPoints, clearFloorLootBags]);
 
@@ -824,29 +838,46 @@ export const MainScreen = () => {
     const kind = forceMixed ? 'mixed' : choosePackKind(depth);
 
     if (kind === 'rats') {
-      const ratCount = cap === 1 ? 1 : randInt(2, Math.min(4, cap));
-      return Array.from({ length: ratCount }, () => ENEMY_TYPE.RAT);
+      const sizeCategory = getEnemySizeCategory(ENEMY_TYPE.RAT); // 'small'
+      const perLayerMin = sizeCategory === 'small' ? 5 : sizeCategory === 'medium' ? 3 : 1;
+      const perLayerMax = sizeCategory === 'small' ? 6 : sizeCategory === 'medium' ? 4 : 1;
+      const perLayer = cap < 2 ? 1 : randInt(
+        Math.min(perLayerMin, Math.floor(cap / PACK_LAYER_COUNT)),
+        Math.min(perLayerMax, Math.floor(cap / PACK_LAYER_COUNT))
+      );
+      const totalCount = Math.min(cap, perLayer * PACK_LAYER_COUNT);
+      return Array.from({ length: totalCount }, () => ENEMY_TYPE.RAT);
     }
 
     if (kind === 'skeletons') {
-      const skeletonCount = randInt(1, Math.min(2, cap));
-      const remaining = Math.max(0, cap - skeletonCount);
+      const sizeCategory = getEnemySizeCategory(ENEMY_TYPE.SKELETON); // 'medium'
+      const perLayerMin = sizeCategory === 'small' ? 5 : sizeCategory === 'medium' ? 3 : 1;
+      const perLayerMax = sizeCategory === 'small' ? 6 : sizeCategory === 'medium' ? 4 : 1;
+      const perLayer = cap < 2 ? 1 : randInt(
+        Math.min(perLayerMin, Math.floor(cap / PACK_LAYER_COUNT)),
+        Math.min(perLayerMax, Math.floor(cap / PACK_LAYER_COUNT))
+      );
+      const skeletonTotal = Math.min(cap, perLayer * PACK_LAYER_COUNT);
+      const remaining = Math.max(0, cap - skeletonTotal);
       const archerCap = Math.min(1, remaining);
       const archerChance = Math.max(0, profile.composition.mixed - 20) / 100;
       const archerCount = archerCap > 0 && Math.random() < archerChance ? 1 : 0;
       return [
-        ...Array.from({ length: skeletonCount }, () => ENEMY_TYPE.SKELETON),
+        ...Array.from({ length: skeletonTotal }, () => ENEMY_TYPE.SKELETON),
         ...Array.from({ length: archerCount }, () => ENEMY_TYPE.ARCHER),
       ];
     }
 
+    // Mixed pack — medium enemies (skeletons + archers): 3-4 per layer × PACK_LAYER_COUNT
     if (cap === 1) {
       return [ENEMY_TYPE.SKELETON];
     }
 
-    const desiredArchers = Math.max(1, Math.min(2, Math.round(cap * profile.mixedArcherBias)));
-    const archerCount = Math.max(1, Math.min(2, Math.min(desiredArchers, cap - 1)));
-    const skeletonCount = Math.max(1, Math.min(2, cap - archerCount));
+    const perLayerMixed = randInt(Math.min(3, Math.floor(cap / PACK_LAYER_COUNT)), Math.min(4, Math.floor(cap / PACK_LAYER_COUNT)));
+    const totalMixed = Math.min(cap, Math.max(2, perLayerMixed * PACK_LAYER_COUNT));
+    const desiredArchers = Math.max(1, Math.min(2, Math.round(totalMixed * profile.mixedArcherBias)));
+    const archerCount = Math.max(1, Math.min(2, Math.min(desiredArchers, totalMixed - 1)));
+    const skeletonCount = Math.max(1, totalMixed - archerCount);
     return [
       ...Array.from({ length: skeletonCount }, () => ENEMY_TYPE.SKELETON),
       ...Array.from({ length: archerCount }, () => ENEMY_TYPE.ARCHER),
@@ -1115,77 +1146,27 @@ export const MainScreen = () => {
     }).start();
   }, [menuMode, playerHealth, showDeathOverlay, deathOpacity, revivePending]);
 
-  const activeSkillLoadout = useMemo(
-    () => getActiveSkillLoadout(skillLevels, classArchetype),
-    [skillLevels, classArchetype]
-  );
-  const primarySkill = activeSkillLoadout.primary ? SKILLS[activeSkillLoadout.primary] : null;
-  const secondarySkill = activeSkillLoadout.secondary ? SKILLS[activeSkillLoadout.secondary] : null;
-  const primarySkillLevel = primarySkill ? getSkillLevel(skillLevels, primarySkill.id) : 0;
-  const secondarySkillLevel = secondarySkill ? getSkillLevel(skillLevels, secondarySkill.id) : 0;
-  const primarySkillMeetsStats = primarySkill ? doesMeetSkillRequirements(primarySkill, playerStats) : false;
-  const secondarySkillMeetsStats = secondarySkill ? doesMeetSkillRequirements(secondarySkill, playerStats) : false;
-  const primaryReqSummary = primarySkill ? getSkillRequirementSummary(primarySkill) : '';
-  const secondaryReqSummary = secondarySkill ? getSkillRequirementSummary(secondarySkill) : '';
+  /** Build scroll-hand cards from the current hand (used during combat). */
+  const scrollHandCards = useMemo(() => {
+    const isPlayerTurn = inCombat && combatPhase === 'player_turn';
+    return scrollHand.map((skillId, idx) => {
+      const skill = SKILLS[skillId as SkillId];
+      if (!skill) return null;
+      const level = getSkillLevel(skillLevels, skillId as SkillId);
+      const needsCombo = !!skill.requiresCombo && comboPoints <= 0;
+      const canPlay = isPlayerTurn && cardMana >= 1 && !needsCombo && mana >= skill.manaCost;
+      return { skill, level, canPlay, needsCombo, idx };
+    }).filter(Boolean) as { skill: (typeof SKILLS)[SkillId]; level: number; canPlay: boolean; needsCombo: boolean; idx: number }[];
+  }, [scrollHand, inCombat, combatPhase, cardMana, skillLevels, comboPoints, mana]);
 
-  const skillHud = useMemo(() => {
-    const primaryLabelBase = primarySkill
-      ? `${primarySkill.name} Lv.${primarySkillLevel} [${primarySkill.manaCost}]`
-      : 'No Primary Skill';
-    const secondaryLabelBase = secondarySkill
-      ? `${secondarySkill.name} Lv.${secondarySkillLevel} [${secondarySkill.manaCost}]`
-      : 'No Secondary Skill';
-
-    const primaryNeedsCombo = !!primarySkill?.requiresCombo && comboPoints <= 0;
-    const secondaryNeedsCombo = !!secondarySkill?.requiresCombo && comboPoints <= 0;
-    const primaryDisabled =
-      !primarySkill ||
-      !primarySkillMeetsStats ||
-      mana < (primarySkill?.manaCost || 0) ||
-      primaryNeedsCombo;
-    const secondaryDisabled =
-      !secondarySkill ||
-      !secondarySkillMeetsStats ||
-      mana < (secondarySkill?.manaCost || 0) ||
-      secondaryNeedsCombo;
-
-    const primaryLabel =
-      primarySkill && !primarySkillMeetsStats && primaryReqSummary.length > 0
-        ? `${primaryLabelBase} (${primaryReqSummary})`
-        : primaryLabelBase;
-    const secondaryLabel =
-      secondarySkill && !secondarySkillMeetsStats && secondaryReqSummary.length > 0
-        ? `${secondaryLabelBase} (${secondaryReqSummary})`
-        : secondaryLabelBase;
-
-    return {
-      primaryLabel,
-      secondaryLabel,
-      primaryDisabled,
-      secondaryDisabled,
-    };
-  }, [
-    comboPoints,
-    mana,
-    primaryReqSummary,
-    primarySkillLevel,
-    primarySkill,
-    primarySkillMeetsStats,
-    secondaryReqSummary,
-    secondarySkillLevel,
-    secondarySkill,
-    secondarySkillMeetsStats,
-  ]);
-
-  const skillButtonsLocked = !inCombat || specialCooldownFrames > 0;
-  const primaryResourceLocked = skillHud.primaryDisabled;
-  const secondaryResourceLocked = skillHud.secondaryDisabled;
-  const primaryDisabled = skillButtonsLocked || primaryResourceLocked;
-  const secondaryDisabled = skillButtonsLocked || secondaryResourceLocked;
-  const primaryText =
-    specialCooldownFrames > 0 ? `${skillHud.primaryLabel} (${specialCooldownFrames})` : skillHud.primaryLabel;
-  const secondaryText =
-    specialCooldownFrames > 0 ? `${skillHud.secondaryLabel} (${specialCooldownFrames})` : skillHud.secondaryLabel;
+  // Keep learnedSkillsHud for hotkey mapping (Q/E/R/F bind to hand positions)
+  const learnedSkillsHud = useMemo(() => {
+    return scrollHandCards.map((item, index) => ({
+      skill: item.skill,
+      isDisabled: !item.canPlay,
+      hotkey: ['Q', 'E', 'R', 'F'][index] ?? '',
+    }));
+  }, [scrollHandCards]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || menuMode !== 'game') return;
@@ -1233,13 +1214,25 @@ export const MainScreen = () => {
 
       if (key === 'q') {
         event.preventDefault();
-        performPrimarySkill(activeSkillLoadout.primary);
+        if (learnedSkillsHud[0]) performSkill(learnedSkillsHud[0].skill.id);
         return;
       }
 
       if (key === 'e') {
         event.preventDefault();
-        performSecondarySkill(activeSkillLoadout.secondary);
+        if (learnedSkillsHud[1]) performSkill(learnedSkillsHud[1].skill.id);
+        return;
+      }
+
+      if (key === 'r') {
+        event.preventDefault();
+        if (learnedSkillsHud[2]) performSkill(learnedSkillsHud[2].skill.id);
+        return;
+      }
+
+      if (key === 'f') {
+        event.preventDefault();
+        if (learnedSkillsHud[3]) performSkill(learnedSkillsHud[3].skill.id);
         return;
       }
 
@@ -1249,19 +1242,23 @@ export const MainScreen = () => {
           openMerchantMenu();
           return;
         }
-        const aliveEnemyIds = Object.entries(enemies)
-          .filter(([, enemy]) => !!enemy && enemy.health > 0)
-          .map(([id]) => Number(id))
-          .sort((a, b) => a - b);
-
-        if (aliveEnemyIds.length <= 0) return;
-        const preferred = Number(currentEnemyId);
-        const targetId = aliveEnemyIds.includes(preferred) ? preferred : aliveEnemyIds[0];
 
         if (!inCombat) {
+          // Need a target to start combat — use selectors only for the initial engage
+          const aliveEnemyIds = Object.entries(enemies)
+            .filter(([, enemy]) => !!enemy && enemy.health > 0)
+            .map(([id]) => Number(id))
+            .sort((a, b) => a - b);
+          if (aliveEnemyIds.length <= 0) return;
+          const preferred = Number(currentEnemyId);
+          const targetId = aliveEnemyIds.includes(preferred) ? preferred : aliveEnemyIds[0];
           startCombat(targetId);
+          return;
         }
-        engagePlayerAttack(targetId);
+
+        if (combatPhase === 'player_turn') {
+          // Standard attack removed — spacebar no longer auto-attacks; use skill buttons (Q/E/R/F)
+        }
       }
     };
 
@@ -1272,6 +1269,7 @@ export const MainScreen = () => {
     enemies,
     currentEnemyId,
     inCombat,
+    combatPhase,
     merchantInteractable,
     showMerchantModal,
     showStatPointsWindow,
@@ -1279,10 +1277,8 @@ export const MainScreen = () => {
     openMerchantMenu,
     startCombat,
     engagePlayerAttack,
-    performPrimarySkill,
-    performSecondarySkill,
-    activeSkillLoadout.primary,
-    activeSkillLoadout.secondary,
+    performSkill,
+    learnedSkillsHud,
   ]);
 
   useEffect(() => {
@@ -1533,42 +1529,75 @@ export const MainScreen = () => {
           onLootBagPress={handleFloorLootBagPress}
           skillOverlay={
             <View style={styles.leftHud}>
+              {inCombat && (
+                <View style={styles.turnIndicatorRow}>
+                  {combatPhase === 'player_turn' ? (
+                    <View style={styles.playerTurnIndicator}>
+                      <Text style={styles.playerTurnText}>YOUR TURN</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.enemyTurnIndicator}>
+                      <Text style={styles.enemyTurnText}>ENEMY TURN...</Text>
+                    </View>
+                  )}
+                  {combatPhase === 'player_turn' && (
+                    <TouchableOpacity
+                      style={styles.endTurnButton}
+                      onPress={endPlayerTurnManually}
+                    >
+                      <Text style={styles.endTurnButtonText}>End Turn</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
               <View style={styles.skillBar}>
                 <TouchableOpacity
-                  testID="skill-primary-button"
-                  style={[
-                    styles.skillButton,
-                    primaryDisabled && styles.skillButtonDisabled,
-                    primaryResourceLocked && styles.skillButtonFaded,
-                  ]}
-                  onPress={() => performPrimarySkill(activeSkillLoadout.primary)}
-                  disabled={primaryDisabled}
+                  testID="skill-talents-button"
+                  style={styles.skillButtonMeta}
+                  onPress={toggleTalentsWindow}
                 >
-                  <Text style={styles.skillButtonText}>{primaryText}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="skill-secondary-button"
-                  style={[
-                    styles.skillButtonSecondary,
-                    secondaryDisabled && styles.skillButtonDisabled,
-                    secondaryResourceLocked && styles.skillButtonFaded,
-                  ]}
-                  onPress={() => performSecondarySkill(activeSkillLoadout.secondary)}
-                  disabled={secondaryDisabled}
-                >
-                  <Text style={styles.skillButtonText}>{secondaryText}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="skill-stats-button"
-                  style={[styles.skillButtonMeta, unspentStatPoints > 0 && styles.skillButtonMetaReady]}
-                  onPress={toggleStatsWindow}
-                >
-                  <Text style={styles.skillButtonText}>
-                    Stats {unspentStatPoints > 0 ? `[${unspentStatPoints}]` : ''}
-                  </Text>
+                  <Text style={styles.skillButtonText}>Skills [T]</Text>
                 </TouchableOpacity>
               </View>
             </View>
+          }
+          scrollHandOverlay={
+            inCombat ? (
+              <View style={styles.scrollHandRow}>
+                {scrollHandCards.map((item) => (
+                  <TouchableOpacity
+                    key={`${item.skill.id}-${item.idx}`}
+                    testID={`scroll-card-${item.skill.id}`}
+                    style={[
+                      styles.scrollCard,
+                      !item.canPlay && styles.scrollCardDisabled,
+                      item.skill.isBuff && styles.scrollCardBuff,
+                      item.skill.hasKnockback && styles.scrollCardKnockback,
+                    ]}
+                    onPress={() => performSkill(item.skill.id as SkillId)}
+                    disabled={!item.canPlay}
+                  >
+                    <Text style={styles.scrollCardName} numberOfLines={1}>
+                      {item.skill.name}
+                    </Text>
+                    <Text style={styles.scrollCardCost}>
+                      {item.skill.manaCost > 0 ? `💧 ${item.skill.manaCost}` : 'Free'}
+                    </Text>
+                    {item.skill.hasKnockback && (
+                      <Text style={styles.scrollCardKnockbackTag}>↩ KB</Text>
+                    )}
+                    {item.needsCombo && (
+                      <Text style={styles.scrollCardComboWarn}>Need combo</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+                {inCombat && combatPhase === 'player_turn' && scrollHandCards.length === 0 && (
+                  <View style={styles.scrollCardEmpty}>
+                    <Text style={styles.scrollCardEmptyText}>No scrolls in hand</Text>
+                  </View>
+                )}
+              </View>
+            ) : null
           }
           rightOverlay={
             <View style={styles.roomRightHud}>
@@ -1585,8 +1614,8 @@ export const MainScreen = () => {
         key={`player-${sessionSeed}`}
         classLabel={classLabel}
       />
-      <StatPointsWindow
-        visible={showStatPointsWindow}
+      {/* Stats allocation window commented out — level up now grants skill choices */}
+      {/* <StatPointsWindow
         classArchetype={classArchetype}
         level={playerLevel}
         experience={playerXP}
@@ -1596,6 +1625,25 @@ export const MainScreen = () => {
         unspentStatPoints={unspentStatPoints}
         onClose={() => setShowStatPointsWindow(false)}
         onApplyAllocations={applyStatPointAllocations}
+      /> */}
+      <LevelUpSkillModal
+        visible={!!pendingLevelUpSkills && pendingLevelUpSkills.length > 0}
+        offers={pendingLevelUpSkills ?? []}
+        skillLevels={skillLevels}
+        onSelectSkill={async (offer) => {
+          const nextLevels = { ...skillLevels, [offer.skillId]: offer.newLevel };
+          dispatch(setSkillLevels(nextLevels));
+          dispatch(clearPendingLevelUpSkills());
+          // Persist to storage
+          try {
+            const storedData = await AsyncStorage.getItem('characters');
+            const obj = storedData ? JSON.parse(storedData) : {};
+            if (obj?.character) {
+              obj.character.skills = { ...(obj.character.skills || {}), [offer.skillId]: offer.newLevel };
+              await AsyncStorage.setItem('characters', JSON.stringify(obj));
+            }
+          } catch (_) {}
+        }}
       />
       <SkillTalentsWindow
         visible={showTalentsWindow}
@@ -1834,6 +1882,68 @@ const styles = StyleSheet.create({
     gap: 4,
     alignItems: 'flex-start',
   },
+  turnIndicatorRow: {
+    width: 192,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  endTurnButton: {
+    backgroundColor: '#3a1a0a',
+    borderWidth: 2,
+    borderColor: '#e07830',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    flex: 1,
+  },
+  endTurnButtonText: {
+    color: '#ffcc88',
+    fontFamily: RETRO_FONT,
+    fontSize: 9,
+    textAlign: 'center',
+  },
+  attackButton: {
+    backgroundColor: '#7a1c1c',
+    borderWidth: 2,
+    borderColor: '#ff4444',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  attackButtonText: {
+    color: '#ffdddd',
+    fontFamily: RETRO_FONT,
+    fontSize: 9,
+    textAlign: 'center',
+  },
+  playerTurnIndicator: {
+    backgroundColor: '#0f2a1a',
+    borderWidth: 2,
+    borderColor: '#3dba6f',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  playerTurnText: {
+    color: '#7dffb0',
+    fontFamily: RETRO_FONT,
+    fontSize: 9,
+    textAlign: 'center',
+  },
+  enemyTurnIndicator: {
+    backgroundColor: '#1a1a1a',
+    borderWidth: 2,
+    borderColor: '#888888',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  enemyTurnText: {
+    color: '#aaaaaa',
+    fontFamily: RETRO_FONT,
+    fontSize: 9,
+    textAlign: 'center',
+  },
   skillBar: {
     opacity: 1,
     width: 192,
@@ -1856,6 +1966,80 @@ const styles = StyleSheet.create({
     borderColor: '#d7d7d7',
     paddingVertical: 6,
     paddingHorizontal: 8,
+  },
+  skillButtonBuff: {
+    backgroundColor: '#131c28',
+    borderColor: '#60a5fa',
+  },
+  noSkillsMsg: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    opacity: 0.5,
+  },
+  scrollHandRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  scrollCard: {
+    backgroundColor: '#0d1a2e',
+    borderWidth: 2,
+    borderColor: '#4a90d9',
+    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    minWidth: 72,
+    maxWidth: 96,
+    alignItems: 'center',
+  },
+  scrollCardDisabled: {
+    opacity: 0.45,
+    borderColor: '#555555',
+  },
+  scrollCardBuff: {
+    backgroundColor: '#0e1e10',
+    borderColor: '#3dba6f',
+  },
+  scrollCardName: {
+    color: '#c8dff8',
+    fontFamily: RETRO_FONT,
+    fontSize: 8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  scrollCardCost: {
+    color: '#7dc4ff',
+    fontFamily: RETRO_FONT,
+    fontSize: 8,
+    marginTop: 2,
+  },
+  scrollCardComboWarn: {
+    color: '#ff8844',
+    fontFamily: RETRO_FONT,
+    fontSize: 7,
+    marginTop: 1,
+  },
+  scrollCardKnockback: {
+    borderColor: '#c084fc',
+    backgroundColor: '#1a0d2e',
+  },
+  scrollCardKnockbackTag: {
+    color: '#c084fc',
+    fontFamily: RETRO_FONT,
+    fontSize: 7,
+    marginTop: 1,
+  },
+  scrollCardEmpty: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    opacity: 0.4,
+  },
+  scrollCardEmptyText: {
+    color: '#888888',
+    fontFamily: RETRO_FONT,
+    fontSize: 8,
   },
   skillButtonMeta: {
     backgroundColor: '#2a2a2a',
