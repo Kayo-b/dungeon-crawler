@@ -351,9 +351,9 @@ export const Room3D: React.FC<Room3DProps> = ({
             // Front wall face
             if (isWall) {
                 const wallFaceLeft = isImmediateWall ? frontNear.left : 110;//frontFar.left;
-                const wallFaceTop = isImmediateWall ? frontNear.top - 40 : 120;
-                const wallFaceWidth = isImmediateWall ? frontNear.right - frontNear.left : 360//frontFar.width + 40;
-                const wallFaceHeight = isImmediateWall ? frontNear.bottom - frontNear.top - 40 : 180;//frontFar.height - 40;
+                const wallFaceTop = isImmediateWall ? frontNear.top - 40 : 150 ;
+                const wallFaceWidth = isImmediateWall ? frontNear.right - frontNear.left : 300 +(150/d)//frontFar.width + 40;
+                const wallFaceHeight = isImmediateWall ? frontNear.bottom - frontNear.top - 40 : 80 + (300/d);//frontFar.height - 40;
                 const wallFaceZ = isImmediateWall ? 89 : 89 - d;
                 console.log('FRONT WALL : ', wallFaceTop)
                 frames.push(
@@ -438,7 +438,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 left: isLastTile ? - 70 : wallNear.left,
                                 top: isLastTile ? wallNear.top - 95 : wallNear.top - 40, // Extend beyond to fill gaps
                                 width: isLastTile ? leftWidth + 100 : leftWidth + 100,
-                                height: isLastTile ? 450 : wallNear.bottom - wallNear.top + 10 + (d - 1) * 4,
+                                height: isLastTile ? 450 : wallNear.bottom - wallNear.top + 15 + (d - 1) * 2,
                                 zIndex: d === 1 ? 280 : 91 - d,
                             },
                             isWeb && {
@@ -493,7 +493,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                             },
                             isWeb && {
                                 // @ts-ignore
-                                perspective: '300px',
+                                perspective: '330px',
                             }
                         ]}
                     >
@@ -537,10 +537,10 @@ export const Room3D: React.FC<Room3DProps> = ({
                         style={[
                             styles.segment,
                             {
-                                left: floorNear.left - 20,
-                                top: floorFar.bottom - 75,
-                                width: floorNear.right - floorNear.left + 40,
-                                height: floorHeight + 10,
+                                left: floorNear.left + (d % 2 === 0 ? d * 5 : -d * 5),
+                                top: floorFar.bottom - 55,
+                                width: floorNear.right - floorNear.left + (d*20),
+                                height: floorHeight + 20,
                                 zIndex: 88 - d,
                             },
                             isWeb && {
@@ -577,7 +577,7 @@ export const Room3D: React.FC<Room3DProps> = ({
             console.log(floorFar, 'floor far stats')
             console.log(floorNear, 'floor near stats')
             if (ceilingHeight >  0) {
-                const ceilingTop = d === 2 ? ceilingNear.top + 25 : ceilingNear.top + 75;
+                const ceilingTop = d === 2 ? ceilingNear.top + 90 : ceilingNear.top + 75;
                 const ceilingOuterHeight = ceilingHeight + 25;
                 const sideWallZ = (d === 1 && isWall) ? 280 : 91 - d;
                 const ceilingZ = sideWallZ + 1;
