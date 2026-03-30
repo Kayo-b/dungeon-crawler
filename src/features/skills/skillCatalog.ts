@@ -7,7 +7,8 @@ export type SkillId =
   | 'eviscerate'
   | 'enforce-armor'
   | 'shadow-step'
-  | 'power-strike';
+  | 'power-strike'
+  | 'war-shout';
 
 export type SkillLevels = Partial<Record<SkillId, number>>;
 
@@ -21,6 +22,8 @@ export interface SkillDefinition {
   isBuff?: boolean;
   /** If true, surviving targets are knocked from the front layer to the mid layer */
   hasKnockback?: boolean;
+  /** If true, this skill is always available regardless of learned skill levels (e.g. test/tutorial skills) */
+  alwaysAvailable?: boolean;
 }
 
 /** An offer presented to the player on level up */
@@ -94,6 +97,14 @@ export const SKILLS: Record<SkillId, SkillDefinition> = {
     manaCost: 2,
     description: '[Placeholder] Channel raw physical force into a single devastating strike.',
   },
+  'war-shout': {
+    id: 'war-shout',
+    name: 'War Shout',
+    manaCost: 0,
+    description: 'Unleash a thunderous battle cry that sends all front-row enemies reeling back into the mid lane. No damage — pure positioning.',
+    hasKnockback: true,
+    alwaysAvailable: true,
+  },
 };
 
 export const SKILL_IDS = Object.keys(SKILLS) as SkillId[];
@@ -158,10 +169,11 @@ export const readSkillTrainingFromItem = (item: any): SkillTrainingFromItem | nu
   return { skillId, tomeLevel };
 };
 
-/** Returns all skills the character has trained (level > 0), in catalog order. */
+/** Returns all skills the character has trained (level > 0), in catalog order.
+ *  Skills flagged as `alwaysAvailable` are always included regardless of level. */
 export const getAllLearnedSkills = (skillLevels: SkillLevels | null | undefined): SkillDefinition[] => {
   return SKILL_IDS
-    .filter((skillId) => getSkillLevel(skillLevels, skillId) > 0)
+    .filter((skillId) => getSkillLevel(skillLevels, skillId) > 0 || SKILLS[skillId].alwaysAvailable)
     .map((skillId) => SKILLS[skillId]);
 };
 
@@ -174,6 +186,7 @@ export const getLevelUpSkillOptions = (
   count: number = 3
 ): SkillOffer[] => {
   const eligible: SkillOffer[] = SKILL_IDS
+    .filter((skillId) => !SKILLS[skillId].alwaysAvailable)
     .map((skillId) => {
       const currentLevel = getSkillLevel(skillLevels, skillId);
       return { skillId, currentLevel, newLevel: currentLevel + 1 };
