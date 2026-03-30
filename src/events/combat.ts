@@ -589,7 +589,7 @@ export const useCombat = () => {
     if (!skill) {
       return { ok: false, reason: 'No skill trained for this slot.' };
     }
-    if (getTrainedSkillLevel(skill.id) <= 0) {
+    if (getTrainedSkillLevel(skill.id) <= 0 && !skill.alwaysAvailable) {
       return { ok: false, reason: `${skill.name} is not trained yet.` };
     }
     // Card system: each scroll costs 1 cardMana
@@ -889,10 +889,15 @@ export const useCombat = () => {
       if (allEncounterEnemiesDead()) {
         endCombat({ flushLoot: true });
       } else {
-        flushLayerAdvances(() => {
-          beginPlayerTurn();
-          dispatch(setCombatLog('Your turn.'));
-        });
+        // Use a timeout to break out of the synchronous call stack so React renders
+        // the knockback state (enemies in mid) before advancing them back to front.
+        const t = setTimeout(() => {
+          flushLayerAdvances(() => {
+            beginPlayerTurn();
+            dispatch(setCombatLog('Your turn.'));
+          });
+        }, 600);
+        enemyTurnTimeoutsRef.current.push(t);
       }
       return;
     }
@@ -1051,6 +1056,42 @@ export const useCombat = () => {
       const bufferAmount = Math.floor((10 + (playerStats?.vitality || 0) * 0.8) * levelMultiplier);
       dispatch(addArmorBuffer(bufferAmount));
       dispatch(setCombatLog(`Enforce Armor Lv.${skillRank} adds ${bufferAmount} armor buffer.`));
+      checkAutoEndTurn();
+      return;
+    }
+
+    if (skill.id === 'war-shout') {
+      const frontAlive = frontLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
+      const midAlive = midLayerRef.current.filter((id) => (enemyHealthRef.current[id] ?? 0) > 0);
+
+      if (frontAlive.length === 0 && midAlive.length === 0) {
+        dispatch(setCombatLog(`War Shout echoes... but no enemies are near.`));
+        checkAutoEndTurn();
+        return;
+      }
+
+      if (frontAlive.length > 0) {
+        // Push front → mid
+        frontAlive.forEach((id) => applyKnockback(id));
+        dispatch(setCombatLog(`War Shout — ${frontAlive.length} enem${frontAlive.length === 1 ? 'y' : 'ies'} knocked back!`));
+      } else {
+        // Front already cleared this turn; push mid → back instead
+        midAlive.forEach((id) => {
+          const idx = midLayerRef.current.indexOf(id);
+          if (idx !== -1) midLayerRef.current.splice(idx, 1);
+          backLayerRef.current.push(id);
+        });
+        dispatch(
+          advanceFrontLayerRedux({
+            front: frontLayerRef.current,
+            mid: midLayerRef.current,
+            back: backLayerRef.current,
+            justAdvancedIds: [...justAdvancedIdsRef.current],
+          })
+        );
+        dispatch(setCombatLog(`War Shout — ${midAlive.length} advancing enem${midAlive.length === 1 ? 'y' : 'ies'} pushed back!`));
+      }
+
       checkAutoEndTurn();
       return;
     }
