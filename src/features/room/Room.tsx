@@ -2637,7 +2637,7 @@ const turn = (turnDir:string) => {
             case 'arrowright':
             guardedTurn('R');
             break;
-            case 't': // Toggle movement system with 'T' key
+            case 'm': // Toggle movement system with 'M' key
             setUseNewMovement(prev => !prev);
             break;
             default:
@@ -2961,7 +2961,7 @@ const turn = (turnDir:string) => {
 
             <View style={styles.movementHud}>
                 <View style={styles.movementRow}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                         style={[styles.button, styles.compactButton]}
                         onPress={() => setUseNewMovement(!useNewMovement)}
                     >
@@ -2996,7 +2996,7 @@ const turn = (turnDir:string) => {
                         onPress={() => setUse3DRendering(!use3DRendering)}
                     >
                         <Text style={styles.buttonText}>{use3DRendering ? '3D' : '2D'}</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                 </View>
 
                 {(isOnStairsUp || isOnStairsDown || isOnDoor) ? (

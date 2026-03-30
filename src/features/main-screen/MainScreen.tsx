@@ -15,6 +15,7 @@ import {
   setEquipment,
   setHealth,
   setLevel,
+  setSkillLevels,
   setStats,
   setUnspentStatPoints,
   setXP,
@@ -37,6 +38,14 @@ import { getEnemyBehaviorForType } from '../enemy/enemyPerception';
 import { getMapDepth } from '../../data/maps/transitions';
 import { computeDerivedPlayerStats } from '../player/playerStats';
 import {
+  doesMeetSkillRequirements,
+  getActiveSkillLoadout,
+  getSkillLevel,
+  getSkillRequirementSummary,
+  readSkillLevelsFromCharacter,
+  SKILLS,
+} from '../skills/skillCatalog';
+import {
   getCarryLoadSummary,
   getInventoryCapacities,
   getItemWeight,
@@ -52,6 +61,7 @@ import {
   enrichItemEconomyStats,
   MerchantStockEntry,
 } from '../merchant/merchantUtils';
+import { SkillTalentsWindow } from '../skills/SkillTalentsWindow';
 
 const ENEMY_TYPE = {
   SKELETON: 0,
@@ -60,6 +70,11 @@ const ENEMY_TYPE = {
 } as const;
 const RETRO_FONT = Platform.OS === 'web' ? '"Press Start 2P", "Courier New", monospace' : 'monospace';
 const FLOOR_DROP_EVENT = 'dungeon:drop-items-to-floor';
+const DEPTH_THREE_INTRO_TOME_DROPS = [
+  { name: 'Tome of Crushing Blow', type: 'tomes', ID: 1, dropChance: 1 },
+  { name: 'Tome of Arcane Bolt', type: 'tomes', ID: 3, dropChance: 1 },
+  { name: 'Tome of Quick Stab', type: 'tomes', ID: 5, dropChance: 1 },
+];
 
 type EnemyTypeId = (typeof ENEMY_TYPE)[keyof typeof ENEMY_TYPE];
 type PackKind = 'rats' | 'skeletons' | 'mixed';
@@ -156,6 +171,7 @@ export const MainScreen = () => {
   const [sessionSeed, setSessionSeed] = useState(0);
   const [revivePending, setRevivePending] = useState(false);
   const [showStatPointsWindow, setShowStatPointsWindow] = useState(false);
+  const [showTalentsWindow, setShowTalentsWindow] = useState(false);
   const [showMerchantModal, setShowMerchantModal] = useState(false);
   const [merchantMode, setMerchantMode] = useState<'menu' | 'trade'>('menu');
   const [merchantStock, setMerchantStock] = useState<MerchantStockEntry[]>([]);
@@ -173,6 +189,7 @@ export const MainScreen = () => {
   const currentEnemyId = useAppSelector((state) => state.enemy.currentEnemyId);
   const classLabel = useAppSelector((state) => state.player.classLabel);
   const classArchetype = useAppSelector((state) => state.player.classArchetype || 'warrior');
+  const skillLevels = useAppSelector((state) => state.player.skillLevels || {});
   const playerHealth = useAppSelector((state) => state.player.health);
   const playerLevel = useAppSelector((state) => state.player.level);
   const playerXP = useAppSelector((state) => state.player.experience);
@@ -189,8 +206,10 @@ export const MainScreen = () => {
   const stepCounterRef = useRef(0);
   const lastPosRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
   const lastSpawnedMapRef = useRef<string | null>(null);
+  const previousAliveEnemyCountRef = useRef(0);
   const previousUnspentPointsRef = useRef(0);
   const merchantStockByMapRef = useRef<Record<string, MerchantStockEntry[]>>({});
+  const depthThreeIntroDropAssignedRef = useRef(false);
 
   const {
     startCombat,
@@ -225,6 +244,7 @@ export const MainScreen = () => {
   useEffect(() => {
     if (menuMode !== 'game') {
       setShowStatPointsWindow(false);
+      setShowTalentsWindow(false);
       setShowLootModal(false);
       clearFloorLootBags();
       previousUnspentPointsRef.current = unspentStatPoints;
@@ -320,6 +340,7 @@ export const MainScreen = () => {
     if (!merchantInteractable) return;
     if (inCombat) return;
     if (showStatPointsWindow) return;
+    if (showTalentsWindow) return;
     setMerchantMode('menu');
     setShowMerchantModal(true);
   };
@@ -857,6 +878,7 @@ export const MainScreen = () => {
     const packCount = Math.max(1, Math.min(targetPacks, targetEnemies));
     let availableAnchors = [...safeAnchors];
     const corridorPackCounts: Record<string, CorridorPackCounts> = {};
+    let introDropAssigned = depthThreeIntroDropAssignedRef.current;
 
     for (let packIndex = 0; packIndex < packCount && spawned < targetEnemies; packIndex++) {
       const remainingEnemies = targetEnemies - spawned;
@@ -880,6 +902,9 @@ export const MainScreen = () => {
       availableAnchors = availableAnchors.filter((anchor) => !(anchor.x === point.x && anchor.y === point.y));
 
       finalMembers.forEach((typeId) => {
+        const shouldAssignIntroDrop =
+          !introDropAssigned && dungeonDepth === 3 && typeId === ENEMY_TYPE.ARCHER;
+        const guaranteedLoot = shouldAssignIntroDrop ? DEPTH_THREE_INTRO_TOME_DROPS : [];
         dispatch(
           addEnemy({
             index: spawned,
@@ -888,8 +913,12 @@ export const MainScreen = () => {
             positionY: point.y,
             strengthScale: enemyStrengthScale,
             rewardScale,
+            guaranteedLoot,
           })
         );
+        if (shouldAssignIntroDrop) {
+          introDropAssigned = true;
+        }
         spawned += 1;
       });
       reservePackOnCorridor(corridorPackCounts, point.corridorKey, isAmbushPack);
@@ -897,6 +926,7 @@ export const MainScreen = () => {
 
     dispatch(setEnemyCount(spawned));
     dispatch(setCurrentEnemy(0));
+    depthThreeIntroDropAssignedRef.current = introDropAssigned;
     lastSpawnedMapRef.current = currentMapId;
   };
 
@@ -926,6 +956,21 @@ export const MainScreen = () => {
       setSpawnPoints(anchors);
     }
   }, [menuMode, initialized, currentMapId, posX, posY, direction]);
+
+  useEffect(() => {
+    if (menuMode !== 'game') {
+      previousAliveEnemyCountRef.current = aliveEnemies.length;
+      return;
+    }
+
+    const previousAlive = previousAliveEnemyCountRef.current;
+    const currentAlive = aliveEnemies.length;
+    if (previousAlive > 0 && currentAlive <= 0) {
+      stepCounterRef.current = 0;
+      lastPosRef.current = { x: posX, y: posY, mapId: currentMapId };
+    }
+    previousAliveEnemyCountRef.current = currentAlive;
+  }, [menuMode, aliveEnemies.length, posX, posY, currentMapId]);
 
   useEffect(() => {
     if (menuMode !== 'game' || !initialized || !isSmallMap) return;
@@ -966,9 +1011,13 @@ export const MainScreen = () => {
 
     const chosenPoint = corridorEligiblePoints[Math.floor(Math.random() * corridorEligiblePoints.length)];
     let spawnedNow = 0;
+    let introDropAssigned = depthThreeIntroDropAssignedRef.current;
 
     respawnMembers.forEach((typeId, idx) => {
       if (idx >= openSlots) return;
+      const shouldAssignIntroDrop =
+        !introDropAssigned && dungeonDepth === 3 && typeId === ENEMY_TYPE.ARCHER;
+      const guaranteedLoot = shouldAssignIntroDrop ? DEPTH_THREE_INTRO_TOME_DROPS : [];
       dispatch(
         addEnemy({
           index: nextIndex + idx,
@@ -977,10 +1026,15 @@ export const MainScreen = () => {
           positionY: chosenPoint.y,
           strengthScale: enemyStrengthScale,
           rewardScale,
+          guaranteedLoot,
         })
       );
+      if (shouldAssignIntroDrop) {
+        introDropAssigned = true;
+      }
       spawnedNow += 1;
     });
+    depthThreeIntroDropAssignedRef.current = introDropAssigned;
     dispatch(setEnemyCount(aliveEnemies.length + spawnedNow));
   }, [
     menuMode,
@@ -1002,10 +1056,12 @@ export const MainScreen = () => {
   ]);
 
   const continueGame = () => {
+    depthThreeIntroDropAssignedRef.current = false;
     merchantStockByMapRef.current = {};
     setMerchantStock([]);
     setShowMerchantModal(false);
     setMerchantMode('menu');
+    setShowTalentsWindow(false);
     setMenuMode('game');
   };
 
@@ -1015,8 +1071,11 @@ export const MainScreen = () => {
     await AsyncStorage.setItem('items', JSON.stringify(itemData));
     dispatch(emptyCombatLog());
     dispatch(setGold(Math.max(0, Number(saveData.character.gold || 0))));
+    dispatch(setSkillLevels(readSkillLevelsFromCharacter(saveData.character.skills)));
     clearFloorLootBags();
     setShowStatPointsWindow(false);
+    setShowTalentsWindow(false);
+    depthThreeIntroDropAssignedRef.current = false;
     merchantStockByMapRef.current = {};
     setMerchantStock([]);
     setShowMerchantModal(false);
@@ -1056,32 +1115,67 @@ export const MainScreen = () => {
     }).start();
   }, [menuMode, playerHealth, showDeathOverlay, deathOpacity, revivePending]);
 
-  const skillHud = useMemo(() => {
-    if (classArchetype === 'caster') {
-      return {
-        primaryLabel: `Arcane Bolt [18]`,
-        secondaryLabel: `Fire Blast [32]`,
-        primaryDisabled: mana < 18,
-        secondaryDisabled: mana < 32,
-      };
-    }
+  const activeSkillLoadout = useMemo(
+    () => getActiveSkillLoadout(skillLevels, classArchetype),
+    [skillLevels, classArchetype]
+  );
+  const primarySkill = activeSkillLoadout.primary ? SKILLS[activeSkillLoadout.primary] : null;
+  const secondarySkill = activeSkillLoadout.secondary ? SKILLS[activeSkillLoadout.secondary] : null;
+  const primarySkillLevel = primarySkill ? getSkillLevel(skillLevels, primarySkill.id) : 0;
+  const secondarySkillLevel = secondarySkill ? getSkillLevel(skillLevels, secondarySkill.id) : 0;
+  const primarySkillMeetsStats = primarySkill ? doesMeetSkillRequirements(primarySkill, playerStats) : false;
+  const secondarySkillMeetsStats = secondarySkill ? doesMeetSkillRequirements(secondarySkill, playerStats) : false;
+  const primaryReqSummary = primarySkill ? getSkillRequirementSummary(primarySkill) : '';
+  const secondaryReqSummary = secondarySkill ? getSkillRequirementSummary(secondarySkill) : '';
 
-    if (classArchetype === 'ranger') {
-      return {
-        primaryLabel: `Quick Stab [16]`,
-        secondaryLabel: `Eviscerate [24]`,
-        primaryDisabled: mana < 16,
-        secondaryDisabled: mana < 24 || comboPoints <= 0,
-      };
-    }
+  const skillHud = useMemo(() => {
+    const primaryLabelBase = primarySkill
+      ? `${primarySkill.name} Lv.${primarySkillLevel} [${primarySkill.manaCost}]`
+      : 'No Primary Skill';
+    const secondaryLabelBase = secondarySkill
+      ? `${secondarySkill.name} Lv.${secondarySkillLevel} [${secondarySkill.manaCost}]`
+      : 'No Secondary Skill';
+
+    const primaryNeedsCombo = !!primarySkill?.requiresCombo && comboPoints <= 0;
+    const secondaryNeedsCombo = !!secondarySkill?.requiresCombo && comboPoints <= 0;
+    const primaryDisabled =
+      !primarySkill ||
+      !primarySkillMeetsStats ||
+      mana < (primarySkill?.manaCost || 0) ||
+      primaryNeedsCombo;
+    const secondaryDisabled =
+      !secondarySkill ||
+      !secondarySkillMeetsStats ||
+      mana < (secondarySkill?.manaCost || 0) ||
+      secondaryNeedsCombo;
+
+    const primaryLabel =
+      primarySkill && !primarySkillMeetsStats && primaryReqSummary.length > 0
+        ? `${primaryLabelBase} (${primaryReqSummary})`
+        : primaryLabelBase;
+    const secondaryLabel =
+      secondarySkill && !secondarySkillMeetsStats && secondaryReqSummary.length > 0
+        ? `${secondaryLabelBase} (${secondaryReqSummary})`
+        : secondaryLabelBase;
 
     return {
-      primaryLabel: `Crushing Blow [20]`,
-      secondaryLabel: `Whirlwind [35]`,
-      primaryDisabled: mana < 20,
-      secondaryDisabled: mana < 35,
+      primaryLabel,
+      secondaryLabel,
+      primaryDisabled,
+      secondaryDisabled,
     };
-  }, [classArchetype, mana, comboPoints]);
+  }, [
+    comboPoints,
+    mana,
+    primaryReqSummary,
+    primarySkillLevel,
+    primarySkill,
+    primarySkillMeetsStats,
+    secondaryReqSummary,
+    secondarySkillLevel,
+    secondarySkill,
+    secondarySkillMeetsStats,
+  ]);
 
   const skillButtonsLocked = !inCombat || specialCooldownFrames > 0;
   const primaryResourceLocked = skillHud.primaryDisabled;
@@ -1107,12 +1201,18 @@ export const MainScreen = () => {
 
       if (key === 'c') {
         event.preventDefault();
-        setShowStatPointsWindow((prev) => !prev);
+        toggleStatsWindow();
+        return;
+      }
+
+      if (key === 't') {
+        event.preventDefault();
+        toggleTalentsWindow();
         return;
       }
 
       if (key === 'i') {
-        if (showMerchantModal || showStatPointsWindow) {
+        if (showMerchantModal || showStatPointsWindow || showTalentsWindow) {
           return;
         }
         event.preventDefault();
@@ -1127,16 +1227,19 @@ export const MainScreen = () => {
       if (showStatPointsWindow) {
         return;
       }
+      if (showTalentsWindow) {
+        return;
+      }
 
       if (key === 'q') {
         event.preventDefault();
-        performPrimarySkill();
+        performPrimarySkill(activeSkillLoadout.primary);
         return;
       }
 
       if (key === 'e') {
         event.preventDefault();
-        performSecondarySkill();
+        performSecondarySkill(activeSkillLoadout.secondary);
         return;
       }
 
@@ -1172,11 +1275,14 @@ export const MainScreen = () => {
     merchantInteractable,
     showMerchantModal,
     showStatPointsWindow,
+    showTalentsWindow,
     openMerchantMenu,
     startCombat,
     engagePlayerAttack,
     performPrimarySkill,
     performSecondarySkill,
+    activeSkillLoadout.primary,
+    activeSkillLoadout.secondary,
   ]);
 
   useEffect(() => {
@@ -1262,6 +1368,7 @@ export const MainScreen = () => {
     dispatch(setDodge(derived.dodgeChance));
     dispatch(setUnspentStatPoints(unspentPoints));
     dispatch(setGold(Math.max(0, Number(saveData.character.gold || 0))));
+    dispatch(setSkillLevels(readSkillLevelsFromCharacter(saveData.character.skills)));
     dispatch(setAllInventory(normalizedInventory));
     dispatch(
       setClassMeta({
@@ -1281,6 +1388,8 @@ export const MainScreen = () => {
     setInitialized(false);
     setShowDeathOverlay(false);
     setShowStatPointsWindow(false);
+    setShowTalentsWindow(false);
+    depthThreeIntroDropAssignedRef.current = false;
     merchantStockByMapRef.current = {};
     setMerchantStock([]);
     setShowMerchantModal(false);
@@ -1289,6 +1398,31 @@ export const MainScreen = () => {
     setSessionSeed((prev) => prev + 1);
     setMenuMode('game');
     setTimeout(() => setRevivePending(false), 900);
+  };
+
+  const focusBagFromMenu = () => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('dungeon:focus-bag'));
+  };
+
+  const toggleStatsWindow = () => {
+    setShowStatPointsWindow((prev) => {
+      const next = !prev;
+      if (next) {
+        setShowTalentsWindow(false);
+      }
+      return next;
+    });
+  };
+
+  const toggleTalentsWindow = () => {
+    setShowTalentsWindow((prev) => {
+      const next = !prev;
+      if (next) {
+        setShowStatPointsWindow(false);
+      }
+      return next;
+    });
   };
 
   if (menuMode === 'start') {
@@ -1365,6 +1499,30 @@ export const MainScreen = () => {
 
   return (
     <View style={styles.mainScreen}>
+      <View style={styles.quickMenuRow}>
+        <TouchableOpacity
+          style={[styles.quickMenuButton, showStatPointsWindow && styles.quickMenuButtonActive]}
+          onPress={toggleStatsWindow}
+        >
+          <Text style={styles.quickMenuText}>Stats (C)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.quickMenuButton, showTalentsWindow && styles.quickMenuButtonActive]}
+          onPress={toggleTalentsWindow}
+        >
+          <Text style={styles.quickMenuText}>Talents (T)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickMenuButton} onPress={focusBagFromMenu}>
+          <Text style={styles.quickMenuText}>Inventory (I)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.quickMenuButton, !merchantInteractable && styles.quickMenuButtonDisabled]}
+          onPress={openMerchantMenu}
+          disabled={!merchantInteractable}
+        >
+          <Text style={styles.quickMenuText}>Merchant (Space)</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.roomFrame}>
         <Room
           key={`room-${sessionSeed}`}
@@ -1383,7 +1541,7 @@ export const MainScreen = () => {
                     primaryDisabled && styles.skillButtonDisabled,
                     primaryResourceLocked && styles.skillButtonFaded,
                   ]}
-                  onPress={performPrimarySkill}
+                  onPress={() => performPrimarySkill(activeSkillLoadout.primary)}
                   disabled={primaryDisabled}
                 >
                   <Text style={styles.skillButtonText}>{primaryText}</Text>
@@ -1395,7 +1553,7 @@ export const MainScreen = () => {
                     secondaryDisabled && styles.skillButtonDisabled,
                     secondaryResourceLocked && styles.skillButtonFaded,
                   ]}
-                  onPress={performSecondarySkill}
+                  onPress={() => performSecondarySkill(activeSkillLoadout.secondary)}
                   disabled={secondaryDisabled}
                 >
                   <Text style={styles.skillButtonText}>{secondaryText}</Text>
@@ -1403,7 +1561,7 @@ export const MainScreen = () => {
                 <TouchableOpacity
                   testID="skill-stats-button"
                   style={[styles.skillButtonMeta, unspentStatPoints > 0 && styles.skillButtonMetaReady]}
-                  onPress={() => setShowStatPointsWindow((prev) => !prev)}
+                  onPress={toggleStatsWindow}
                 >
                   <Text style={styles.skillButtonText}>
                     Stats {unspentStatPoints > 0 ? `[${unspentStatPoints}]` : ''}
@@ -1438,6 +1596,13 @@ export const MainScreen = () => {
         unspentStatPoints={unspentStatPoints}
         onClose={() => setShowStatPointsWindow(false)}
         onApplyAllocations={applyStatPointAllocations}
+      />
+      <SkillTalentsWindow
+        visible={showTalentsWindow}
+        skillLevels={skillLevels}
+        classArchetype={classArchetype}
+        playerStats={playerStats}
+        onClose={() => setShowTalentsWindow(false)}
       />
       <EnemyLootModal
         visible={showLootModal && !!activeLootBagId && pendingLootItems.length > 0}
@@ -1483,6 +1648,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     backgroundColor: '#000000',
+  },
+  quickMenuRow: {
+    width: '100%',
+    maxWidth: 800,
+    flexDirection: 'row',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#d7d7d7',
+    borderBottomWidth: 0,
+    backgroundColor: '#090909',
+  },
+  quickMenuButton: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: '#d7d7d7',
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickMenuButtonActive: {
+    backgroundColor: '#2f2f2f',
+  },
+  quickMenuButtonDisabled: {
+    opacity: 0.45,
+  },
+  quickMenuText: {
+    color: '#ffffff',
+    fontSize: 8,
+    textTransform: 'uppercase',
+    fontFamily: RETRO_FONT,
   },
   roomFrame: {
     width: '100%',
@@ -1637,7 +1835,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   skillBar: {
-    opacity:0 ,
+    opacity: 1,
     width: 192,
     gap: 4,
     padding: 5,

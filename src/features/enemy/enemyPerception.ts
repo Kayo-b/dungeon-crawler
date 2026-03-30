@@ -128,8 +128,10 @@ export const isEnemyOccludedByCloserEnemy = (
   enemies: Array<EnemyWithPosition | undefined>,
   playerX: number,
   playerY: number,
-  direction: Direction
+  direction: Direction,
+  options: { includeHiddenAmbushOccluders?: boolean } = {}
 ): boolean => {
+  const includeHiddenAmbushOccluders = options.includeHiddenAmbushOccluders === true;
   const targetEnemy = enemies[targetEnemyId];
   if (!targetEnemy || (targetEnemy.health ?? 1) <= 0) {
     return false;
@@ -151,6 +153,12 @@ export const isEnemyOccludedByCloserEnemy = (
     if (i === targetEnemyId) continue;
     const enemy = enemies[i];
     if (!enemy || (enemy.health ?? 1) <= 0) continue;
+    if (!includeHiddenAmbushOccluders) {
+      const mode = enemy.visibilityMode || DEFAULT_BEHAVIOR.visibilityMode;
+      if (mode === 'ambush' && !isEnemyVisibleToPlayer(enemy, playerX, playerY, direction)) {
+        continue;
+      }
+    }
 
     const distance = getEnemyDistanceInFacingDirection(
       playerX,

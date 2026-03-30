@@ -17,6 +17,7 @@
   "xptolvlup": 16,
   "unspentStatPoints": 0,
   "gold": 0,
+  "skills": {},
   "inventory": [
     { "ID": 1, "name": "Minor Healing Potion", "type": "consumable", "stats": { "amount": 8 } },
     { "ID": 2, "name": "Minor Mana Flask", "type": "consumable", "stats": { "mana": 14 } }

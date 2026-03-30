@@ -35,6 +35,50 @@ const resolveMapMerchantLayout = (
     }
     return carveMerchantDent(mapTiles, config.startPosition);
 };
+
+const DIRECTION_VECTORS: Record<Direction, { x: number; y: number }> = {
+    N: { x: 0, y: -1 },
+    S: { x: 0, y: 1 },
+    E: { x: 1, y: 0 },
+    W: { x: -1, y: 0 },
+};
+
+const DIRECTION_ORDER: Direction[] = ['N', 'E', 'S', 'W'];
+
+const resolveEntryFacingDirection = (
+    mapTiles: TileType[][],
+    startPosition: { x: number; y: number },
+    fallbackDirection: Direction
+): Direction => {
+    const height = mapTiles.length;
+    const width = mapTiles[0]?.length || 0;
+
+    const isWalkable = (x: number, y: number): boolean => {
+        if (x < 0 || y < 0 || x >= width || y >= height) return false;
+        return (mapTiles[y]?.[x] ?? 0) > 0;
+    };
+
+    const walkableDirections = DIRECTION_ORDER.filter((direction) => {
+        const vec = DIRECTION_VECTORS[direction];
+        return isWalkable(startPosition.x + vec.x, startPosition.y + vec.y);
+    });
+
+    if (walkableDirections.length <= 0) {
+        return fallbackDirection;
+    }
+
+    const preferredDirections = walkableDirections.filter((direction) => {
+        const vec = DIRECTION_VECTORS[direction];
+        return (mapTiles[startPosition.y + vec.y]?.[startPosition.x + vec.x] ?? 0) !== 5;
+    });
+
+    const candidates = preferredDirections.length > 0 ? preferredDirections : walkableDirections;
+    if (candidates.includes(fallbackDirection)) {
+        return fallbackDirection;
+    }
+
+    return candidates[0];
+};
 const defaultMerchantLayout = resolveMapMerchantLayout(
     defaultMapState.horizontalArray,
     defaultMapState.config
@@ -76,7 +120,11 @@ const roomInitialState: RoomState = {
 
     // Movement - use map's start position/direction
     initialDirection: false,
-    direction: defaultMapState.config.startDirection,
+    direction: resolveEntryFacingDirection(
+        defaultMerchantLayout.tiles,
+        defaultMapState.config.startPosition,
+        defaultMapState.config.startDirection as Direction
+    ),
     posX: defaultMapState.config.startPosition.x,
     posY: defaultMapState.config.startPosition.y,
     currentArrPos: 0,
@@ -118,7 +166,11 @@ const roomSlice = createSlice ({
                 // Reset position to map's start
                 state.posX = mapState.config.startPosition.x;
                 state.posY = mapState.config.startPosition.y;
-                state.direction = mapState.config.startDirection;
+                state.direction = resolveEntryFacingDirection(
+                    merchantLayout.tiles,
+                    mapState.config.startPosition,
+                    mapState.config.startDirection as Direction
+                );
                 state.currentArrPos = 0;
                 state.lastTurnDir = '';
                 state.initialDirection = false;
@@ -148,7 +200,11 @@ const roomSlice = createSlice ({
             // Reset position
             state.posX = config.startPosition.x;
             state.posY = config.startPosition.y;
-            state.direction = config.startDirection;
+            state.direction = resolveEntryFacingDirection(
+                merchantLayout.tiles,
+                config.startPosition,
+                config.startDirection as Direction
+            );
             state.currentArrPos = 0;
             state.lastTurnDir = '';
             state.initialDirection = false;
@@ -220,9 +276,17 @@ const roomSlice = createSlice ({
         resetPosition(state) {
             try {
                 const mapState = getMap(state.currentMapId);
+                const merchantLayout = resolveMapMerchantLayout(
+                    mapState.horizontalArray,
+                    mapState.config
+                );
                 state.posX = mapState.config.startPosition.x;
                 state.posY = mapState.config.startPosition.y;
-                state.direction = mapState.config.startDirection;
+                state.direction = resolveEntryFacingDirection(
+                    merchantLayout.tiles,
+                    mapState.config.startPosition,
+                    mapState.config.startDirection as Direction
+                );
                 state.currentArrPos = 0;
                 state.lastTurnDir = '';
                 state.initialDirection = false;

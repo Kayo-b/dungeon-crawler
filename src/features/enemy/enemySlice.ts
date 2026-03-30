@@ -62,6 +62,7 @@ interface EnemyState {
             xp: number;
             stats: EnemyStats;
             loot: LootItem[];
+            guaranteedLoot?: LootItem[];
             info: EnemyInfo;
             // Position on the map
             positionX: number;
@@ -89,6 +90,7 @@ interface EnemyState {
             xp: number;
             stats: EnemyStats;
             loot: LootItem[];
+            guaranteedLoot?: LootItem[];
             info: EnemyInfo;
             // Position on the map
             positionX: number;
@@ -182,6 +184,7 @@ const buildScaledLootTable = (
   const minTier = Math.max(0, maxTier - 24);
 
   const consumables = ITEM_CATALOG.filter((entry) => entry.category === 'consumable');
+  const tomeCandidates = ITEM_CATALOG.filter((entry) => entry.type === 'tome');
   const gearCandidates = ITEM_CATALOG.filter((entry) => {
     if (entry.type === 'currency' || entry.type === 'consumable') return false;
     return entry.tier >= minTier && entry.tier <= maxTier + 10;
@@ -216,6 +219,18 @@ const buildScaledLootTable = (
       ID: manaPotion.id,
       dropChance: Math.min(0.9, 0.24 + (rewardScale - 1) * 0.12),
     });
+  }
+
+  if (tomeCandidates.length > 0) {
+    const selectedTome = pickTieredItems(tomeCandidates, 1)[0];
+    if (selectedTome) {
+      loot.push({
+        name: '',
+        type: selectedTome.category,
+        ID: selectedTome.id,
+        dropChance: Math.min(0.42, 0.08 + (rewardScale - 1) * 0.06),
+      });
+    }
   }
 
   selectedGear.forEach((entry, index) => {
@@ -318,9 +333,20 @@ const enemySlice = createSlice({
     name: 'enemy',
     initialState: enemyInitialState,
     reducers: {
-        addEnemy(state, action: PayloadAction<{index: number, id: number, positionX?: number, positionY?: number, strengthScale?: number, rewardScale?: number}>) {
+        addEnemy(
+            state,
+            action: PayloadAction<{
+                index: number;
+                id: number;
+                positionX?: number;
+                positionY?: number;
+                strengthScale?: number;
+                rewardScale?: number;
+                guaranteedLoot?: LootItem[];
+            }>
+        ) {
             // clearEnemies();
-            const {index, id, positionX = 0, positionY = 0, strengthScale = 1, rewardScale} = action.payload;
+            const {index, id, positionX = 0, positionY = 0, strengthScale = 1, rewardScale, guaranteedLoot = []} = action.payload;
             const behavior = getEnemyBehaviorForType(id);
             const combatScale = Math.max(1, strengthScale);
             const lootAndXpScale = Math.max(1, rewardScale ?? combatScale);
@@ -354,6 +380,7 @@ const enemySlice = createSlice({
                 xp: scaledXp,
                 stats: scaledStats,
                 loot: scaledLoot,
+                guaranteedLoot: Array.isArray(guaranteedLoot) ? [...guaranteedLoot] : [],
                 info: {
                     ...baseInfo,
                     level: scaledLevel,
@@ -414,6 +441,7 @@ const enemySlice = createSlice({
                     xp: enemy.info.xp,
                     stats: enemy.stats,
                     loot: enemy.loot,
+                    guaranteedLoot: Array.isArray((enemy as any).guaranteedLoot) ? (enemy as any).guaranteedLoot : [],
                     info: enemy.info,
                     positionX: 0,
                     positionY: 0,
