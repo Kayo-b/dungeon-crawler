@@ -94,17 +94,20 @@ const combatSlice = createSlice({
             state.playerHitPulse += 1;
         },
         setEnemyLayers(state, action: PayloadAction<{ front: number[]; mid: number[]; back: number[] }>) {
-            state.frontLayer = action.payload.front;
-            state.midLayer = action.payload.mid;
-            state.backLayer = action.payload.back;
+            // Clone payload arrays so external refs in combat.ts don't get frozen
+            // by Redux Toolkit's immutable state handling in development.
+            state.frontLayer = [...action.payload.front];
+            state.midLayer = [...action.payload.mid];
+            state.backLayer = [...action.payload.back];
             state.justAdvancedIds = [];
         },
         // Sync Redux layer state after a front-layer kill (refs are mutated first in combat.ts)
         advanceFrontLayerRedux(state, action: PayloadAction<{ front: number[]; mid: number[]; back: number[]; justAdvancedIds: number[] }>) {
-            state.frontLayer = action.payload.front;
-            state.midLayer = action.payload.mid;
-            state.backLayer = action.payload.back;
-            state.justAdvancedIds = action.payload.justAdvancedIds;
+            // Clone payload arrays for the same reason as setEnemyLayers.
+            state.frontLayer = [...action.payload.front];
+            state.midLayer = [...action.payload.mid];
+            state.backLayer = [...action.payload.back];
+            state.justAdvancedIds = [...action.payload.justAdvancedIds];
         },
         clearJustAdvanced(state) {
             state.justAdvancedIds = [];

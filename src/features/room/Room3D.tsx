@@ -95,16 +95,16 @@ const FRAME_SURFACE_PROFILES: Record<FrameSurface, FrameSurfaceProfile> = {
         },
     },
     frontWall: {
-        scaleDistanceFactor: 0.4,
-        scaleBase: 0.4,
-        widthBase: 0.51,
-        widthDistanceFactor: 0.5,
+        scaleDistanceFactor: 0.5,
+        scaleBase: 0.8,
+        widthBase: 1,
+        widthDistanceFactor: 0.0,  // 0 = width grows purely from scale, no extra factor that fights it
         heightBase: 0.5,
-        heightDistanceFactor: 0.05,//0.05,
-        horizontalDivisor: 1.8,
-        topDivisorBase: 1.8,
-        topDivisorDistanceFactor: 0.25,
-        bottomDivisor: 1.8,
+        heightDistanceFactor: 0.5, // same — height grows purely from scale as you approach
+        horizontalDivisor: 1.0,    // symmetric: left = CENTER_X - w/2, right = CENTER_X + w/2
+        topDivisorBase: 1.0,       // symmetric: top = CENTER_Y - h/2, bottom = CENTER_Y + h/2
+        topDivisorDistanceFactor: 0.0, // must be 0 — any non-zero shifts vertical center per step
+        bottomDivisor: 2.0,
         verticalDistanceOffset: 0,
         phase: {
             near: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
@@ -350,10 +350,13 @@ export const Room3D: React.FC<Room3DProps> = ({
 
             // Front wall face
             if (isWall) {
-                const wallFaceLeft = isImmediateWall ? frontNear.left : 110;//frontFar.left;
-                const wallFaceTop = isImmediateWall ? frontNear.top - 40 : 150 ;
-                const wallFaceWidth = isImmediateWall ? frontNear.right - frontNear.left : 300 +(150/d)//frontFar.width + 40;
-                const wallFaceHeight = isImmediateWall ? frontNear.bottom - frontNear.top - 40 : 80 + (300/d);//frontFar.height - 40;
+                // For non-immediate walls use frontFar dimensions (scale with distance).
+                // Top is derived from the vertical center minus half height so the wall
+                // always expands from the center — changing height won't shift it vertically.
+                const wallFaceWidth = isImmediateWall ? frontNear.right - frontNear.left : frontFar.width;
+                const wallFaceHeight = isImmediateWall ? frontNear.bottom - frontNear.top : frontFar.height;
+                const wallFaceLeft = isImmediateWall ? frontNear.left : CENTER_X - wallFaceWidth / 2;
+                const wallFaceTop = isImmediateWall ? frontNear.top - 40 : CENTER_Y - wallFaceHeight / 2;
                 const wallFaceZ = isImmediateWall ? 89 : 89 - d;
                 console.log('FRONT WALL : ', wallFaceTop)
                 frames.push(
@@ -373,6 +376,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                         ]}
                     >
                         <Image source={brickLarge} style={styles.segmentImage} resizeMode="repeat" />
+                        {/* <Image source={brickLarge} style={{ width: 2200, height: 2200}} resizeMode="repeat" /> */}
                         <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity }]} />
                     </View>
                 );
@@ -622,7 +626,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                                 }
                             ]}
                         >
-                            <Image source={brickSmall} style={styles.segmentImage} resizeMode="repeat"/>
+                            <Image source={brickSmall} style={[styles.segmentImage, { transform: [{ rotate: '90deg' }]}]} resizeMode="repeat"/>
                         </View>
                         <View pointerEvents="none" style={[styles.fogPaint, { opacity: fogPaintOpacity * 0.9 }]} />
                     </View>
