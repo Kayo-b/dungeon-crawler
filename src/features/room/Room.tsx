@@ -17,6 +17,7 @@ import { useMovement } from '../../systems/movement/useMovement';
 import { useMovementWithRender, TileImages } from '../../systems/movement/useMovementWithRender';
 import { isBlocked } from '../../systems/movement/TileNavigator';
 import { Room3D } from './Room3D';
+import { CorridorStretchRenderer } from './CorridorStretchRenderer';
 import { Direction as FacingDirection, MapConfig } from '../../types/map';
 import { registerEnemyAttack } from '../../events/combatSlice';
 import { getDoorTargetMap, getMapDepth, getStairsTargetMap } from '../../data/maps/transitions';
@@ -3196,15 +3197,9 @@ const turn = (turnDir:string) => {
             {/* Conditional rendering: 3D CSS mode or classic 2D tiles */}
             <View style={styles.gameViewport}>
             {use3DRendering ? (
-                <Room3D
-                    positionX={positionX}
-                    positionY={positionY}
-                    direction={currentDir}
-                    mapTiles={mapTiles}
-                    mapWidth={mapWidth}
-                    mapHeight={mapHeight}
-                    viewDistance={5}
-                    onDoorInteract={handleDoorInteraction}
+                <CorridorStretchRenderer
+                    currentArrPos={currentArrPos}
+                    pathLength={activeMapArray?.length ?? 1}
                 />
             ) : (
             <ImageBackground
