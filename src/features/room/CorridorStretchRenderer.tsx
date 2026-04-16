@@ -121,7 +121,11 @@ const SIDE_WALL_MIN_WIDTH  = 350;   // width at corridor end (exit wall)
 //   Right wall: right edge fixed at 507  (base left -102 + base width 609)
 //   Left  wall: right edge fixed at 614  (mirror: VIEWPORT_WIDTH - base left = 512 - (-102))
 const RIGHT_WALL_ANCHOR    = 507;
-const LEFT_WALL_ANCHOR     = 614;
+const LEFT_WALL_ANCHOR     = 604;
+
+// Fixed wall positions — X never changes, only the rotation angle animates
+const RIGHT_WALL_LEFT = RIGHT_WALL_ANCHOR - SIDE_WALL_BASE_WIDTH;
+const LEFT_WALL_LEFT  = LEFT_WALL_ANCHOR  - SIDE_WALL_BASE_WIDTH;
 
 // Floor container
 const FLOOR_TOP    = BASE_OPEN_BOTTOM - 20;
@@ -151,10 +155,9 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
     // ── Front wall: the ONE thing that changes position/size (it IS the depth cue) ──
     const frontFar = getFrameDimensions('frontWall', vd);
 
-    // ── Side walls: width shrinks linearly as player approaches exit ──────────────
-    const sideWallWidth = SIDE_WALL_BASE_WIDTH - (SIDE_WALL_BASE_WIDTH - SIDE_WALL_MIN_WIDTH) * distanceFactor;
-    const rightWallLeft = RIGHT_WALL_ANCHOR - sideWallWidth;  // right edge stays fixed at 507
-    const leftWallLeft  = LEFT_WALL_ANCHOR  - sideWallWidth;  // right edge stays fixed at 614
+    // ── Side walls: FIXED position + FIXED angle, only perspective animates ────────
+    // Smaller perspective = more dramatic stretch (far end); larger = shallower (near exit)
+    const wallPerspective = `${300 + distanceFactor * 400}px`; // 300px deep → 700px shallow
 
     // ── Angles: the ONLY things that change for floor/ceiling ─────────────────
     const floorRotation   = 55 + (vd - 1) * 5;           // 55° baseline → 75° deepest
@@ -184,44 +187,60 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                 <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
             </View>
 
-            {/* ── LEFT WALL — fixed rotateY(102deg), only left & width animate ── */}
+            {/* ── LEFT WALL — perspective on container, rotateY on inner child ── */}
             <View
                 style={[
                     styles.segment,
                     {
-                        left:   leftWallLeft,
+                        left:   LEFT_WALL_LEFT,
                         top:    SIDE_WALL_TOP,
-                        width:  sideWallWidth,
+                        width:  SIDE_WALL_BASE_WIDTH,
                         height: SIDE_WALL_HEIGHT,
                         zIndex: 90,
+                        overflow: 'hidden',
                     },
                     isWeb && { // @ts-ignore
-                        transition: TRANSITION,
+                        perspective: wallPerspective,
+                        transition:  TRANSITION,
                     },
-                    ...(isWeb ? [{ transform: 'perspective(400px) rotateY(102deg)' } as any] : []),
                 ]}
             >
-                <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                <View
+                    style={[
+                        { width: '200%', height: '100%' },
+                        ...(isWeb ? [{ transform: `rotateY(100deg)`, transformOrigin: '0% 50%', transition: TRANSITION } as any] : []),
+                    ]}
+                >
+                    <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                </View>
             </View>
 
-            {/* ── RIGHT WALL — fixed rotateY(-102deg), only left & width animate ── */}
+            {/* ── RIGHT WALL — perspective on container, rotateY on inner child ── */}
             <View
                 style={[
                     styles.segment,
                     {
-                        left:   rightWallLeft,
+                        left:   RIGHT_WALL_LEFT,
                         top:    SIDE_WALL_TOP,
-                        width:  sideWallWidth,
+                        width:  SIDE_WALL_BASE_WIDTH,
                         height: SIDE_WALL_HEIGHT,
                         zIndex: 90,
+                        overflow: 'hidden',
                     },
                     isWeb && { // @ts-ignore
-                        transition: TRANSITION,
+                        perspective: wallPerspective,
+                        transition:  TRANSITION,
                     },
-                    ...(isWeb ? [{ transform: 'perspective(400px) rotateY(-102deg)' } as any] : []),
                 ]}
             >
-                <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                <View
+                    style={[
+                        { width: '200%', height: '100%', marginLeft: '-100%' },
+                        ...(isWeb ? [{ transform: `rotateY(-100deg)`, transformOrigin: '100% 50%', transition: TRANSITION } as any] : []),
+                    ]}
+                >
+                    <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                </View>
             </View>
 
             {/* ── FLOOR — FIXED container, only floorRotation changes ──────────
