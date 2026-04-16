@@ -128,7 +128,7 @@ const RIGHT_WALL_LEFT = RIGHT_WALL_ANCHOR - SIDE_WALL_BASE_WIDTH;
 const LEFT_WALL_LEFT  = LEFT_WALL_ANCHOR  - SIDE_WALL_BASE_WIDTH;
 
 // Floor container
-const FLOOR_TOP    = BASE_OPEN_BOTTOM - 20;
+const FLOOR_TOP    = BASE_OPEN_BOTTOM +50;
 const FLOOR_HEIGHT = VIEWPORT_HEIGHT - BASE_OPEN_BOTTOM + 75;
 
 // Ceiling container (Room3D formula evaluated at BASE_D)
@@ -159,10 +159,8 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
     // Smaller perspective = more dramatic stretch (far end); larger = shallower (near exit)
     const wallPerspective = `${300 + distanceFactor * 400}px`; // 300px deep → 700px shallow
 
-    // ── Angles: the ONLY things that change for floor/ceiling ─────────────────
-    const floorRotation   = 55 + (vd - 1) * 5;           // 55° baseline → 75° deepest
-    const ceilRotation    = vd <= 1.5 ? 102 : 90;         // Room3D's formula
-    const ceilPerspective = `${560 - vd * 45}px`;         // tighter perspective when deeper
+    // ── Angles: (floor and ceiling now computed inside JSX using Room3D technique) ──
+    // ceilRotation and ceilPerspective are computed inline per vd
 
     return (
         <View style={styles.viewport}>
@@ -243,69 +241,91 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                 </View>
             </View>
 
-            {/* ── FLOOR — FIXED container, only floorRotation changes ──────────
-                Top pivot: far end (corridor opening bottom) stays fixed.
-                More rotateX = texture appears to stretch further into distance. */}
-            <View
-                style={[
-                    styles.segment,
-                    {
-                        left:     0,
-                        top:      FLOOR_TOP,
-                        width:    VIEWPORT_WIDTH,
-                        height:   FLOOR_HEIGHT,
-                        zIndex:   85,
-                        overflow: 'hidden',
-                    },
-                    isWeb && { // @ts-ignore
-                        perspective: '400px',
-                        transition:  TRANSITION,
-                    },
-                ]}
-            >
-                <View
-                    style={[
-                        { width: '100%', height: '250%', opacity: 0.9 },
-                        ...(isWeb ? [{ transform: `rotateX(${floorRotation}deg)`, transformOrigin: '50% 0%', transition: TRANSITION } as any] : []),
-                    ]}
-                >
-                    <Image source={floorTexture} style={styles.segmentImage} resizeMode="repeat" />
-                </View>
-            </View>
-
-            {/* ── CEILING — FIXED container, Room3D technique, angle+persp vary */}
-            {CEIL_HEIGHT > 0 && (
-                <View
-                    style={[
-                        styles.segment,
-                        {
-                            left:   0,
-                            top:    CEIL_TOP,
-                            width:  VIEWPORT_WIDTH,
-                            height: CEIL_HEIGHT,
-                            zIndex: 91,
-                        },
-                        isWeb && { // @ts-ignore
-                            perspective:       ceilPerspective,
-                            perspectiveOrigin: CEIL_PERSP_ORIGIN,
-                            transition:        TRANSITION,
-                        },
-                    ]}
-                >
+            {/* ── FLOOR — one panel per depth tile, farthest first (Room3D technique) ── */}
+            {Array.from({ length: Math.round(vd) }, (_, i) => {
+                const d = Math.round(vd) - i; // render far→near so near panels sit on top
+                const floorFar  = getFrameDimensions('floor', d);
+                const floorNear = d === 1
+                    ? { left: 0, right: VIEWPORT_WIDTH, bottom: VIEWPORT_HEIGHT }
+                    : getFrameDimensions('floor', d - 1);
+                const floorHeight = (floorNear as any).bottom - floorFar.bottom;
+                if (floorHeight <= 0) return null;
+                return (
                     <View
+                        key={`floor-${d}`}
                         style={[
-                            { width: '126%', height: '350%', marginTop: '-110%' },
-                            ...(isWeb ? [{ transform: `rotateX(${ceilRotation}deg)`, transformOrigin: '50% 90% 30px', transition: TRANSITION } as any] : []),
+                            styles.segment,
+                            {
+                                left:   (floorNear as any).left + (d % 2 === 0 ? d * 5 : -d * 5),
+                                top:    floorFar.bottom - 55,
+                                width:  ((floorNear as any).right - (floorNear as any).left) + d * 20,
+                                height: floorHeight + 20,
+                                zIndex: 88 - d,
+                            },
+                            isWeb && { // @ts-ignore
+                                perspective: '400px',
+                                transition:  TRANSITION,
+                            },
                         ]}
                     >
-                        <Image
-                            source={wallTexture}
-                            style={[styles.segmentImage, { transform: [{ rotate: '90deg' }] }]}
-                            resizeMode="repeat"
-                        />
+                        <View
+                            style={[
+                                { width: '100%', height: '250%', opacity: 0.9 },
+                                ...(isWeb ? [{ transform: `rotateX(60deg)`, transformOrigin: '50% 0%', transition: TRANSITION } as any] : []),
+                            ]}
+                        >
+                            <Image source={floorTexture} style={styles.segmentImage} resizeMode="repeat" />
+                        </View>
                     </View>
-                </View>
-            )}
+                );
+            })}
+
+            {/* ── CEILING — one panel per depth tile, farthest first (Room3D technique) ── */}
+            {Array.from({ length: Math.round(vd) }, (_, i) => {
+                const d = Math.round(vd) - i; // render far→near so near panels sit on top
+                const ceilingFar  = getFrameDimensions('ceiling', d + 1);
+                const ceilingNear = getFrameDimensions('ceiling', d);
+                const ceilingHeight = (ceilingFar.top - ceilingNear.top) + 20;
+                if (ceilingHeight <= 0) return null;
+                const ceilingTop         = (d === 2 ? ceilingNear.top + 90 : ceilingNear.top + 75);
+                const ceilingOuterHeight = ceilingHeight + 25;
+                const ceilRotation       = d === 1 ? 102 : 90;
+                const ceilPersp          = `${560 - d * 45}px`;
+                const ceilOrigin         = `${CENTER_X - (ceilingNear.left - 50)}px 50%`;
+                return (
+                    <View
+                        key={`ceiling-${d}`}
+                        style={[
+                            styles.segment,
+                            {
+                                left:   ceilingNear.left - 60,
+                                top:    ceilingTop - d * 10,
+                                width:  ceilingNear.right - ceilingNear.left + d * 8,
+                                height: ceilingOuterHeight + d * 3,
+                                zIndex: 92 - d,
+                            },
+                            isWeb && { // @ts-ignore
+                                perspective:       ceilPersp,
+                                perspectiveOrigin: ceilOrigin,
+                                transition:        TRANSITION,
+                            },
+                        ]}
+                    >
+                        <View
+                            style={[
+                                { width: '126%', height: '350%', marginTop: '-110%' },
+                                ...(isWeb ? [{ transform: `rotateX(${ceilRotation}deg)`, transformOrigin: '50% 90% 30px', transition: TRANSITION } as any] : []),
+                            ]}
+                        >
+                            <Image
+                                source={wallTexture}
+                                style={styles.segmentImage}
+                                resizeMode="repeat"
+                            />
+                        </View>
+                    </View>
+                );
+            })}
         </View>
     );
 };
