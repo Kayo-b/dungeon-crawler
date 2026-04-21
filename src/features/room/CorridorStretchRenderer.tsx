@@ -1,5 +1,15 @@
 import React from 'react';
 import { Image, Platform, StyleSheet, View } from 'react-native';
+import { Direction } from '../../types/map';
+import {
+    CENTER_X,
+    CENTER_Y,
+    FULLSCREEN_FRAME,
+    VIEWPORT_HEIGHT,
+    VIEWPORT_WIDTH,
+    getFacingWallState,
+    getFrameDimensions,
+} from './room3DShared';
 
 /**
  * CorridorStretchRenderer
@@ -24,78 +34,8 @@ import { Image, Platform, StyleSheet, View } from 'react-native';
 
 const wallTexture  = require('../../resources/Brick_Large.png');
 const floorTexture = require('../../resources/Brick_Small.png');
-
-const VIEWPORT_WIDTH  = 512;
-const VIEWPORT_HEIGHT = 512;
-const CENTER_X = VIEWPORT_WIDTH  / 2;
-const CENTER_Y = VIEWPORT_HEIGHT / 2;
 const isWeb = Platform.OS === 'web';
 const TRANSITION = 'all 0.18s ease-out';
-
-// ── Frame-dimension profiles (mirrored from Room3D) ───────────────────────
-
-interface FrameSurfaceProfile {
-    scaleDistanceFactor:    number;
-    scaleBase:              number;
-    widthBase:              number;
-    widthDistanceFactor:    number;
-    heightBase:             number;
-    heightDistanceFactor:   number;
-    horizontalDivisor:      number;
-    topDivisorBase:         number;
-    topDivisorDistanceFactor: number;
-    bottomDivisor:          number;
-    verticalDistanceOffset: number;
-}
-
-const PROFILES: Record<string, FrameSurfaceProfile> = {
-    walls: {
-        scaleDistanceFactor: 0.4,   scaleBase: 0.5,
-        widthBase: 0.51,            widthDistanceFactor: 0.1,
-        heightBase: 0.5,            heightDistanceFactor: 0.05,
-        horizontalDivisor: 1.8,
-        topDivisorBase: 1.75,       topDivisorDistanceFactor: 0.25,
-        bottomDivisor: 1.72,        verticalDistanceOffset: 0,
-    },
-    frontWall: {
-        scaleDistanceFactor: 0.5,   scaleBase: 0.8,
-        widthBase: 1,               widthDistanceFactor: 0.0,
-        heightBase: 0.5,            heightDistanceFactor: 0.5,
-        horizontalDivisor: 1.0,
-        topDivisorBase: 1.0,        topDivisorDistanceFactor: 0.0,
-        bottomDivisor: 2.0,         verticalDistanceOffset: 0,
-    },
-    ceiling: {
-        scaleDistanceFactor: 0.4,   scaleBase: 0.48,
-        widthBase: 0.54,            widthDistanceFactor: 0.1,
-        heightBase: 0.8,            heightDistanceFactor: 0.05,
-        horizontalDivisor: 1.8,
-        topDivisorBase: 1.8,        topDivisorDistanceFactor: 0,
-        bottomDivisor: 1.8,         verticalDistanceOffset: 0,
-    },
-    floor: {
-        scaleDistanceFactor: 0.4,   scaleBase: 0.5,
-        widthBase: 0.51,            widthDistanceFactor: 0.1,
-        heightBase: 0.5,            heightDistanceFactor: 0.05,
-        horizontalDivisor: 1.8,
-        topDivisorBase: 1.76,       topDivisorDistanceFactor: 0.2,
-        bottomDivisor: 1.72,        verticalDistanceOffset: 1,
-    },
-};
-
-function getFrameDimensions(surface: string, distance: number) {
-    const p  = PROFILES[surface];
-    const d  = Math.max(0, distance);
-    const topDivisor = Math.max(0.7, p.topDivisorBase - d * p.topDivisorDistanceFactor);
-    const scale  = 1 / (d * p.scaleDistanceFactor + p.scaleBase);
-    const width  = VIEWPORT_WIDTH  * scale * (p.widthBase  + p.widthDistanceFactor  * d);
-    const height = VIEWPORT_HEIGHT * scale * (p.heightBase + p.heightDistanceFactor * d);
-    const left   = CENTER_X - width  / p.horizontalDivisor;
-    const top    = CENTER_Y - height / topDivisor + p.verticalDistanceOffset * d;
-    const right  = CENTER_X + width  / p.horizontalDivisor;
-    const bottom = CENTER_Y + height / p.bottomDivisor;
-    return { width, height, left, top, right, bottom };
-}
 
 // ── Fixed layout constants (computed ONCE at baseline vd=1) ─────────────────
 //
@@ -140,20 +80,45 @@ const CEIL_PERSP_ORIGIN = `${CENTER_X - (_ceilNearBase.left - 50)}px 50%`;
 interface CorridorStretchRendererProps {
     currentArrPos: number;
     pathLength: number;
+    positionX: number;
+    positionY: number;
+    direction: Direction;
+    mapTiles: number[][];
+    mapWidth: number;
+    mapHeight: number;
 }
 
 export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = ({
     currentArrPos,
     pathLength,
+    positionX,
+    positionY,
+    direction,
+    mapTiles,
+    mapWidth,
+    mapHeight,
 }) => {
     // distanceFactor: 0 = player just entered corridor (deep), 1 = at exit wall (baseline)
     const distanceFactor = currentArrPos / Math.max(pathLength - 1, 1);
 
+    const facingWallState = getFacingWallState(
+        positionX,
+        positionY,
+        direction,
+        mapTiles,
+        mapWidth,
+        mapHeight,
+    );
     // vd: 5 = deepest (just entered), 1 = baseline (at exit wall)
-    const vd = Math.max(1, Math.min(5, 5 - distanceFactor * 4));
+    const vd = facingWallState.facingWall
+        ? 1
+        : Math.max(1, Math.min(5, 5 - distanceFactor * 4));
 
     // ── Front wall: the ONE thing that changes position/size (it IS the depth cue) ──
     const frontFar = getFrameDimensions('frontWall', vd);
+    const facingWallFrame = getFrameDimensions('walls', 1);
+    const immediateLeftWidth = facingWallFrame.left - FULLSCREEN_FRAME.left;
+    const immediateRightWidth = FULLSCREEN_FRAME.right - facingWallFrame.right;
 
     // ── Side walls: FIXED position + FIXED angle, only perspective animates ────────
     // Smaller perspective = more dramatic stretch (far end); larger = shallower (near exit)
@@ -167,79 +132,159 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
             <View style={styles.background} />
 
             {/* ── FRONT WALL — changes size with depth (this IS the depth cue) ── */}
-            <View
-                style={[
-                    styles.segment,
-                    {
-                        left:   CENTER_X - frontFar.width / 2,
-                        top:    CENTER_Y - frontFar.height / 2,
-                        width:  frontFar.width,
-                        height: frontFar.height,
-                        zIndex: 80,
-                    },
-                    isWeb && { // @ts-ignore
-                        transition: TRANSITION,
-                    },
-                ]}
-            >
-                <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
-            </View>
+            {facingWallState.facingWall ? (
+                <View
+                    style={[
+                        styles.segment,
+                        {
+                            left: FULLSCREEN_FRAME.left,
+                            top: FULLSCREEN_FRAME.top - 40,
+                            width: FULLSCREEN_FRAME.right - FULLSCREEN_FRAME.left,
+                            height: FULLSCREEN_FRAME.bottom - FULLSCREEN_FRAME.top,
+                            zIndex: 89,
+                        },
+                        isWeb && { // @ts-ignore
+                            transition: TRANSITION,
+                        },
+                    ]}
+                >
+                    <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                </View>
+            ) : (
+                <View
+                    style={[
+                        styles.segment,
+                        {
+                            left: CENTER_X - frontFar.width / 2,
+                            top: CENTER_Y - frontFar.height / 2,
+                            width: frontFar.width,
+                            height: frontFar.height,
+                            zIndex: 80,
+                        },
+                        isWeb && { // @ts-ignore
+                            transition: TRANSITION,
+                        },
+                    ]}
+                >
+                    <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                </View>
+            )}
 
             {/* ── LEFT WALL — perspective on container, rotateY on inner child ── */}
-            <View
-                style={[
-                    styles.segment,
-                    {
-                        left:   LEFT_WALL_LEFT,
-                        top:    SIDE_WALL_TOP,
-                        width:  SIDE_WALL_BASE_WIDTH,
-                        height: SIDE_WALL_HEIGHT,
-                        zIndex: 90,
-                        overflow: 'hidden',
-                    },
-                    isWeb && { // @ts-ignore
-                        perspective: wallPerspective,
-                        transition:  TRANSITION,
-                    },
-                ]}
-            >
-                <View
-                    style={[
-                        { width: '200%', height: '100%' },
-                        ...(isWeb ? [{ transform: `rotateY(100deg)`, transformOrigin: '0% 50%', transition: TRANSITION } as any] : []),
-                    ]}
-                >
-                    <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
-                </View>
-            </View>
+            {facingWallState.showLeftWall && (
+                facingWallState.facingWall ? (
+                    <View
+                        style={[
+                            styles.segment,
+                            {
+                                left: -70,
+                                top: -95,
+                                width: immediateLeftWidth + 100,
+                                height: 450,
+                                zIndex: 90,
+                            },
+                            isWeb && { // @ts-ignore
+                                perspective: '300px',
+                                transition: TRANSITION,
+                            },
+                        ]}
+                    >
+                        <View
+                            style={[
+                                { width: '200%', height: '200%' },
+                                ...(isWeb ? [{ transform: 'rotateY(65deg)', transformOrigin: '0% 50%', transition: TRANSITION } as any] : []),
+                            ]}
+                        >
+                            <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                        </View>
+                    </View>
+                ) : (
+                    <View
+                        style={[
+                            styles.segment,
+                            {
+                                left: LEFT_WALL_LEFT,
+                                top: SIDE_WALL_TOP,
+                                width: SIDE_WALL_BASE_WIDTH,
+                                height: SIDE_WALL_HEIGHT,
+                                zIndex: 90,
+                                overflow: 'hidden',
+                            },
+                            isWeb && { // @ts-ignore
+                                perspective: wallPerspective,
+                                transition: TRANSITION,
+                            },
+                        ]}
+                    >
+                        <View
+                            style={[
+                                { width: '200%', height: '100%' },
+                                ...(isWeb ? [{ transform: 'rotateY(100deg)', transformOrigin: '0% 50%', transition: TRANSITION } as any] : []),
+                            ]}
+                        >
+                            <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                        </View>
+                    </View>
+                )
+            )}
 
             {/* ── RIGHT WALL — perspective on container, rotateY on inner child ── */}
-            <View
-                style={[
-                    styles.segment,
-                    {
-                        left:   RIGHT_WALL_LEFT,
-                        top:    SIDE_WALL_TOP,
-                        width:  SIDE_WALL_BASE_WIDTH,
-                        height: SIDE_WALL_HEIGHT,
-                        zIndex: 90,
-                        overflow: 'hidden',
-                    },
-                    isWeb && { // @ts-ignore
-                        perspective: wallPerspective,
-                        transition:  TRANSITION,
-                    },
-                ]}
-            >
-                <View
-                    style={[
-                        { width: '200%', height: '100%', marginLeft: '-100%' },
-                        ...(isWeb ? [{ transform: `rotateY(-100deg)`, transformOrigin: '100% 50%', transition: TRANSITION } as any] : []),
-                    ]}
-                >
-                    <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
-                </View>
-            </View>
+            {facingWallState.showRightWall && (
+                facingWallState.facingWall ? (
+                    <View
+                        style={[
+                            styles.segment,
+                            {
+                                left: facingWallFrame.right - 100,
+                                top: -40,
+                                width: immediateRightWidth + 100,
+                                height: 482,
+                                zIndex: 90,
+                            },
+                            isWeb && { // @ts-ignore
+                                perspective: '330px',
+                                transition: TRANSITION,
+                            },
+                        ]}
+                    >
+                        <View
+                            style={[
+                                { width: '200%', height: '100%', marginLeft: '-100%' },
+                                ...(isWeb ? [{ transform: 'rotateY(-65deg)', transformOrigin: '100% 50%', transition: TRANSITION } as any] : []),
+                            ]}
+                        >
+                            <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                        </View>
+                    </View>
+                ) : (
+                    <View
+                        style={[
+                            styles.segment,
+                            {
+                                left: RIGHT_WALL_LEFT,
+                                top: SIDE_WALL_TOP,
+                                width: SIDE_WALL_BASE_WIDTH,
+                                height: SIDE_WALL_HEIGHT,
+                                zIndex: 90,
+                                overflow: 'hidden',
+                            },
+                            isWeb && { // @ts-ignore
+                                perspective: wallPerspective,
+                                transition: TRANSITION,
+                            },
+                        ]}
+                    >
+                        <View
+                            style={[
+                                { width: '200%', height: '100%', marginLeft: '-100%' },
+                                ...(isWeb ? [{ transform: 'rotateY(-100deg)', transformOrigin: '100% 50%', transition: TRANSITION } as any] : []),
+                            ]}
+                        >
+                            <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
+                        </View>
+                    </View>
+                )
+            )}
 
             {/* ── FLOOR — one panel per depth tile, farthest first (Room3D technique) ── */}
             {Array.from({ length: Math.round(vd) }, (_, i) => {

@@ -3200,6 +3200,12 @@ const turn = (turnDir:string) => {
                 <CorridorStretchRenderer
                     currentArrPos={currentArrPos}
                     pathLength={activeMapArray?.length ?? 1}
+                    positionX={positionX}
+                    positionY={positionY}
+                    direction={currentDir}
+                    mapTiles={mapTiles}
+                    mapWidth={mapWidth}
+                    mapHeight={mapHeight}
                 />
             ) : (
             <ImageBackground
