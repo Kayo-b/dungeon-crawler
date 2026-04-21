@@ -111,8 +111,12 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
         mapWidth,
         mapHeight,
     );
-    const shouldSnapFacingWall = facingWallState.facingWall && lastTurnDir !== '';
-    const motionTransition = shouldSnapFacingWall ? 'none' : TRANSITION;
+    const isAtCorridorEnd = currentArrPos >= Math.max(pathLength - 1, 0);
+    const isTurnFacingWall = facingWallState.facingWall && lastTurnDir !== '';
+    const isCorridorEndFacingWall = facingWallState.facingWall && !isTurnFacingWall && isAtCorridorEnd;
+    const frontWallTransition = isTurnFacingWall ? 'none' : TRANSITION;
+    const sideWallTransition = (isTurnFacingWall || isCorridorEndFacingWall) ? 'none' : TRANSITION;
+    const ambientTransition = isTurnFacingWall ? 'none' : TRANSITION;
     // vd: 5 = deepest (just entered), 1 = baseline (at exit wall)
     const vd = facingWallState.facingWall
         ? 1
@@ -148,7 +152,7 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                             zIndex: 89,
                         },
                         isWeb && { // @ts-ignore
-                            transition: motionTransition,
+                            transition: frontWallTransition,
                         },
                     ]}
                 >
@@ -166,7 +170,7 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                             zIndex: 80,
                         },
                         isWeb && { // @ts-ignore
-                            transition: motionTransition,
+                            transition: frontWallTransition,
                         },
                     ]}
                 >
@@ -189,14 +193,14 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                             },
                             isWeb && { // @ts-ignore
                                 perspective: '300px',
-                                transition: motionTransition,
+                                transition: sideWallTransition,
                             },
                         ]}
                     >
                         <View
                             style={[
                                 { width: '200%', height: '200%' },
-                                ...(isWeb ? [{ transform: 'rotateY(65deg)', transformOrigin: '0% 50%', transition: motionTransition } as any] : []),
+                                ...(isWeb ? [{ transform: 'rotateY(65deg)', transformOrigin: '0% 50%', transition: sideWallTransition } as any] : []),
                             ]}
                         >
                             <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
@@ -216,14 +220,14 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                             },
                             isWeb && { // @ts-ignore
                                 perspective: wallPerspective,
-                                transition: motionTransition,
+                                transition: sideWallTransition,
                             },
                         ]}
                     >
                         <View
                             style={[
                                 { width: '200%', height: '100%' },
-                                ...(isWeb ? [{ transform: 'rotateY(100deg)', transformOrigin: '0% 50%', transition: motionTransition } as any] : []),
+                                ...(isWeb ? [{ transform: 'rotateY(100deg)', transformOrigin: '0% 50%', transition: sideWallTransition } as any] : []),
                             ]}
                         >
                             <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
@@ -247,14 +251,14 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                             },
                             isWeb && { // @ts-ignore
                                 perspective: '330px',
-                                transition: motionTransition,
+                                transition: sideWallTransition,
                             },
                         ]}
                     >
                         <View
                             style={[
                                 { width: '200%', height: '100%', marginLeft: '-100%' },
-                                ...(isWeb ? [{ transform: 'rotateY(-65deg)', transformOrigin: '100% 50%', transition: motionTransition } as any] : []),
+                                ...(isWeb ? [{ transform: 'rotateY(-65deg)', transformOrigin: '100% 50%', transition: sideWallTransition } as any] : []),
                             ]}
                         >
                             <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
@@ -274,14 +278,14 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                             },
                             isWeb && { // @ts-ignore
                                 perspective: wallPerspective,
-                                transition: motionTransition,
+                                transition: sideWallTransition,
                             },
                         ]}
                     >
                         <View
                             style={[
                                 { width: '200%', height: '100%', marginLeft: '-100%' },
-                                ...(isWeb ? [{ transform: 'rotateY(-100deg)', transformOrigin: '100% 50%', transition: motionTransition } as any] : []),
+                                ...(isWeb ? [{ transform: 'rotateY(-100deg)', transformOrigin: '100% 50%', transition: sideWallTransition } as any] : []),
                             ]}
                         >
                             <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
@@ -313,14 +317,14 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                             },
                             isWeb && { // @ts-ignore
                                 perspective: '400px',
-                                transition:  motionTransition,
+                                transition:  ambientTransition,
                             },
                         ]}
                     >
                         <View
                             style={[
                                 { width: '100%', height: '250%', opacity: 0.9 },
-                                ...(isWeb ? [{ transform: `rotateX(60deg)`, transformOrigin: '50% 0%', transition: motionTransition } as any] : []),
+                                ...(isWeb ? [{ transform: `rotateX(60deg)`, transformOrigin: '50% 0%', transition: ambientTransition } as any] : []),
                             ]}
                         >
                             <Image source={floorTexture} style={styles.segmentImage} resizeMode="repeat" />
@@ -356,14 +360,14 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                             isWeb && { // @ts-ignore
                                 perspective:       ceilPersp,
                                 perspectiveOrigin: ceilOrigin,
-                                transition:        motionTransition,
+                                transition:        ambientTransition,
                             },
                         ]}
                     >
                         <View
                             style={[
                                 { width: '126%', height: '350%', marginTop: '-110%' },
-                                ...(isWeb ? [{ transform: `rotateX(${ceilRotation}deg)`, transformOrigin: '50% 90% 30px', transition: motionTransition } as any] : []),
+                                ...(isWeb ? [{ transform: `rotateX(${ceilRotation}deg)`, transformOrigin: '50% 90% 30px', transition: ambientTransition } as any] : []),
                             ]}
                         >
                             <Image
