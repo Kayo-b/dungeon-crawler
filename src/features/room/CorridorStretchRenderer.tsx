@@ -10,6 +10,7 @@ import {
     getFacingWallState,
     getFrameDimensions,
 } from './room3DShared';
+import { getTurnDirection } from '../../systems/movement/DirectionUtils';
 
 /**
  * CorridorStretchRenderer
@@ -102,6 +103,9 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
 }) => {
     // distanceFactor: 0 = player just entered corridor (deep), 1 = at exit wall (baseline)
     const distanceFactor = currentArrPos / Math.max(pathLength - 1, 1);
+    const previousDirection = lastTurnDir === ''
+        ? null
+        : getTurnDirection(direction, lastTurnDir === 'L' ? 'R' : 'L');
 
     const facingWallState = getFacingWallState(
         positionX,
@@ -111,10 +115,25 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
         mapWidth,
         mapHeight,
     );
+    const previousFacingWallState = previousDirection === null
+        ? null
+        : getFacingWallState(
+            positionX,
+            positionY,
+            previousDirection,
+            mapTiles,
+            mapWidth,
+            mapHeight,
+        );
     const isAtCorridorEnd = currentArrPos >= Math.max(pathLength - 1, 0);
     const isTurnFacingWall = facingWallState.facingWall && lastTurnDir !== '';
+    const isTurnFromWallIntoCorridor = (
+        lastTurnDir !== ''
+        && previousFacingWallState?.facingWall === true
+        && !facingWallState.facingWall
+    );
     const isCorridorEndFacingWall = facingWallState.facingWall && !isTurnFacingWall && isAtCorridorEnd;
-    const frontWallTransition = isTurnFacingWall ? 'none' : TRANSITION;
+    const frontWallTransition = (isTurnFacingWall || isTurnFromWallIntoCorridor) ? 'none' : TRANSITION;
     const sideWallTransition = (isTurnFacingWall || isCorridorEndFacingWall) ? 'none' : TRANSITION;
     const ambientTransition = isTurnFacingWall ? 'none' : TRANSITION;
     // vd: 5 = deepest (just entered), 1 = baseline (at exit wall)
