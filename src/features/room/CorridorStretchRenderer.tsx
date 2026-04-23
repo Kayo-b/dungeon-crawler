@@ -36,7 +36,7 @@ import { getTurnDirection } from '../../systems/movement/DirectionUtils';
 const wallTexture  = require('../../resources/Brick_Large.png');
 const floorTexture = require('../../resources/Brick_Small.png');
 const isWeb = Platform.OS === 'web';
-const TRANSITION = 'all 0.18s ease-out';
+const TRANSITION = 'all 0.01s ease-out';
 
 // ── Fixed layout constants (computed ONCE at baseline vd=1) ─────────────────
 //
@@ -361,8 +361,8 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                 if (ceilingHeight <= 0) return null;
                 const ceilingTop         = (d === 2 ? ceilingNear.top + 90 : ceilingNear.top + 75);
                 const ceilingOuterHeight = ceilingHeight + 25;
-                const ceilRotation       = d === 1 ? 102 : 90;
-                const ceilPersp          = `${560 - d * 45}px`;
+                const ceilRotation       = d === 1 ? 102 : 100;
+                const ceilPersp          = `${560 - d * 15}px`;
                 const ceilOrigin         = `${CENTER_X - (ceilingNear.left - 50)}px 50%`;
                 return (
                     <View
@@ -374,7 +374,7 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                                 top:    ceilingTop - d * 10,
                                 width:  ceilingNear.right - ceilingNear.left + d * 8,
                                 height: ceilingOuterHeight + d * 3,
-                                zIndex: 92 - d,
+                                zIndex: 88 - d,
                             },
                             isWeb && { // @ts-ignore
                                 perspective:       ceilPersp,
@@ -386,7 +386,7 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                         <View
                             style={[
                                 { width: '126%', height: '350%', marginTop: '-110%' },
-                                ...(isWeb ? [{ transform: `rotateX(${ceilRotation}deg)`, transformOrigin: '50% 90% 30px', transition: ambientTransition } as any] : []),
+                                ...(isWeb ? [{ transform: `rotateX(${ceilRotation}deg)`, transformOrigin:  `50% ${93+d*1.4}% 30px`, transition: ambientTransition } as any] : []),
                             ]}
                         >
                             <Image

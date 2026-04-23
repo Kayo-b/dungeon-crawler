@@ -84,8 +84,8 @@ const FRAME_SURFACE_PROFILES: Record<FrameSurface, FrameSurfaceProfile> = {
         bottomDivisor: 2,
         verticalDistanceOffset: 0,
         phase: {
-            near: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
-            far: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 1, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
+            near: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 0.5, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
+            far: { widthMultiplier: 1, heightMultiplier: 1, scaleMultiplier: 0.9, leftOffset: 0, topOffset: 0, rightOffset: 0, bottomOffset: 0 },
         },
     },
     ceiling: {
