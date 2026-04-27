@@ -56,7 +56,7 @@ const BASE_OPEN_BOTTOM = _floorFarBase.bottom - 55;
 // Side wall constants — rotation is fixed; only left & width animate
 const SIDE_WALL_HEIGHT     = 473.5;
 const SIDE_WALL_TOP        = (VIEWPORT_HEIGHT - SIDE_WALL_HEIGHT) / 2;
-const SIDE_WALL_BASE_WIDTH = 609;   // width at corridor start (farthest tile)
+const SIDE_WALL_BASE_WIDTH = 600;   // width at corridor start (farthest tile)
 const SIDE_WALL_MIN_WIDTH  = 350;   // width at corridor end (exit wall)
 // Anchors keep each wall edge stationary while width shrinks from the other side:
 //   Right wall: right edge fixed at 507  (base left -102 + base width 609)
@@ -245,8 +245,8 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                     >
                         <View
                             style={[
-                                { width: '200%', height: '100%' },
-                                ...(isWeb ? [{ transform: 'rotateY(100deg)', transformOrigin: '0% 50%', transition: sideWallTransition } as any] : []),
+                                { width: '250%', height: '100%' },
+                                ...(isWeb ? [{ transform: 'rotateY(103deg)', transformOrigin: '0% 50%', transition: sideWallTransition } as any] : []),
                             ]}
                         >
                             <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
@@ -303,8 +303,8 @@ export const CorridorStretchRenderer: React.FC<CorridorStretchRendererProps> = (
                     >
                         <View
                             style={[
-                                { width: '200%', height: '100%', marginLeft: '-100%' },
-                                ...(isWeb ? [{ transform: 'rotateY(-100deg)', transformOrigin: '100% 50%', transition: sideWallTransition } as any] : []),
+                                { width: '250%', height: '100%', marginLeft: '-150%' },
+                                ...(isWeb ? [{ transform: 'rotateY(-103deg)', transformOrigin: '100% 50%', transition: sideWallTransition } as any] : []),
                             ]}
                         >
                             <Image source={wallTexture} style={styles.segmentImage} resizeMode="repeat" />
