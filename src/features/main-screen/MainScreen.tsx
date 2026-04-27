@@ -29,7 +29,7 @@ import { Player } from '../player/Player';
 import { StatPointsWindow } from '../player/StatPointsWindow';
 import { MerchantModal } from '../merchant/MerchantModal';
 import { MiniMap } from '../room/MiniMap';
-import { Room } from '../room/Room';
+import { Room, type RoomRenderMode } from '../room/Room';
 import { useCombat } from '../../events/combat';
 import { ARCHETYPES, ArchetypeId, buildCharacterFromArchetype } from '../../data/archetypes';
 import { getMapConfig } from '../../data/maps';
@@ -180,6 +180,8 @@ export const MainScreen = () => {
   const [merchantMode, setMerchantMode] = useState<'menu' | 'trade'>('menu');
   const [merchantStock, setMerchantStock] = useState<MerchantStockEntry[]>([]);
   const [showLootModal, setShowLootModal] = useState(false);
+  const [roomRenderMode, setRoomRenderMode] = useState<RoomRenderMode>('classic2d');
+  const [enemySpawningEnabled, setEnemySpawningEnabled] = useState(true);
 
   const mapTiles = useAppSelector((state) => state.room.mapTiles);
   const mapWidth = useAppSelector((state) => state.room.mapWidth);
@@ -885,6 +887,14 @@ export const MainScreen = () => {
   };
 
   const spawnEnemies = () => {
+    if (!enemySpawningEnabled) {
+      dispatch(clearEnemies());
+      dispatch(setEnemyCount(0));
+      dispatch(setCurrentEnemy(0));
+      lastSpawnedMapRef.current = null;
+      return;
+    }
+
     dispatch(fetchEnemies());
     dispatch(clearEnemies());
 
@@ -971,14 +981,18 @@ export const MainScreen = () => {
     if (initialized || !mapTiles || mapTiles.length === 0) return;
     spawnEnemies();
     setInitialized(true);
-  }, [menuMode, initialized, mapTiles, mapHeight, mapWidth, posX, posY, currentMapId, dungeonDepth]);
+  }, [menuMode, initialized, mapTiles, mapHeight, mapWidth, posX, posY, currentMapId, dungeonDepth, enemySpawningEnabled]);
 
   useEffect(() => {
     if (menuMode !== 'game' || !initialized || !mapTiles || mapTiles.length === 0) return;
+    if (!enemySpawningEnabled) {
+      lastSpawnedMapRef.current = null;
+      return;
+    }
     if (lastSpawnedMapRef.current === currentMapId) return;
     stepCounterRef.current = 0;
     spawnEnemies();
-  }, [menuMode, initialized, currentMapId, mapTiles, posX, posY, dungeonDepth]);
+  }, [menuMode, initialized, currentMapId, mapTiles, posX, posY, dungeonDepth, enemySpawningEnabled]);
 
   useEffect(() => {
     if (menuMode !== 'game' || !initialized || !isSmallMap || !mapTiles || mapTiles.length === 0) return;
@@ -1005,6 +1019,7 @@ export const MainScreen = () => {
 
   useEffect(() => {
     if (menuMode !== 'game' || !initialized || !isSmallMap) return;
+    if (!enemySpawningEnabled) return;
     if (showDeathOverlay || revivePending) return;
 
     const current = { x: posX, y: posY, mapId: currentMapId };
@@ -1071,6 +1086,7 @@ export const MainScreen = () => {
     menuMode,
     initialized,
     isSmallMap,
+    enemySpawningEnabled,
     posX,
     posY,
     currentMapId,
@@ -1085,6 +1101,22 @@ export const MainScreen = () => {
     enemyStrengthScale,
     rewardScale,
   ]);
+
+  useEffect(() => {
+    if (menuMode !== 'game') return;
+
+    stepCounterRef.current = 0;
+    if (!enemySpawningEnabled) {
+      dispatch(clearEnemies());
+      dispatch(setEnemyCount(0));
+      dispatch(setCurrentEnemy(0));
+      lastSpawnedMapRef.current = null;
+      return;
+    }
+
+    if (!initialized || !mapTiles || mapTiles.length === 0) return;
+    spawnEnemies();
+  }, [enemySpawningEnabled, menuMode]);
 
   const continueGame = () => {
     depthThreeIntroDropAssignedRef.current = false;
@@ -1527,6 +1559,10 @@ export const MainScreen = () => {
           onMerchantInteract={openMerchantMenu}
           floorLootBags={floorLootBags}
           onLootBagPress={handleFloorLootBagPress}
+          renderMode={roomRenderMode}
+          onSetRenderMode={setRoomRenderMode}
+          enemySpawningEnabled={enemySpawningEnabled}
+          onToggleEnemySpawning={() => setEnemySpawningEnabled((prev) => !prev)}
           skillOverlay={
             <View style={styles.leftHud}>
               {inCombat && (

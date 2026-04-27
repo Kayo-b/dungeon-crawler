@@ -17,6 +17,7 @@ import { useMovement } from '../../systems/movement/useMovement';
 import { useMovementWithRender, TileImages } from '../../systems/movement/useMovementWithRender';
 import { isBlocked } from '../../systems/movement/TileNavigator';
 import { Room3D } from './Room3D';
+import { CorridorStretchRenderer } from './CorridorStretchRenderer';
 import { Direction as FacingDirection, MapConfig } from '../../types/map';
 import { registerEnemyAttack } from '../../events/combatSlice';
 import { getDoorTargetMap, getMapDepth, getStairsTargetMap } from '../../data/maps/transitions';
@@ -141,6 +142,14 @@ function calculateArrPosFromCoords(
 
 let display = 0;
 
+export type RoomRenderMode = 'classic2d' | 'stretch2d' | 'room3d';
+
+const ROOM_RENDER_OPTIONS: Array<{ mode: RoomRenderMode; label: string }> = [
+    { mode: 'classic2d', label: '2D' },
+    { mode: 'stretch2d', label: 'STR' },
+    { mode: 'room3d', label: '3D' },
+];
+
 interface RoomProps {
     startCombat: (id: number) => void;
     engagePlayerAttack: (id: number) => void;
@@ -150,6 +159,10 @@ interface RoomProps {
     scrollHandOverlay?: ReactNode;
     floorLootBags?: Array<{ id: string; mapId: string; x: number; y: number; items: any[] }>;
     onLootBagPress?: (bagId: string) => void;
+    renderMode: RoomRenderMode;
+    onSetRenderMode: (mode: RoomRenderMode) => void;
+    enemySpawningEnabled: boolean;
+    onToggleEnemySpawning: () => void;
 }
 
 export const Room = ({
@@ -161,6 +174,10 @@ export const Room = ({
     scrollHandOverlay,
     floorLootBags = [],
     onLootBagPress,
+    renderMode,
+    onSetRenderMode,
+    enemySpawningEnabled,
+    onToggleEnemySpawning,
 }: RoomProps) => {
     const dispatch = useAppDispatch(); 
     // const enemyHealth = useAppSelector(state => state.enemy.enemies[0].stats.health); 
@@ -351,8 +368,6 @@ export const Room = ({
     // Toggle for new vs old movement system
     const [useNewMovement, setUseNewMovement] = useState(false);
 
-    // Toggle for CSS 3D rendering mode (experimental)
-    const [use3DRendering, setUse3DRendering] = useState(true);
     const rangedShotCooldownRef = useRef<{ [key: number]: number }>({});
     const lastPlayerTileRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
 
@@ -3131,42 +3146,49 @@ const turn = (turnDir:string) => {
 
             <View style={styles.movementHud}>
                 <View style={styles.movementRow}>
-                    {/* <TouchableOpacity
-                        style={[styles.button, styles.compactButton]}
-                        onPress={() => setUseNewMovement(!useNewMovement)}
-                    >
-                        <Text style={styles.buttonText}>{useNewMovement ? 'NEW' : 'OLD'}</Text>
-                    </TouchableOpacity>
+                    {ROOM_RENDER_OPTIONS.map((option) => {
+                        const isActive = renderMode === option.mode;
+                        return (
+                            <TouchableOpacity
+                                key={option.mode}
+                                style={[
+                                    styles.button,
+                                    styles.compactButton,
+                                    styles.toggleButton,
+                                    isActive && styles.toggleButtonActive,
+                                ]}
+                                onPress={() => onSetRenderMode(option.mode)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.buttonText,
+                                        isActive && styles.toggleButtonTextActive,
+                                    ]}
+                                >
+                                    {option.label}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+                <View style={styles.movementRow}>
                     <TouchableOpacity
-                        style={[styles.button, styles.movementButton]}
-                        onPress={guardedForward}
+                        style={[
+                            styles.button,
+                            styles.spawnToggleButton,
+                            enemySpawningEnabled && styles.toggleButtonActive,
+                        ]}
+                        onPress={onToggleEnemySpawning}
                     >
-                        <Text style={styles.buttonText}>UP</Text>
+                        <Text
+                            style={[
+                                styles.buttonText,
+                                enemySpawningEnabled && styles.toggleButtonTextActive,
+                            ]}
+                        >
+                            {enemySpawningEnabled ? 'SPAWN ON' : 'SPAWN OFF'}
+                        </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.button, styles.movementButton]}
-                        onPress={guardedReverse}
-                    >
-                        <Text style={styles.buttonText}>DN</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.button, styles.movementButton]}
-                        onPress={() => guardedTurn('L')}
-                    >
-                        <Text style={styles.buttonText}>LT</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.button, styles.movementButton]}
-                        onPress={() => guardedTurn('R')}
-                    >
-                        <Text style={styles.buttonText}>RT</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.button, styles.compactButton]}
-                        onPress={() => setUse3DRendering(!use3DRendering)}
-                    >
-                        <Text style={styles.buttonText}>{use3DRendering ? '3D' : '2D'}</Text>
-                    </TouchableOpacity> */}
                 </View>
 
                 {(isOnStairsUp || isOnStairsDown || isOnDoor) ? (
@@ -3193,9 +3215,21 @@ const turn = (turnDir:string) => {
                 ) : null}
             </View>
 
-            {/* Conditional rendering: 3D CSS mode or classic 2D tiles */}
+            {/* Room rendering */}
             <View style={styles.gameViewport}>
-            {use3DRendering ? (
+            {renderMode === 'stretch2d' ? (
+                <CorridorStretchRenderer
+                    currentArrPos={currentArrPos}
+                    pathLength={activeMapArray?.length ?? 1}
+                    lastTurnDir={lastTurnDir}
+                    positionX={positionX}
+                    positionY={positionY}
+                    direction={currentDir as Direction}
+                    mapTiles={mapTiles}
+                    mapWidth={mapWidth}
+                    mapHeight={mapHeight}
+                />
+            ) : renderMode === 'room3d' ? (
                 <Room3D
                     positionX={positionX}
                     positionY={positionY}
@@ -3203,8 +3237,6 @@ const turn = (turnDir:string) => {
                     mapTiles={mapTiles}
                     mapWidth={mapWidth}
                     mapHeight={mapHeight}
-                    viewDistance={5}
-                    onDoorInteract={handleDoorInteraction}
                 />
             ) : (
             <ImageBackground
@@ -3467,6 +3499,18 @@ const styles = StyleSheet.create({
     },
     compactButton: {
         minWidth: 44,
+    },
+    toggleButton: {
+        minWidth: 48,
+    },
+    toggleButtonActive: {
+        backgroundColor: '#d7d7d7',
+    },
+    toggleButtonTextActive: {
+        color: '#111111',
+    },
+    spawnToggleButton: {
+        minWidth: 110,
     },
     movementButton: {
         minWidth: 38,
