@@ -352,7 +352,7 @@ export const Room = ({
     const [useNewMovement, setUseNewMovement] = useState(false);
 
     // Toggle for CSS 3D rendering mode (experimental)
-    const [use3DRendering, setUse3DRendering] = useState(true);
+    const [use3DRendering, setUse3DRendering] = useState(false);
     const rangedShotCooldownRef = useRef<{ [key: number]: number }>({});
     const lastPlayerTileRef = useRef<{ x: number; y: number; mapId: string } | null>(null);
 
@@ -713,16 +713,22 @@ export const Room = ({
                                 console.log('()_+ LEFT (path to West)')
                                 tempArr.push(turnTileLeft)
                                 tempArrTiles.push(turnTileLeft)
+                            } else if(hasEastPathN && hasWestPathN) {
+                                // Both perpendicular sides open - misclassified 3-way junction
+                                console.log('()_+ 3-WAY (both perp paths, type2 misclassified)')
+                                tempArr.push(turnThreeWay)
+                                tempArrTiles.push(turnThreeWay)
                             } else {
-                                // Both or neither have paths - use iniDir fallback
-                                if(newDir) {
-                                    console.log(newDir,"NEWDIR RRRR (fallback)")
-                                    tempArr.push(turnTileRight)
-                                    tempArrTiles.push(turnTileRight)
+                                // Neither perpendicular side open - check if path continues forward (N = lower Y)
+                                const forwardTileN = dg_map[actualMapPos - 1]?.[positionX];
+                                if (forwardTileN !== undefined && forwardTileN !== 0) {
+                                    console.log('()_+ CORRIDOR (straight N-S despite type2)')
+                                    tempArr.push(corridorTile)
+                                    tempArrTiles.push(corridorTile)
                                 } else {
-                                    console.log(newDir,"NEWDIR LLLL (fallback)")
-                                    tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileLeft)
+                                    console.log('()_+ WALL (dead end)')
+                                    tempArr.push(facingWallTile)
+                                    tempArrTiles.push(facingWallTile)
                                 }
                             }
                         break;
@@ -743,15 +749,22 @@ export const Room = ({
                                 console.log('()_+ RIGHT (path to West)')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
+                            } else if(hasEastPathS && hasWestPathS) {
+                                // Both perpendicular sides open - misclassified 3-way junction
+                                console.log('()_+ 3-WAY (both perp paths, type2 misclassified)')
+                                tempArr.push(turnThreeWay)
+                                tempArrTiles.push(turnThreeWay)
                             } else {
-                                // Both or neither have paths - use iniDir fallback
-                                console.log(newDir,"NEWDIR (fallback)")
-                                if(newDir) {
-                                    tempArr.push(turnTileRight)
-                                    tempArrTiles.push(turnTileRight)
+                                // Neither perpendicular side open - check if path continues forward (S = higher Y)
+                                const forwardTileS = dg_map[actualMapPos + 1]?.[positionX];
+                                if (forwardTileS !== undefined && forwardTileS !== 0) {
+                                    console.log('()_+ CORRIDOR (straight N-S despite type2)')
+                                    tempArr.push(corridorTile)
+                                    tempArrTiles.push(corridorTile)
                                 } else {
-                                    tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileLeft)
+                                    console.log('()_+ WALL (dead end)')
+                                    tempArr.push(facingWallTile)
+                                    tempArrTiles.push(facingWallTile)
                                 }
                             }
                         break;
@@ -772,15 +785,22 @@ export const Room = ({
                                 console.log('()_+ RIGHT (path to North)')
                                 tempArr.push(turnTileRight)
                                 tempArrTiles.push(turnTileRight)
+                            } else if(hasSouthPathW && hasNorthPathW) {
+                                // Both perpendicular sides open - misclassified 3-way junction
+                                console.log('()_+ 3-WAY (both perp paths, type2 misclassified)')
+                                tempArr.push(turnThreeWay)
+                                tempArrTiles.push(turnThreeWay)
                             } else {
-                                // Both or neither have paths - use iniDir fallback
-                                console.log(newDir,"NEWDIR (fallback)")
-                                if(newDir) {
-                                    tempArr.push(turnTileRight)
-                                    tempArrTiles.push(turnTileRight)
+                                // Neither perpendicular side open - check if path continues forward (W = lower X)
+                                const forwardTileW = dg_map[positionY]?.[actualMapPos - 1];
+                                if (forwardTileW !== undefined && forwardTileW !== 0) {
+                                    console.log('()_+ CORRIDOR (straight E-W despite type2)')
+                                    tempArr.push(corridorTile)
+                                    tempArrTiles.push(corridorTile)
                                 } else {
-                                    tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileLeft)
+                                    console.log('()_+ WALL (dead end)')
+                                    tempArr.push(facingWallTile)
+                                    tempArrTiles.push(facingWallTile)
                                 }
                             }
                         break;
@@ -801,15 +821,22 @@ export const Room = ({
                                 console.log('()_+ LEFT (path to North)')
                                 tempArr.push(turnTileLeft)
                                 tempArrTiles.push(turnTileLeft)
+                            } else if(hasSouthPathE && hasNorthPathE) {
+                                // Both perpendicular sides open - misclassified 3-way junction
+                                console.log('()_+ 3-WAY (both perp paths, type2 misclassified)')
+                                tempArr.push(turnThreeWay)
+                                tempArrTiles.push(turnThreeWay)
                             } else {
-                                // Both or neither have paths - use iniDir fallback
-                                console.log(newDir,"NEWDIR (fallback)")
-                                if(newDir) {
-                                    tempArr.push(turnTileRight)
-                                    tempArrTiles.push(turnTileRight)
+                                // Neither perpendicular side open - check if path continues forward (E = higher X)
+                                const forwardTileE = dg_map[positionY]?.[actualMapPos + 1];
+                                if (forwardTileE !== undefined && forwardTileE !== 0) {
+                                    console.log('()_+ CORRIDOR (straight E-W despite type2)')
+                                    tempArr.push(corridorTile)
+                                    tempArrTiles.push(corridorTile)
                                 } else {
-                                    tempArr.push(turnTileLeft)
-                                    tempArrTiles.push(turnTileLeft)
+                                    console.log('()_+ WALL (dead end)')
+                                    tempArr.push(facingWallTile)
+                                    tempArrTiles.push(facingWallTile)
                                 }
                             }
                         break;
@@ -3118,13 +3145,13 @@ const turn = (turnDir:string) => {
     return (
         <View style={styles.roomRoot}>
             {/* DEBUG OVERLAY */}
-            <DebugOverlay
+            {/* <DebugOverlay
                 visible={true}
                 mapArray={activeMapArray}
                 pathTileArr={activePathTileArr}
                 verticalTileArr={verticalTileArr}
                 dg_map={dg_map}
-            />
+            /> */}
             <View style={styles.depthIndicator}>
                 <Text style={styles.depthIndicatorText}>{`Depth ${dungeonDepth} · ${currentMapId}`}</Text>
             </View>
