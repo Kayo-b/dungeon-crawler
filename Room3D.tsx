@@ -213,7 +213,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                 })}
 
                 {/* Debug overlay */}
-                {/* <View style={styles.debugOverlay}>
+                <View style={styles.debugOverlay}>
                     <Text style={styles.debugText}>
                         3D Mode | Pos: ({positionX}, {positionY}) | Dir: {direction}
                     </Text>
@@ -221,7 +221,7 @@ export const Room3D: React.FC<Room3DProps> = ({
                         Tiles ahead: {tilesAhead.length}
                         Tile Scale: {scale}
                     </Text>
-                </View> */}
+                </View>
             </View>
         </View>
     );
