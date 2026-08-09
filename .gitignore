@@ -35,4 +35,4 @@ output/playwright/
 # typescript
 *.tsbuildinfo
 PLAN.md
-*.png
+
