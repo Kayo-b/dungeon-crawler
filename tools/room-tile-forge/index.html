@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Room Tile Forge</title>
+<style>
+  :root {
+    --bg: #101012; --panel: #17171b; --line: #2b2b33; --text: #d7d7d7;
+    --dim: #8a8a95; --accent: #7fd18a; --accent-dim: #2c4a33;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  header {
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 13px; margin: 0; letter-spacing: .12em; text-transform: uppercase; }
+  header .hint { color: var(--dim); }
+  main { display: grid; grid-template-columns: 340px 1fr; gap: 0; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  #controls { padding: 14px 16px 40px; border-right: 1px solid var(--line); max-height: calc(100vh - 46px); overflow-y: auto; }
+  #stage { padding: 14px 16px 40px; }
+
+  fieldset { border: 1px solid var(--line); border-radius: 3px; margin: 0 0 12px; padding: 8px 10px 10px; }
+  legend { color: var(--dim); text-transform: uppercase; letter-spacing: .1em; font-size: 10px; padding: 0 4px; }
+  .row { display: grid; grid-template-columns: 92px 1fr 46px; gap: 8px; align-items: center; margin: 4px 0; }
+  .row > label { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+  .row output { text-align: right; color: var(--accent); }
+  .row.wide { grid-template-columns: 92px 1fr; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select, input[type=number] {
+    width: 100%; background: #0c0c0e; color: var(--text);
+    border: 1px solid var(--line); border-radius: 2px; padding: 3px 4px; font: inherit;
+  }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+  .tabs button, .actions button {
+    background: #0c0c0e; color: var(--text); border: 1px solid var(--line);
+    border-radius: 2px; padding: 5px 9px; font: inherit; cursor: pointer;
+  }
+  .tabs button[aria-pressed=true] { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .tabs button:hover, .actions button:hover { border-color: var(--accent); }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  .previews { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+  .preview h2 { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin: 0 0 6px; font-weight: normal; }
+  canvas { display: block; background: #000; border: 1px solid var(--line); image-rendering: auto; }
+  #cellCanvas { width: 384px; height: 384px; }
+  #stackCanvas { width: 384px; height: 384px; }
+  .note { color: var(--dim); max-width: 384px; margin: 8px 0 0; }
+  .surfaceTabs { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
+  .surfaceTabs button { padding: 3px 6px; font-size: 11px; }
+  #status { color: var(--dim); margin-top: 10px; min-height: 1.4em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Room Tile Forge</h1>
+  <span class="hint">generates the fully-built room cells the classic 2D renderer stacks &middot; batch export: <code>npm run forge:export</code></span>
+</header>
+
+<main>
+  <div id="controls">
+    <fieldset>
+      <legend>Geometry</legend>
+      <div class="row"><label>aperture w</label><input type="range" id="g_apertureWidth" min="0.2" max="0.85" step="0.005"><output></output></div>
+      <div class="row"><label>aperture h</label><input type="range" id="g_apertureHeight" min="0.15" max="0.8" step="0.005"><output></output></div>
+      <div class="row"><label>horizon y</label><input type="range" id="g_apertureCenterY" min="0.3" max="0.75" step="0.005"><output></output></div>
+      <div class="row"><label>depth ratio</label><input type="range" id="g_depthRatio" min="1" max="4" step="0.05"><output></output></div>
+      <div class="row"><label>vignette</label><input type="range" id="v_strength" min="0" max="0.8" step="0.01"><output></output></div>
+      <div class="row"><label>supersample</label><input type="range" id="c_supersample" min="1" max="3" step="1"><output></output></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Surface</legend>
+      <div class="surfaceTabs" id="surfaceTabs"></div>
+      <div class="row wide"><label>texture</label><select id="s_texture"></select></div>
+      <div class="row"><label>tiles x</label><input type="range" id="s_tilesX" min="1" max="8" step="1"><output></output></div>
+      <div class="row"><label>tiles y</label><input type="range" id="s_tilesY" min="1" max="8" step="1"><output></output></div>
+      <div class="row"><label>offset x</label><input type="range" id="s_offsetX" min="0" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>offset y</label><input type="range" id="s_offsetY" min="0" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>shade near</label><input type="range" id="s_shadeNear" min="0" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>shade far</label><input type="range" id="s_shadeFar" min="0" max="1" step="0.01"><output></output></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Side passage (open sides)</legend>
+      <div class="row wide"><label>texture</label><select id="p_texture"></select></div>
+      <div class="row"><label>tiles x</label><input type="range" id="p_tilesX" min="1" max="8" step="1"><output></output></div>
+      <div class="row"><label>tiles y</label><input type="range" id="p_tilesY" min="1" max="8" step="1"><output></output></div>
+      <div class="row"><label>corner lip</label><input type="range" id="p_lip" min="0" max="0.5" step="0.01"><output></output></div>
+      <div class="row"><label>dark near</label><input type="range" id="p_shadeNear" min="0" max="0.98" step="0.01"><output></output></div>
+      <div class="row"><label>dark far</label><input type="range" id="p_shadeFar" min="0" max="0.98" step="0.01"><output></output></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Door</legend>
+      <div class="row wide"><label>texture</label><select id="d_texture"></select></div>
+      <div class="row"><label>width</label><input type="range" id="d_width" min="0.2" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>height</label><input type="range" id="d_height" min="0.2" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>shade</label><input type="range" id="d_shade" min="0" max="0.9" step="0.01"><output></output></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Stairs</legend>
+      <div class="row"><label>steps</label><input type="range" id="t_steps" min="2" max="14" step="1"><output></output></div>
+      <div class="row"><label>width</label><input type="range" id="t_width" min="0.2" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>rise</label><input type="range" id="t_rise" min="0.1" max="1.2" step="0.01"><output></output></div>
+      <div class="row"><label>converge</label><input type="range" id="t_converge" min="0.2" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>mouth</label><input type="range" id="t_mouth" min="0" max="0.8" step="0.01"><output></output></div>
+      <div class="row"><label>tread</label><input type="range" id="t_tread" min="0.05" max="0.9" step="0.01"><output></output></div>
+      <div class="row"><label>tread lift</label><input type="range" id="t_treadLift" min="0" max="0.6" step="0.01"><output></output></div>
+      <div class="row"><label>shade near</label><input type="range" id="t_shadeNear" min="0" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>shade far</label><input type="range" id="t_shadeFar" min="0" max="1" step="0.01"><output></output></div>
+      <div class="row"><label>edge light</label><input type="range" id="t_edgeLight" min="0" max="0.5" step="0.01"><output></output></div>
+    </fieldset>
+
+    <div class="actions">
+      <button id="btnPng">Download PNG</button>
+      <button id="btnPreset">Download preset</button>
+      <button id="btnLoad">Load preset…</button>
+      <button id="btnReset">Reset</button>
+      <input type="file" id="filePreset" accept="application/json" hidden>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div id="stage">
+    <div class="tabs" id="variantTabs"></div>
+    <div class="previews">
+      <div class="preview">
+        <h2>Cell</h2>
+        <canvas id="cellCanvas" width="512" height="512"></canvas>
+        <p class="note" id="variantNote"></p>
+      </div>
+      <div class="preview">
+        <h2>In-game stack</h2>
+        <canvas id="stackCanvas" width="512" height="512"></canvas>
+        <div class="row" style="grid-template-columns:92px 1fr 46px;margin-top:8px;width:384px">
+          <label style="color:var(--dim)">depth</label>
+          <input type="range" id="stackDepth" min="0" max="4" step="1" value="0"><output></output>
+        </div>
+        <p class="note">
+          Composited at the renderer's real scales (0.77, 0.67, 0.67/i+0.1) in the real
+          z-order, with corridor cells at the other depths. Judge a tile here, not in
+          isolation &mdash; nearer cells are mostly hidden behind further ones.
+        </p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { renderCell } from './renderer.mjs';
+import { VARIANTS, configForVariant } from './variants.mjs';
+
+const $ = id => document.getElementById(id);
+const status = msg => { $('status').textContent = msg; };
+
+let base = null;
+let defaults = null;
+let textures = {};
+let currentVariant = 'corridor';
+let currentSurface = 'leftWall';
+
+const SURFACES = ['backWall', 'leftWall', 'rightWall', 'ceiling', 'floor'];
+
+/* ---------------------------------------------------------------- loading */
+
+async function loadImage(url) {
+  const img = new Image();
+  img.src = url;
+  await img.decode();
+  return img;
+}
+
+async function boot() {
+  status('loading…');
+  base = await (await fetch('./presets/default.json')).json();
+  defaults = JSON.parse(JSON.stringify(base));
+
+  const list = await (await fetch('/api/textures')).json();
+  for (const t of list) {
+    try { textures[t.name] = await loadImage(t.url); } catch { /* skip undecodable */ }
+  }
+
+  for (const sel of ['s_texture', 'p_texture', 'd_texture']) {
+    $(sel).innerHTML = list.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+  }
+
+  buildVariantTabs();
+  buildSurfaceTabs();
+  bindControls();
+  syncControls();
+  render();
+  status(`${Object.keys(textures).length} textures loaded`);
+}
+
+/* ------------------------------------------------------------------- tabs */
+
+function buildVariantTabs() {
+  $('variantTabs').innerHTML = VARIANTS
+    .map(v => `<button data-variant="${v.id}">${v.label}</button>`).join('');
+  $('variantTabs').addEventListener('click', e => {
+    const id = e.target.dataset?.variant;
+    if (!id) return;
+    currentVariant = id;
+    markTabs();
+    render();
+  });
+  markTabs();
+}
+
+function buildSurfaceTabs() {
+  $('surfaceTabs').innerHTML = SURFACES
+    .map(s => `<button data-surface="${s}">${s}</button>`).join('');
+  $('surfaceTabs').addEventListener('click', e => {
+    const s = e.target.dataset?.surface;
+    if (!s) return;
+    currentSurface = s;
+    markTabs();
+    syncControls();
+  });
+}
+
+function markTabs() {
+  for (const b of $('variantTabs').children) b.setAttribute('aria-pressed', String(b.dataset.variant === currentVariant));
+  for (const b of $('surfaceTabs').children) b.setAttribute('aria-pressed', String(b.dataset.surface === currentSurface));
+  $('variantNote').textContent = VARIANTS.find(v => v.id === currentVariant)?.note || '';
+}
+
+/* --------------------------------------------------------------- controls */
+
+// id -> [path in the preset]. Surface controls (s_*) are retargeted per tab.
+const BINDINGS = {
+  g_apertureWidth: ['geometry', 'apertureWidth'],
+  g_apertureHeight: ['geometry', 'apertureHeight'],
+  g_apertureCenterY: ['geometry', 'apertureCenterY'],
+  g_depthRatio: ['geometry', 'depthRatio'],
+  v_strength: ['vignette', 'strength'],
+  c_supersample: ['supersample'],
+  p_texture: ['surfaces', 'passage', 'texture'],
+  p_tilesX: ['surfaces', 'passage', 'tilesX'],
+  p_tilesY: ['surfaces', 'passage', 'tilesY'],
+  p_lip: ['surfaces', 'passage', 'lip'],
+  p_shadeNear: ['surfaces', 'passage', 'shadeNear'],
+  p_shadeFar: ['surfaces', 'passage', 'shadeFar'],
+  d_texture: ['door', 'texture'],
+  d_width: ['door', 'width'],
+  d_height: ['door', 'height'],
+  d_shade: ['door', 'shade'],
+  t_steps: ['stairs', 'steps'],
+  t_width: ['stairs', 'width'],
+  t_rise: ['stairs', 'rise'],
+  t_converge: ['stairs', 'converge'],
+  t_tread: ['stairs', 'tread'],
+  t_treadLift: ['stairs', 'treadLift'],
+  t_mouth: ['stairs', 'mouth'],
+  t_shadeNear: ['stairs', 'shadeNear'],
+  t_shadeFar: ['stairs', 'shadeFar'],
+  t_edgeLight: ['stairs', 'edgeLight'],
+};
+
+const SURFACE_KEYS = ['texture', 'tilesX', 'tilesY', 'offsetX', 'offsetY', 'shadeNear', 'shadeFar'];
+
+const at = (obj, path) => path.reduce((o, k) => o[k], obj);
+const setAt = (obj, path, value) => { at(obj, path.slice(0, -1))[path.at(-1)] = value; };
+
+function pathFor(id) {
+  if (id.startsWith('s_')) return ['surfaces', currentSurface, id.slice(2)];
+  return BINDINGS[id];
+}
+
+function bindControls() {
+  const ids = [...Object.keys(BINDINGS), ...SURFACE_KEYS.map(k => `s_${k}`)];
+  for (const id of ids) {
+    const el = $(id);
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      const path = pathFor(id);
+      const value = el.type === 'range' ? Number(el.value) : el.value;
+      setAt(base, path, value);
+      showValue(el);
+      render();
+    });
+  }
+
+  $('stackDepth').addEventListener('input', () => { showValue($('stackDepth')); renderStack(); });
+  $('btnPng').addEventListener('click', downloadPng);
+  $('btnPreset').addEventListener('click', downloadPreset);
+  $('btnLoad').addEventListener('click', () => $('filePreset').click());
+  $('filePreset').addEventListener('change', loadPresetFile);
+  $('btnReset').addEventListener('click', () => {
+    base = JSON.parse(JSON.stringify(defaults));
+    syncControls();
+    render();
+    status('reset to default preset');
+  });
+}
+
+function showValue(el) {
+  const out = el.parentElement.querySelector('output');
+  if (out) out.value = el.type === 'range' ? Number(el.value).toFixed(el.step.includes('.') ? 2 : 0) : el.value;
+}
+
+function syncControls() {
+  const ids = [...Object.keys(BINDINGS), ...SURFACE_KEYS.map(k => `s_${k}`)];
+  for (const id of ids) {
+    const el = $(id);
+    if (!el) continue;
+    const value = at(base, pathFor(id));
+    el.value = value;
+    showValue(el);
+  }
+  showValue($('stackDepth'));
+}
+
+/* ---------------------------------------------------------------- render */
+
+let pending = false;
+function render() {
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => {
+    pending = false;
+    renderCell($('cellCanvas'), configForVariant(base, currentVariant), textures);
+    renderStack();
+  });
+}
+
+/** Same scale ladder the classic 2D renderer uses in Room.tsx. */
+const tileScale = i => (i === 0 ? 0.77 : i === 1 ? 0.67 : 0.67 / i + 0.1);
+
+function renderStack() {
+  const depth = Number($('stackDepth').value);
+  const canvas = $('stackCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const scratch = document.createElement('canvas');
+  // Fast preview: the stack is about silhouette and readability, not final pixels.
+  const previewBase = { ...base, supersample: 1 };
+
+  for (let i = 0; i < 5; i++) {
+    const variant = i === depth ? currentVariant : 'corridor';
+    renderCell(scratch, configForVariant(previewBase, variant), textures);
+    const s = tileScale(i);
+    const w = canvas.width * s;
+    const h = canvas.height * s;
+    ctx.drawImage(scratch, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+  }
+}
+
+/* ---------------------------------------------------------------- export */
+
+function download(blobOrUrl, filename) {
+  const a = document.createElement('a');
+  a.href = typeof blobOrUrl === 'string' ? blobOrUrl : URL.createObjectURL(blobOrUrl);
+  a.download = filename;
+  a.click();
+  if (typeof blobOrUrl !== 'string') setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function downloadPng() {
+  const v = VARIANTS.find(x => x.id === currentVariant);
+  $('cellCanvas').toBlob(b => {
+    download(b, v.file);
+    status(`saved ${v.file} — for the whole set use: npm run forge:export`);
+  }, 'image/png');
+}
+
+function downloadPreset() {
+  download(new Blob([JSON.stringify(base, null, 2)], { type: 'application/json' }), 'preset.json');
+  status('preset downloaded — pass it with: npm run forge:export -- --preset <path>');
+}
+
+async function loadPresetFile(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    base = JSON.parse(await file.text());
+    syncControls();
+    render();
+    status(`loaded ${file.name}`);
+  } catch (err) {
+    status(`could not read preset: ${err.message}`);
+  }
+  e.target.value = '';
+}
+
+boot().catch(err => status(`failed: ${err.message}`));
+</script>
+</body>
+</html>
