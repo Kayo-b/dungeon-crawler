@@ -79,6 +79,7 @@
       <legend>Surface</legend>
       <div class="surfaceTabs" id="surfaceTabs"></div>
       <div class="row wide"><label>texture</label><select id="s_texture"></select></div>
+      <div class="row"><label>tex scale</label><input type="range" id="s_textureScale" min="96" max="768" step="8"><output></output></div>
       <div class="row"><label>tiles x</label><input type="range" id="s_tilesX" min="1" max="8" step="1"><output></output></div>
       <div class="row"><label>tiles y</label><input type="range" id="s_tilesY" min="1" max="8" step="1"><output></output></div>
       <div class="row"><label>offset x</label><input type="range" id="s_offsetX" min="0" max="1" step="0.01"><output></output></div>
@@ -88,13 +89,10 @@
     </fieldset>
 
     <fieldset>
-      <legend>Side passage (open sides)</legend>
+      <legend>Side panel (open sides)</legend>
       <div class="row wide"><label>texture</label><select id="p_texture"></select></div>
-      <div class="row"><label>tiles x</label><input type="range" id="p_tilesX" min="1" max="8" step="1"><output></output></div>
-      <div class="row"><label>tiles y</label><input type="range" id="p_tilesY" min="1" max="8" step="1"><output></output></div>
-      <div class="row"><label>corner lip</label><input type="range" id="p_lip" min="0" max="0.5" step="0.01"><output></output></div>
-      <div class="row"><label>dark near</label><input type="range" id="p_shadeNear" min="0" max="0.98" step="0.01"><output></output></div>
-      <div class="row"><label>dark far</label><input type="range" id="p_shadeFar" min="0" max="0.98" step="0.01"><output></output></div>
+      <div class="row"><label>tex scale</label><input type="range" id="p_textureScale" min="96" max="768" step="8"><output></output></div>
+      <div class="row"><label>shade</label><input type="range" id="p_shade" min="0" max="0.95" step="0.01"><output></output></div>
     </fieldset>
 
     <fieldset>
@@ -244,11 +242,8 @@ const BINDINGS = {
   v_strength: ['vignette', 'strength'],
   c_supersample: ['supersample'],
   p_texture: ['surfaces', 'passage', 'texture'],
-  p_tilesX: ['surfaces', 'passage', 'tilesX'],
-  p_tilesY: ['surfaces', 'passage', 'tilesY'],
-  p_lip: ['surfaces', 'passage', 'lip'],
-  p_shadeNear: ['surfaces', 'passage', 'shadeNear'],
-  p_shadeFar: ['surfaces', 'passage', 'shadeFar'],
+  p_textureScale: ['surfaces', 'passage', 'textureScale'],
+  p_shade: ['surfaces', 'passage', 'shade'],
   d_texture: ['door', 'texture'],
   d_width: ['door', 'width'],
   d_height: ['door', 'height'],
@@ -265,7 +260,11 @@ const BINDINGS = {
   t_edgeLight: ['stairs', 'edgeLight'],
 };
 
-const SURFACE_KEYS = ['texture', 'tilesX', 'tilesY', 'offsetX', 'offsetY', 'shadeNear', 'shadeFar'];
+// Not every surface has every key - a frontal plane like backWall is scaled by
+// textureScale and has no tile counts, while a strip-mapped one has no textureScale.
+// Rows whose key is absent from the selected surface are hidden rather than binding
+// to undefined and silently inventing the property on first drag.
+const SURFACE_KEYS = ['texture', 'textureScale', 'tilesX', 'tilesY', 'offsetX', 'offsetY', 'shadeNear', 'shadeFar'];
 
 const at = (obj, path) => path.reduce((o, k) => o[k], obj);
 const setAt = (obj, path, value) => { at(obj, path.slice(0, -1))[path.at(-1)] = value; };
@@ -282,6 +281,7 @@ function bindControls() {
     if (!el) continue;
     el.addEventListener('input', () => {
       const path = pathFor(id);
+      if (at(base, path.slice(0, -1))?.[path.at(-1)] === undefined) return;
       const value = el.type === 'range' ? Number(el.value) : el.value;
       setAt(base, path, value);
       showValue(el);
@@ -313,6 +313,9 @@ function syncControls() {
     const el = $(id);
     if (!el) continue;
     const value = at(base, pathFor(id));
+    const row = el.closest('.row');
+    if (value === undefined) { if (row) row.style.display = 'none'; continue; }
+    if (row) row.style.display = '';
     el.value = value;
     showValue(el);
   }

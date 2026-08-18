@@ -123,18 +123,26 @@ function drawHorizontalBand(ctx, tex, opts) {
     }
 }
 
-/** Fill a path with a flat, tiled texture (no perspective) then darken it. */
-function fillPathWithTexture(ctx, tex, path, rect, surface, shade) {
+/**
+ * Fill a rectangle with a flat, tiled texture (no perspective) then darken it.
+ * Tile counts may be fractional - partial tiles are clipped by the rect.
+ */
+function fillRectWithTexture(ctx, tex, rect, tiles, shade) {
     ctx.save();
     ctx.beginPath();
-    path(ctx);
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
 
-    const tileW = rect.w / Math.max(1, surface.tilesX);
-    const tileH = rect.h / Math.max(1, surface.tilesY);
-    for (let ty = 0; ty < surface.tilesY; ty++) {
-        for (let tx = 0; tx < surface.tilesX; tx++) {
-            ctx.drawImage(tex, rect.x + tx * tileW, rect.y + ty * tileH, tileW, tileH);
+    const nx = Math.max(0.01, tiles.tilesX);
+    const ny = Math.max(0.01, tiles.tilesY);
+    const tileW = rect.w / nx;
+    const tileH = rect.h / ny;
+    const ox = (tiles.offsetX || 0) * tileW;
+    const oy = (tiles.offsetY || 0) * tileH;
+
+    for (let ty = -1; ty < Math.ceil(ny) + 1; ty++) {
+        for (let tx = -1; tx < Math.ceil(nx) + 1; tx++) {
+            ctx.drawImage(tex, rect.x + tx * tileW - ox, rect.y + ty * tileH - oy, tileW, tileH);
         }
     }
 
@@ -145,67 +153,88 @@ function fillPathWithTexture(ctx, tex, path, rect, surface, shade) {
     ctx.restore();
 }
 
+/**
+ * Tiling for a frontal (unforeshortened) surface.
+ *
+ * `textureScale` is the on-screen size of one texture repeat at a 512px frame, so
+ * masonry keeps a fixed course pitch whatever size the patch is. The back wall and
+ * the side panels share it, which is what makes them read as one continuous plane
+ * across a three-way rather than three separate walls that happen to be adjacent.
+ */
+function frontalTiles(rect, surface, size) {
+    const scalePx = (surface.textureScale / 512) * size;
+    return {
+        tilesX: rect.w / scalePx,
+        tilesY: rect.h / scalePx,
+        offsetX: surface.offsetX,
+        offsetY: surface.offsetY,
+    };
+}
+
 /** The cell's far face: a flat tiled wall filling the aperture. */
-function drawBackWall(ctx, tex, ap, surface) {
+function drawBackWall(ctx, tex, ap, surface, size) {
     const rect = { x: ap.left, y: ap.top, w: ap.right - ap.left, h: ap.bottom - ap.top };
-    fillPathWithTexture(
-        ctx,
-        tex,
-        c => c.rect(rect.x, rect.y, rect.w, rect.h),
-        rect,
-        surface,
-        surface.shadeNear
-    );
+    fillRectWithTexture(ctx, tex, rect, frontalTiles(rect, surface, size), surface.shadeNear);
 }
 
 /**
  * An open side.
  *
- * The wall band is drawn normally first - what you see through the gap is the
- * neighbouring corridor's own masonry, so the texture must still be there - and
- * then the part of the band that is *missing* is sunk in shadow. A lip adjacent
- * to the aperture is left lit: that is the corner post between this cell and the
- * side passage, and it is what makes the opening read as a gap rather than as a
- * patch of darker wall.
+ * Turning your head is not what happens here - you are looking *through* a gap into
+ * a corridor that runs across your view, so the masonry you see on the far side of
+ * it faces you square on. It is a frontal, untilted wall, not the cell's own side
+ * wall dimmed down.
+ *
+ * The reference art confirms it exactly: a closed side has skewed, irregularly
+ * spaced brick courses (a receding plane), while every open side in
+ * dung-turn.png / dung-turn-left.png / dung-threeway.png has courses at a dead-even
+ * 64px pitch spanning y 128..384 - a flat panel occupying the middle half of the
+ * frame, with the ceiling and floor running flat past it to the frame edge.
  */
-function drawSidePassage(ctx, tex, side, size, ap, surface, wall, geometry) {
+/**
+ * The ceiling and floor of the cross corridor, seen through an open side.
+ *
+ * Drawn *before* the main ceiling/floor so their converging wedges paint over the
+ * inner part of it. Widening the wedges to the frame edge instead would flatten
+ * them into full-width rectangles with nothing to converge towards, and the
+ * perspective texture compression then degenerates into horizontal banding.
+ */
+function drawSideCornerFills(ctx, textures, side, size, ap, cfg) {
+    const P = cfg.surfaces.passage;
     const isLeft = side === 'left';
-    const bandEdge = isLeft ? 0 : size;
-    const bandFar = isLeft ? ap.left : ap.right;
+    const x = isLeft ? 0 : ap.right;
+    const w = isLeft ? ap.left : size - ap.right;
+    if (w <= 0) return;
 
-    // Lay the masonry down under the wall's own lighting, not the passage's - the
-    // passage shades are the *void*, and applying them here as well would darken
-    // the gap twice and swallow the corner post along with it.
-    drawVerticalBand(ctx, tex, {
-        xNear: bandEdge, xFar: bandFar,
-        yTopNear: 0, yBotNear: size,
-        yTopFar: ap.top, yBotFar: ap.bottom,
-        surface: { ...surface, shadeNear: wall.shadeNear, shadeFar: wall.shadeFar },
-        depthRatio: geometry.depthRatio,
-    });
+    const pick = name => textures[name] || textures[Object.keys(textures)[0]];
+    const flat = { textureScale: P.textureScale, offsetX: P.offsetX, offsetY: P.offsetY };
 
-    // The void spans the band from the screen edge up to the corner post.
-    const lip = clamp01(surface.lip);
-    const tVoid = 1 - lip;
-    const xVoid = lerp(bandEdge, bandFar, tVoid);
-    const yTopVoid = lerp(0, ap.top, tVoid);
-    const yBotVoid = lerp(size, ap.bottom, tVoid);
+    const ceilRect = { x, y: 0, w, h: ap.top };
+    fillRectWithTexture(ctx, pick(cfg.surfaces.ceiling.texture), ceilRect,
+        frontalTiles(ceilRect, flat, size), cfg.surfaces.ceiling.shadeFar);
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(bandEdge, 0);
-    ctx.lineTo(xVoid, yTopVoid);
-    ctx.lineTo(xVoid, yBotVoid);
-    ctx.lineTo(bandEdge, size);
-    ctx.closePath();
-    ctx.clip();
+    const floorRect = { x, y: ap.bottom, w, h: size - ap.bottom };
+    fillRectWithTexture(ctx, pick(cfg.surfaces.floor.texture), floorRect,
+        frontalTiles(floorRect, flat, size), cfg.surfaces.floor.shadeFar);
+}
 
-    const g = ctx.createLinearGradient(bandEdge, 0, xVoid, 0);
-    g.addColorStop(0, `rgba(0,0,0,${clamp01(surface.shadeNear)})`);
-    g.addColorStop(1, `rgba(0,0,0,${clamp01(surface.shadeFar)})`);
-    ctx.fillStyle = g;
-    ctx.fillRect(Math.min(bandEdge, xVoid), 0, Math.abs(xVoid - bandEdge), size);
-    ctx.restore();
+function drawSidePanel(ctx, textures, side, size, ap, cfg) {
+    const P = cfg.surfaces.passage;
+    const isLeft = side === 'left';
+    const x = isLeft ? 0 : ap.right;
+    const w = isLeft ? ap.left : size - ap.right;
+    if (w <= 0) return;
+
+    const tex = textures[P.texture] || textures[Object.keys(textures)[0]];
+
+    // The panel's vertical extent is the aperture's, not a free parameter: the far
+    // wall of the cross corridor is the same masonry plane as this cell's back wall,
+    // so they have to line up exactly or a three-way shows a step in the brickwork.
+    //
+    // The ceiling and floor were already carried across this band (renderCell widens
+    // them on an open side), so only the wall itself is drawn here.
+    const panelRect = { x, y: ap.top, w, h: ap.bottom - ap.top };
+    fillRectWithTexture(ctx, tex, panelRect, frontalTiles(panelRect, P, size), P.shade);
 }
 
 /** A door panel standing in the aperture. */
@@ -338,6 +367,21 @@ export function renderCell(canvas, config, textures) {
     // Ceiling and floor first, then side walls, then the back wall on top - the
     // same near-to-far ordering the game uses, so seams are always covered by the
     // surface that is closer to the aperture.
+    //
+    // Where a side is open there is no wall to stop the ceiling and floor, so the
+    // cross corridor's own ceiling and floor are laid down flat in that outer corner
+    // first; the converging wedges below then paint over their inner half.
+    //
+    // The right side is drawn as the left side under a mirror. The aperture is
+    // centred, so mirroring maps it onto itself - and it guarantees turn-left and
+    // turn-right come out as exact mirror images, which they are in the reference
+    // art. Tiling each side independently instead lands them on different parts of
+    // the texture and one opening ends up visibly darker than the other.
+    const mirrored = fn => { ctx.save(); ctx.translate(N, 0); ctx.scale(-1, 1); fn(); ctx.restore(); };
+
+    if (config.openings.left) drawSideCornerFills(ctx, textures, 'left', N, ap, config);
+    if (config.openings.right) mirrored(() => drawSideCornerFills(ctx, textures, 'left', N, ap, config));
+
     drawHorizontalBand(ctx, tex(S.ceiling.texture), {
         yNear: 0, yFar: ap.top,
         xLeftNear: 0, xRightNear: N,
@@ -353,7 +397,7 @@ export function renderCell(canvas, config, textures) {
     });
 
     if (config.openings.left) {
-        drawSidePassage(ctx, tex(S.passage.texture), 'left', N, ap, S.passage, S.leftWall, geo);
+        drawSidePanel(ctx, textures, 'left', N, ap, config);
     } else {
         drawVerticalBand(ctx, tex(S.leftWall.texture), {
             xNear: 0, xFar: ap.left,
@@ -364,7 +408,7 @@ export function renderCell(canvas, config, textures) {
     }
 
     if (config.openings.right) {
-        drawSidePassage(ctx, tex(S.passage.texture), 'right', N, ap, S.passage, S.rightWall, geo);
+        mirrored(() => drawSidePanel(ctx, textures, 'left', N, ap, config));
     } else {
         drawVerticalBand(ctx, tex(S.rightWall.texture), {
             xNear: N, xFar: ap.right,
@@ -374,7 +418,7 @@ export function renderCell(canvas, config, textures) {
         });
     }
 
-    drawBackWall(ctx, tex(S.backWall.texture), ap, S.backWall);
+    drawBackWall(ctx, tex(S.backWall.texture), ap, S.backWall, N);
 
     const f = config.features || {};
     if (f.stairs === 'up' || f.stairs === 'down') {

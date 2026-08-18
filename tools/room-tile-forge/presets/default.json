@@ -3,19 +3,18 @@
   "supersample": 2,
   "geometry": {
     "apertureWidth": 0.5,
-    "apertureHeight": 0.381,
-    "apertureCenterY": 0.5615,
+    "apertureHeight": 0.5,
+    "apertureCenterY": 0.5,
     "depthRatio": 2.0
   },
   "surfaces": {
     "backWall": {
       "texture": "Brick_Large.png",
-      "tilesX": 2,
-      "tilesY": 2,
+      "textureScale": 256,
       "offsetX": 0,
       "offsetY": 0,
-      "shadeNear": 0.4,
-      "shadeFar": 0.4
+      "shadeNear": 0.34,
+      "shadeFar": 0.34
     },
     "leftWall": {
       "texture": "Brick_Large.png",
@@ -55,13 +54,10 @@
     },
     "passage": {
       "texture": "Brick_Large.png",
-      "tilesX": 3,
-      "tilesY": 2,
+      "textureScale": 256,
       "offsetX": 0,
       "offsetY": 0,
-      "lip": 0.18,
-      "shadeNear": 0.52,
-      "shadeFar": 0.8
+      "shade": 0.62
     }
   },
   "openings": {

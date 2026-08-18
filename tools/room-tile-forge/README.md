@@ -62,17 +62,38 @@ face; `depthRatio` is the near:far size ratio, the single knob controlling how h
 texture foreshortens. `1.0` is affine (evenly spaced brick courses all the way back),
 `2.0` matches an aperture half the width of the near opening.
 
-Defaults are measured from the existing hand-made art (`dung-corridor.png` and friends):
-aperture `x 128→384`, `y ≈190→385` — the centred half-width with the horizon above centre.
+Defaults are measured from the existing hand-made art: the back wall of `dung-corridor.png`
+is exactly the **centred half-square**, `x, y ∈ [128, 384]` of a 512 frame. (Watch out when
+re-measuring — the mortar lines at y≈190 and y≈377 read as strong horizontal edges and are
+easy to mistake for the wall boundary. Classify by material, or overlay guides and look.)
 
-**Surfaces** — `backWall`, `leftWall`, `rightWall`, `ceiling`, `floor` each take a texture,
-`tilesX`/`tilesY` repeats, `offsetX`/`offsetY`, and `shadeNear`/`shadeFar` (black overlay
-alpha at the near and far ends of the surface).
+**Surfaces** — each takes a texture, `offsetX`/`offsetY` and `shadeNear`/`shadeFar` (black
+overlay alpha at the near and far ends). They come in two kinds, and the editor hides the
+controls that do not apply to the selected one:
 
-**Side passage** — what an *open* side is drawn with. The masonry is laid down under the
-neighbouring wall's lighting, then `lip` of the band nearest the aperture is left lit as
-the corner post while the rest sinks under a `shadeNear`→`shadeFar` gradient. The corner
-post is what makes an opening read as a gap rather than as a patch of darker wall.
+- *Strip-mapped* (`leftWall`, `rightWall`, `ceiling`, `floor`) — receding planes, tiled by
+  repeat **count** with `tilesX`/`tilesY`, foreshortened by `depthRatio`.
+- *Frontal* (`backWall`, `passage`) — planes parallel to the screen, tiled by texel
+  **scale** with `textureScale`: the on-screen size of one texture repeat at a 512 frame.
+  Sharing one scale is what keeps the brick courses continuous across a three-way.
+
+**Side panel** — what an *open* side is drawn with. Looking through a gap does not show you
+your own side wall dimmed down; it shows the far wall of the corridor running across your
+view, and that wall faces you square on. So an open side is a **flat, untilted panel**,
+sharing the back wall's plane and course grid exactly — in a three-way the two panels and
+the back wall form one continuous wall spanning the whole frame. The cross corridor's own
+ceiling and floor are laid flat in the outer corners, and the main converging wedges paint
+over their inner half.
+
+The reference art settles it. A closed side has skewed, irregularly spaced courses (a
+receding plane); every open side in `dung-turn.png`, `dung-turn-left.png` and
+`dung-threeway.png` has a dead-even 128px pattern pitch spanning `y 128..384`:
+
+```
+                              horizontal edges (y)
+corridor  LEFT band (closed)  144, 246, 254, 445, ...   receding plane
+turn-left LEFT band (OPEN)    128, 192, 256, 320, 382   flat frontal panel
+```
 
 **Door / Stairs** — panel size and shading; step count, width, rise, convergence, tread
 depth and nosing highlight.
@@ -86,10 +107,10 @@ art exist only baked into those pre-rendered images, so **forged tiles look like
 and STR modes, not like today's 2D art.** Drop new PNGs into `src/resources` and they
 appear in the texture dropdowns automatically.
 
-Measured against the originals, the forged set reproduces the left/right signature the
-renderer depends on — an open side at `0.42×` the brightness of a closed one, against
-`0.43×` in the hand-made art — on a base that is about 17% dimmer because `Brick_Large`
-is a darker stone than the original.
+Measured against the originals, the forged set reproduces both signatures the renderer and
+the eye depend on: the open-side panel runs at a 128px course pitch against the reference's
+128px, and open sides stay distinguishable from closed ones. The base is dimmer than the
+hand-made art because `Brick_Large` is a darker stone.
 
 ## Why a server
 
